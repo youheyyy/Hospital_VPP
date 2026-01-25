@@ -1,0 +1,57 @@
+# ===============================
+# OS / Editor / IDE
+# ===============================
+.DS_Store
+Thumbs.db
+
+/.fleet
+/.idea
+/.nova
+/.vscode
+/.zed
+
+# ===============================
+# Logs & cache
+# ===============================
+*.log
+.phpunit.result.cache
+/.phpunit.cache
+.phpactor.json
+
+# ===============================
+# Environment files (NEVER COMMIT)
+# ===============================
+# .env
+# .env.*
+.env.backup
+.env.production
+/auth.json
+
+# ===============================
+# Dependencies
+# ===============================
+/node_modules
+/vendor
+
+# ===============================
+# Laravel specific
+# ===============================
+/storage/*.key
+/storage/logs
+/storage/framework
+/storage/framework/cache
+/storage/framework/sessions
+/storage/framework/views
+/storage/pail
+
+/public/storage
+/public/build
+/public/hot
+
+/database/database.sqlite
+
+# ===============================
+# Laravel Homestead
+# ===============================
+Homestead.json
+Homestead.yaml
