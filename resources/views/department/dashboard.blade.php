@@ -29,6 +29,7 @@
             },
         }
     </script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <style type="text/tailwindcss">
         body { font-family: 'Inter', sans-serif; }
         .material-symbols-outlined {
@@ -58,9 +59,10 @@
                         LÝ</h2>
                 </div>
                 <nav class="hidden md:flex items-center gap-8">
-                    <a class="text-primary text-lg font-bold border-b-4 border-primary pb-1" href="#">Tổng quan</a>
+                    <a class="text-primary text-lg font-bold border-b-4 border-primary pb-1"
+                        href="{{ route('department.dashboard') }}">Tổng quan</a>
                     <a class="text-[#4c669a] dark:text-gray-400 text-lg font-bold hover:text-primary transition-colors"
-                        href="#">Yêu cầu của tôi</a>
+                        href="{{ route('department.request') }}">Yêu cầu của tôi</a>
                     <a class="text-[#4c669a] dark:text-gray-400 text-lg font-bold hover:text-primary transition-colors"
                         href="#">Thông báo</a>
                 </nav>
@@ -79,13 +81,45 @@
                         <span class="material-symbols-outlined">notifications</span>
                     </button>
                 </div>
-                <div
-                    class="flex items-center gap-3 bg-gray-100 dark:bg-gray-800 p-1 pr-4 rounded-full border border-gray-200 dark:border-gray-700">
-                    <div
-                        class="h-12 w-12 rounded-full bg-primary text-white flex items-center justify-center text-xl font-black">
-                        K
+
+                <!-- Dropdown User -->
+                <div class="relative" x-data="{ open: false }">
+                    <button @click="open = !open" @click.outside="open = false"
+                        class="flex items-center gap-3 bg-gray-100 dark:bg-gray-800 p-1 pr-4 rounded-full border border-gray-200 dark:border-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+                        <div
+                            class="h-12 w-12 rounded-full bg-primary text-white flex items-center justify-center text-xl font-black">
+                            {{ substr(Auth::user()->fullname ?? 'K', 0, 1) }}
+                        </div>
+                        <span
+                            class="font-bold text-lg hidden lg:block">{{ Auth::user()->fullname ?? 'Khoa Phòng' }}</span>
+                        <span class="material-symbols-outlined text-gray-500">expand_more</span>
+                    </button>
+
+                    <div x-show="open" x-transition:enter="transition ease-out duration-100"
+                        x-transition:enter-start="transform opacity-0 scale-95"
+                        x-transition:enter-end="transform opacity-100 scale-100"
+                        x-transition:leave="transition ease-in duration-75"
+                        x-transition:leave-start="transform opacity-100 scale-100"
+                        x-transition:leave-end="transform opacity-0 scale-95"
+                        class="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-xl shadow-lg py-1 border border-gray-200 dark:border-gray-700 z-50"
+                        style="display: none;">
+                        <a href="#"
+                            class="block px-4 py-3 text-sm font-bold text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">
+                            Hồ sơ
+                        </a>
+                        <a href="#"
+                            class="block px-4 py-3 text-sm font-bold text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">
+                            Cài đặt
+                        </a>
+                        <div class="border-t border-gray-100 dark:border-gray-700 my-1"></div>
+                        <form method="POST" action="{{ route('logout') }}" class="block">
+                            @csrf
+                            <button type="submit"
+                                class="w-full text-left px-4 py-3 text-sm font-bold text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20">
+                                Đăng xuất
+                            </button>
+                        </form>
                     </div>
-                    <span class="font-bold text-lg hidden lg:block">Khoa Nội</span>
                 </div>
             </div>
         </header>
@@ -96,20 +130,21 @@
                 class="w-72 flex flex-col justify-between border-r-2 border-[#e7ebf3] dark:border-gray-800 bg-white dark:bg-gray-900 p-6">
                 <div class="flex flex-col gap-8">
                     <div class="flex flex-col px-2 gap-1">
-                        <h1 class="text-black dark:text-white text-xl font-black leading-normal uppercase">Khoa Tim Mạch
-                        </h1>
+                        <h1 class="text-black dark:text-white text-xl font-black leading-normal uppercase">
+                            {{ Auth::user()->department->name ?? 'Khoa Phòng' }}</h1>
                         <p
                             class="text-primary font-bold text-sm bg-primary/10 px-3 py-1 rounded-md inline-block self-start">
-                            Khu A • Tầng 2</p>
+                            {{ Auth::user()->department->location ?? 'Khu vực chính' }}
+                        </p>
                     </div>
                     <div class="flex flex-col gap-2">
                         <a class="flex items-center gap-4 px-4 py-4 rounded-xl bg-primary text-white font-black text-lg shadow-md"
-                            href="#">
+                            href="{{ route('department.dashboard') }}">
                             <span class="material-symbols-outlined">grid_view</span>
                             <span>Tổng quan</span>
                         </a>
                         <a class="flex items-center gap-4 px-4 py-4 rounded-xl text-[#4c669a] dark:text-gray-400 hover:bg-[#e7ebf3] dark:hover:bg-gray-800 transition-all font-bold text-lg"
-                            href="#">
+                            href="{{ route('department.request') }}">
                             <span class="material-symbols-outlined">add_box</span>
                             <span>Tạo phiếu yêu cầu</span>
                         </a>
@@ -126,11 +161,11 @@
                     </div>
                 </div>
                 <div class="pt-6 border-t-2 border-[#e7ebf3] dark:border-gray-800">
-                    <button
+                    <a href="{{ route('department.request') }}"
                         class="w-full flex items-center justify-center gap-3 rounded-2xl h-16 px-6 bg-primary text-white text-xl font-black shadow-xl shadow-primary/30 hover:bg-blue-700 hover:scale-[1.02] active:scale-[0.98] transition-all">
                         <span class="material-symbols-outlined !text-3xl">post_add</span>
                         <span>TẠO PHIẾU MỚI</span>
-                    </button>
+                    </a>
                 </div>
             </aside>
 
