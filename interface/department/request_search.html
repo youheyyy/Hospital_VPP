@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html class="light" lang="vi"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Nhập Liệu &amp; Thêm Sản Phẩm Mới - Hệ Thống Văn Phòng Phẩm</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,typography,container-queries"></script>
+<script>
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              primary: "#0284c7",
+              "background-light": "#f8fafc",
+              "background-dark": "#0f172a",
+            },
+            fontFamily: {
+              display: ["Inter", "sans-serif"],
+            },
+            borderRadius: {
+              DEFAULT: "0.5rem",
+            },
+          },
+        },
+      };
+    </script>
+<style type="text/tailwindcss">
+        body { font-family: 'Inter', sans-serif; }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        input[type="number"]::-webkit-inner-spin-button,
+        input[type="number"]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 min-h-screen transition-colors duration-200">
+<header class="sticky top-0 z-50 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-6 py-3 flex items-center justify-between shadow-sm">
+<div class="flex items-center gap-4">
+<div class="bg-primary p-2 rounded-lg text-white">
+<span class="material-symbols-outlined">local_hospital</span>
+</div>
+<div>
+<h1 class="text-xl font-bold tracking-tight uppercase">Nhập Liệu Phiếu Yêu Cầu Tối Ưu</h1>
+<p class="text-xs text-slate-500 dark:text-slate-400 uppercase font-medium">Khoa: Cấp Cứu • 15/10/2023</p>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<button class="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors" onclick="document.documentElement.classList.toggle('dark')">
+<span class="material-symbols-outlined dark:hidden">dark_mode</span>
+<span class="material-symbols-outlined hidden dark:block text-yellow-400">light_mode</span>
+</button>
+<button class="flex items-center gap-2 px-4 py-2 border border-slate-300 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 font-medium transition-colors">
+<span class="material-symbols-outlined text-lg">history</span> Lịch sử
+        </button>
+<div class="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center border-2 border-white dark:border-slate-800 shadow-sm overflow-hidden">
+<img alt="User Avatar" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAPB5qyPhU6l1NUZdqybZ_9n3Ml6IfUwAQimkj4Y6AZicD3_XX69flfQLumXUh1xt_9WCVBy-UrpvfZkpPsB7Eadx-fJFa2L0Feucya-UZcSchadUmLjP0WnHVT8ogXOPN-4rso_F1raoljxbYRPgYGKVgVLZLO0NrFlrOih5Jd_oqtCtNl-yJt6GCfjdj-NUvUjYmQQ_O8QFWZn7ABydQuR10kaGtFEHD9yCnUCeBJ8pmrTP6ORsavRiYahdc92tdsbOMtptsNbjwS"/>
+</div>
+</div>
+</header>
+<main class="max-w-7xl mx-auto p-6 space-y-6">
+<section class="relative">
+<div class="bg-white dark:bg-slate-900 rounded-2xl p-4 shadow-sm border border-slate-200 dark:border-slate-800">
+<div class="relative group">
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors">search</span>
+<input class="w-full pl-12 pr-4 py-4 bg-slate-50 dark:bg-slate-800 border-transparent focus:border-primary focus:ring-0 rounded-xl text-lg transition-all" placeholder="Nhập tên sản phẩm để tìm hoặc thêm mới..." type="text" value="Giấy in nhiệt K80 siêu trắng"/>
+<div class="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
+<kbd class="hidden md:inline-flex items-center gap-1 px-2 py-1 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded text-xs text-slate-400">
+<span class="material-symbols-outlined text-[14px]">keyboard_command_key</span> K
+                    </kbd>
+</div>
+</div>
+</div>
+<div class="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-900 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden z-[60]">
+<div class="p-2 border-b border-slate-100 dark:border-slate-800 text-xs font-semibold text-slate-400 px-4 uppercase tracking-wider">Kết quả tìm kiếm</div>
+<div class="p-2">
+<button class="w-full text-left px-4 py-3 rounded-lg flex items-center justify-between hover:bg-primary/10 group transition-colors">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary">add_circle</span>
+<span class="font-medium">Thêm sản phẩm mới: <span class="text-primary italic">"Giấy in nhiệt K80 siêu trắng"</span></span>
+</div>
+<span class="text-xs bg-primary text-white px-2 py-1 rounded">Mới</span>
+</button>
+</div>
+<div class="bg-slate-50 dark:bg-slate-800/50 p-6 border-t border-slate-200 dark:border-slate-700">
+<div class="flex items-center gap-2 mb-4">
+<span class="material-symbols-outlined text-primary">edit_note</span>
+<h3 class="font-bold">Chi tiết sản phẩm mới</h3>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+<div class="space-y-1.5">
+<label class="text-xs font-bold text-slate-500 uppercase">Tên sản phẩm</label>
+<input class="w-full bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 rounded-lg focus:ring-primary focus:border-primary" type="text" value="Giấy in nhiệt K80 siêu trắng"/>
+</div>
+<div class="space-y-1.5">
+<label class="text-xs font-bold text-slate-500 uppercase">Đơn vị tính</label>
+<select class="w-full bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 rounded-lg focus:ring-primary focus:border-primary">
+<option>Cuộn</option>
+<option>Thùng</option>
+<option>Tờ</option>
+<option>Hộp</option>
+</select>
+</div>
+<div class="space-y-1.5">
+<label class="text-xs font-bold text-slate-500 uppercase">Danh mục dự kiến</label>
+<select class="w-full bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 rounded-lg focus:ring-primary focus:border-primary">
+<option>Vật tư tiêu hao</option>
+<option>Văn phòng phẩm</option>
+<option>Dụng cụ y khoa</option>
+</select>
+</div>
+</div>
+<div class="flex justify-end gap-3 mt-6">
+<button class="px-4 py-2 text-sm font-semibold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg">Bỏ qua</button>
+<button class="px-6 py-2 bg-primary text-white text-sm font-bold rounded-lg hover:bg-sky-700 shadow-md transition-all">Xác nhận &amp; Thêm</button>
+</div>
+</div>
+</div>
+</section>
+<section class="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden">
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead class="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800">
+<tr>
+<th class="px-4 py-4 font-semibold text-sm w-12 text-center">STT</th>
+<th class="px-4 py-4 font-semibold text-sm">Tên hàng / Mô tả</th>
+<th class="px-4 py-4 font-semibold text-sm w-24 text-center">ĐVT</th>
+<th class="px-4 py-4 font-semibold text-sm w-44 text-center">Số Lượng</th>
+<th class="px-4 py-4 font-semibold text-sm w-32 text-right">Đơn giá</th>
+<th class="px-4 py-4 font-semibold text-sm w-36 text-right">Thành Tiền</th>
+<th class="px-4 py-4 font-semibold text-sm w-12 text-center"></th>
+</tr>
+</thead>
+<tbody>
+<tr class="bg-amber-50/50 dark:bg-amber-900/10 border-b border-amber-100 dark:border-amber-800/50 hover:bg-amber-100/50 dark:hover:bg-amber-900/20 transition-colors group">
+<td class="px-4 py-3 text-center text-slate-400 text-sm italic font-medium">New</td>
+<td class="px-4 py-3">
+<div class="flex items-center gap-2">
+<div class="font-bold text-slate-900 dark:text-white">Giấy in nhiệt K80 siêu trắng</div>
+<span class="bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 text-[10px] px-1.5 py-0.5 rounded font-bold uppercase border border-amber-200 dark:border-amber-700">Mới</span>
+</div>
+<div class="text-xs text-amber-600 dark:text-amber-400 font-medium">Danh mục đề xuất: Vật tư tiêu hao</div>
+</td>
+<td class="px-4 py-3 text-sm text-center">Cuộn</td>
+<td class="px-4 py-3">
+<div class="flex items-center justify-center gap-1">
+<button class="w-8 h-8 rounded bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 hover:bg-primary hover:text-white transition-colors flex items-center justify-center">
+<span class="material-symbols-outlined text-sm font-bold">remove</span>
+</button>
+<input class="w-16 h-8 text-center bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 rounded focus:ring-primary focus:border-primary p-0 font-bold" type="number" value="10"/>
+<button class="w-8 h-8 rounded bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 hover:bg-primary hover:text-white transition-colors flex items-center justify-center">
+<span class="material-symbols-outlined text-sm font-bold">add</span>
+</button>
+</div>
+</td>
+<td class="px-4 py-3 text-right text-sm font-mono text-slate-400 italic">Chờ duyệt</td>
+<td class="px-4 py-3 text-right text-sm font-bold font-mono text-amber-600">Tạm tính</td>
+<td class="px-4 py-3">
+<button class="p-1 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all">
+<span class="material-symbols-outlined text-xl">delete</span>
+</button>
+</td>
+</tr>
+<tr class="bg-blue-50/50 dark:bg-primary/10">
+<td class="px-4 py-2 border-y border-slate-200 dark:border-slate-800" colspan="7">
+<div class="flex items-center gap-2 text-primary font-bold text-sm">
+<span class="material-symbols-outlined text-sm">keyboard_arrow_down</span>
+                                VĂN PHÒNG PHẨM - NHÀ SÁCH THANH VÂN
+                            </div>
+</td>
+</tr>
+<tr class="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors group">
+<td class="px-4 py-3 text-center text-slate-400 text-sm">1</td>
+<td class="px-4 py-3">
+<div class="font-medium">Bìa sơ mi lá lỗ cung tròn</div>
+<div class="text-xs text-slate-400">SKU: VPP-001</div>
+</td>
+<td class="px-4 py-3 text-sm text-center">Xấp</td>
+<td class="px-4 py-3">
+<div class="flex items-center justify-center gap-1">
+<button class="w-8 h-8 rounded bg-slate-100 dark:bg-slate-700 hover:bg-primary hover:text-white transition-colors flex items-center justify-center">
+<span class="material-symbols-outlined text-sm">remove</span>
+</button>
+<input class="w-16 h-8 text-center bg-transparent border-slate-200 dark:border-slate-700 rounded focus:ring-primary focus:border-primary p-0" type="number" value="1"/>
+<button class="w-8 h-8 rounded bg-slate-100 dark:bg-slate-700 hover:bg-primary hover:text-white transition-colors flex items-center justify-center">
+<span class="material-symbols-outlined text-sm">add</span>
+</button>
+</div>
+</td>
+<td class="px-4 py-3 text-right text-sm font-mono">25,000</td>
+<td class="px-4 py-3 text-right text-sm font-bold font-mono text-primary">25,000</td>
+<td class="px-4 py-3">
+<button class="p-1 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all">
+<span class="material-symbols-outlined text-xl">delete</span>
+</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="sticky bottom-0 bg-slate-50 dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 p-4 px-6 flex items-center justify-between">
+<div class="flex gap-6">
+<div class="text-sm">
+<span class="text-slate-500 dark:text-slate-400">Số lượng mặt hàng:</span>
+<span class="font-bold ml-1 text-primary text-lg">05</span>
+</div>
+<div class="text-sm">
+<span class="text-slate-500 dark:text-slate-400">Số lượng mới:</span>
+<span class="font-bold ml-1 text-amber-600 bg-amber-100 dark:bg-amber-900/40 px-2 py-0.5 rounded">01</span>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<span class="text-lg font-medium text-slate-500 dark:text-slate-400">TỔNG CỘNG (Dự tính):</span>
+<span class="text-2xl font-black text-primary font-mono tracking-tighter">128,600 VNĐ</span>
+</div>
+</div>
+</section>
+<div class="flex items-center justify-between pt-4">
+<button class="flex items-center gap-2 px-6 py-3 text-red-600 dark:text-red-400 font-bold hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-all">
+<span class="material-symbols-outlined">delete_sweep</span> Hủy phiếu
+        </button>
+<div class="flex items-center gap-4">
+<button class="px-8 py-3.5 border border-slate-300 dark:border-slate-700 rounded-xl font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition-all flex items-center gap-2">
+<span class="material-symbols-outlined">save</span> Lưu nháp
+            </button>
+<button class="px-10 py-3.5 bg-primary text-white rounded-xl font-bold hover:bg-sky-700 shadow-lg shadow-sky-500/20 active:scale-95 transition-all flex items-center gap-2">
+                Gửi phiếu yêu cầu <span class="material-symbols-outlined">send</span>
+</button>
+</div>
+</div>
+</main>
+<div class="fixed bottom-6 left-6 flex flex-col gap-2">
+<div class="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md px-5 py-2.5 rounded-full border border-slate-200 dark:border-slate-800 shadow-xl flex items-center gap-4 text-[11px] font-bold text-slate-500 uppercase tracking-widest">
+<div class="flex items-center gap-1.5"><kbd class="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded">F2</kbd> Tìm/Thêm mới</div>
+<div class="w-1 h-1 bg-slate-300 dark:bg-slate-700 rounded-full"></div>
+<div class="flex items-center gap-1.5"><kbd class="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded">F4</kbd> Lưu nháp</div>
+<div class="w-1 h-1 bg-slate-300 dark:bg-slate-700 rounded-full"></div>
+<div class="flex items-center gap-1.5"><kbd class="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded">Enter</kbd> Gửi</div>
+</div>
+</div>
+
+</body></html>

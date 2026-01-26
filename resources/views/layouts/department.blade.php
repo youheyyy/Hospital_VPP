@@ -71,7 +71,7 @@
                 </div>
                 <nav class="hidden md:flex items-center gap-8">
                     <a class="text-primary text-lg font-bold border-b-4 border-primary pb-1" href="{{ route('department.dashboard') }}">Tổng quan</a>
-                    <a class="text-[#4c669a] dark:text-gray-400 text-lg font-bold hover:text-primary transition-colors" href="#">Yêu cầu của tôi</a>
+                    <a class="text-[#4c669a] dark:text-gray-400 text-lg font-bold hover:text-primary transition-colors" href="{{ route('department.list_request') }}">Yêu cầu của tôi</a>
                     <a class="text-[#4c669a] dark:text-gray-400 text-lg font-bold hover:text-primary transition-colors" href="#">Thông báo</a>
                 </nav>
             </div>
@@ -167,11 +167,11 @@
                             <span class="material-symbols-outlined">grid_view</span>
                             <span>Tổng quan</span>
                         </a>
-                        <a class="flex items-center gap-4 px-4 py-4 rounded-xl {{ request()->routeIs('department.request') ? 'bg-primary text-white font-black shadow-md' : 'text-[#4c669a] dark:text-gray-400 hover:bg-[#e7ebf3] dark:hover:bg-gray-800 font-bold' }} text-lg transition-all" href="{{ route('department.request') }}">
+                        <a class="flex items-center gap-4 px-4 py-4 rounded-xl {{ request()->routeIs('department.request.create') ? 'bg-primary text-white font-black shadow-md' : 'text-[#4c669a] dark:text-gray-400 hover:bg-[#e7ebf3] dark:hover:bg-gray-800 font-bold' }} text-lg transition-all" href="{{ route('department.request.create') }}">
                             <span class="material-symbols-outlined">add_box</span>
                             <span>Tạo phiếu yêu cầu</span>
                         </a>
-                        <a class="flex items-center gap-4 px-4 py-4 rounded-xl text-[#4c669a] dark:text-gray-400 hover:bg-[#e7ebf3] dark:hover:bg-gray-800 transition-all font-bold text-lg" href="#">
+                        <a class="flex items-center gap-4 px-4 py-4 rounded-xl {{ request()->routeIs('department.list_request') ? 'bg-primary text-white font-black shadow-md' : 'text-[#4c669a] dark:text-gray-400 hover:bg-[#e7ebf3] dark:hover:bg-gray-800 font-bold' }} text-lg transition-all" href="{{ route('department.list_request') }}">
                             <span class="material-symbols-outlined">list_alt</span>
                             <span>Danh sách yêu cầu</span>
                         </a>
@@ -182,7 +182,7 @@
                     </div>
                 </div>
                 <div class="pt-6 border-t-2 border-[#e7ebf3] dark:border-gray-800">
-                    <a href="{{ route('department.request') }}" class="w-full flex items-center justify-center gap-3 rounded-2xl h-16 px-6 bg-primary text-white text-xl font-black shadow-xl shadow-primary/30 hover:bg-blue-700 hover:scale-[1.02] active:scale-[0.98] transition-all">
+                    <a href="{{ route('department.request.create') }}" class="w-full flex items-center justify-center gap-3 rounded-2xl h-16 px-6 bg-primary text-white text-xl font-black shadow-xl shadow-primary/30 hover:bg-blue-700 hover:scale-[1.02] active:scale-[0.98] transition-all">
                         <span class="material-symbols-outlined !text-3xl">post_add</span>
                         <span>TẠO PHIẾU MỚI</span>
                     </a>

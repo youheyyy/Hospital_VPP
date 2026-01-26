@@ -64,28 +64,29 @@
                     <span class="material-symbols-outlined text-[20px]">dashboard</span>
                     <span class="text-sm font-semibold">Tổng quan</span>
                 </a>
-                <a class="flex items-center gap-3 px-3 py-2.5 rounded-md hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400"
-                    href="#">
-                    <span class="material-symbols-outlined text-[20px]">inventory_2</span>
-                    <span class="text-sm font-medium">Danh mục vật tư</span>
-                </a>
-                <a class="flex items-center gap-3 px-3 py-2.5 rounded-md hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400"
-                    href="#">
-                    <span class="material-symbols-outlined text-[20px]">warehouse</span>
-                    <span class="text-sm font-medium">Quản lý kho</span>
-                </a>
+                
                 <a class="flex items-center gap-3 px-3 py-2.5 rounded-md hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400"
                     href="#">
                     <span class="material-symbols-outlined text-[20px]">description</span>
                     <span class="text-sm font-medium">Phiếu yêu cầu</span>
                 </a>
-                <a class="flex items-center gap-3 px-3 py-2.5 rounded-md hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400"
-                    href="#">
+                <a class="flex items-center gap-3 px-3 py-2.5 rounded-md {{ request()->routeIs('admin.approve_summary_votes') ? 'sidebar-item-active' : 'hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400' }}" 
+                    href="{{ route('admin.approve_summary_votes') }}">
+                    <span class="material-symbols-outlined text-[20px]">receipt_long</span>
+                    <span class="text-sm font-medium">Duyệt phiếu tổng hợp</span>
+                </a>
+                <a class="flex items-center gap-3 px-3 py-2.5 rounded-md {{ request()->routeIs('admin.department') ? 'sidebar-item-active' : 'hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400' }}" 
+                    href="{{ route('admin.department') }}">
                     <span class="material-symbols-outlined text-[20px]">apartment</span>
                     <span class="text-sm font-medium">Khoa/Phòng</span>
                 </a>
-                <a class="flex items-center gap-3 px-3 py-2.5 rounded-md hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400"
-                    href="#">
+                <a class="flex items-center gap-3 px-3 py-2.5 rounded-md {{ request()->routeIs('admin.product') ? 'sidebar-item-active' : 'hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400' }}" 
+                    href="{{ route('admin.product') }}">
+                    <span class="material-symbols-outlined text-[20px]">inventory_2</span>
+                    <span class="text-sm font-medium">Danh mục vật tư</span>
+                </a>
+                <a class="flex items-center gap-3 px-3 py-2.5 rounded-md {{ request()->routeIs('admin.report') ? 'sidebar-item-active' : 'hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400' }}" 
+                    href="{{ route('admin.report') }}">
                     <span class="material-symbols-outlined text-[20px]">bar_chart</span>
                     <span class="text-sm font-medium">Báo cáo thống kê</span>
                 </a>

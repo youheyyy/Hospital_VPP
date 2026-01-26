@@ -86,21 +86,19 @@
     <!-- Main Content Container -->
     <div class="relative z-10 w-full max-w-[1400px] px-8 lg:px-20 grid lg:grid-cols-2 items-center min-h-screen">
         <!-- Left Column: Branding/Welcome Text (Desktop Only) -->
-        <div class="hidden lg:flex flex-col justify-center gap-6 pr-10">
-            <div class="flex flex-col gap-6">
-                <div class="flex flex-col gap-4">
-                    <img src="{{ asset('images/logo-tmmc.png') }}" alt="TMMC Healthcare Logo"
-                        class="h-40 w-auto object-contain self-start" />
-                    <div>
-                        <h1
-                            class="text-2xl font-extrabold text-[#005ba3] dark:text-blue-400 uppercase leading-snug tracking-wide">
-                            BỆNH VIỆN ĐA KHOA <br /> TÂM TRÍ CAO LÃNH
-                        </h1>
-                        <p class="text-lg font-bold text-gray-500 dark:text-gray-400 mt-1">TMMC HEALTHCARE</p>
-                    </div>
+        <div class="hidden lg:flex flex-col justify-center gap-8 pr-10">
+            <div class="flex items-center gap-6">
+                <img src="{{ asset('images/logo-tmmc.png') }}" alt="TMMC Healthcare Logo"
+                    class="h-32 w-auto object-contain flex-shrink-0" />
+                <div>
+                    <h1
+                        class="text-xl font-extrabold text-[#005ba3] dark:text-blue-400 uppercase leading-snug tracking-wide">
+                        BỆNH VIỆN ĐA KHOA <br /> TÂM TRÍ CAO LÃNH
+                    </h1>
+                    <p class="text-base font-bold text-gray-500 dark:text-gray-400 mt-1">TMMC HEALTHCARE</p>
                 </div>
             </div>
-            <div class="space-y-4 mt-4">
+            <div class="space-y-4">
                 <h2 class="text-5xl font-bold text-[#0d191b] dark:text-white leading-tight">
                     Hệ Thống Quản Lý <br />
                     <span class="text-primary">Văn Phòng Phẩm</span>
@@ -116,13 +114,13 @@
             <div
                 class="layout-content-container flex flex-col w-full max-w-[480px] glass-card rounded-xl p-8 shadow-2xl">
                 <!-- Mobile Header -->
-                <div class="flex flex-col gap-4 mb-8 lg:hidden items-center text-center">
+                <div class="flex items-center gap-4 mb-8 lg:hidden">
                     <img src="{{ asset('images/logo-tmmc.png') }}" alt="TMMC Healthcare Logo"
-                        class="h-24 w-auto object-contain" />
-                    <div>
-                        <h1 class="text-lg font-extrabold text-[#005ba3] dark:text-blue-400 uppercase leading-tight">
+                        class="h-20 w-auto object-contain flex-shrink-0" />
+                    <div class="text-left">
+                        <h1 class="text-base font-extrabold text-[#005ba3] dark:text-blue-400 uppercase leading-tight">
                             BỆNH VIỆN ĐA KHOA <br /> TÂM TRÍ CAO LÃNH</h1>
-                        <p class="text-sm font-bold text-gray-500 dark:text-gray-400">TMMC HEALTHCARE</p>
+                        <p class="text-xs font-bold text-gray-500 dark:text-gray-400 mt-1">TMMC HEALTHCARE</p>
                     </div>
                 </div>
 

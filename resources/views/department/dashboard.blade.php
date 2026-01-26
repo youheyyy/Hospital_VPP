@@ -62,7 +62,7 @@
                     <a class="text-primary text-lg font-bold border-b-4 border-primary pb-1"
                         href="{{ route('department.dashboard') }}">Tổng quan</a>
                     <a class="text-[#4c669a] dark:text-gray-400 text-lg font-bold hover:text-primary transition-colors"
-                        href="{{ route('department.request') }}">Yêu cầu của tôi</a>
+                        href="{{ route('department.list_request') }}">Yêu cầu của tôi</a>
                     <a class="text-[#4c669a] dark:text-gray-400 text-lg font-bold hover:text-primary transition-colors"
                         href="#">Thông báo</a>
                 </nav>
@@ -144,12 +144,12 @@
                             <span>Tổng quan</span>
                         </a>
                         <a class="flex items-center gap-4 px-4 py-4 rounded-xl text-[#4c669a] dark:text-gray-400 hover:bg-[#e7ebf3] dark:hover:bg-gray-800 transition-all font-bold text-lg"
-                            href="{{ route('department.request') }}">
+                            href="{{ route('department.request.create') }}">
                             <span class="material-symbols-outlined">add_box</span>
                             <span>Tạo phiếu yêu cầu</span>
                         </a>
                         <a class="flex items-center gap-4 px-4 py-4 rounded-xl text-[#4c669a] dark:text-gray-400 hover:bg-[#e7ebf3] dark:hover:bg-gray-800 transition-all font-bold text-lg"
-                            href="#">
+                            href="{{ route('department.list_request') }}">
                             <span class="material-symbols-outlined">list_alt</span>
                             <span>Danh sách yêu cầu</span>
                         </a>
@@ -161,7 +161,7 @@
                     </div>
                 </div>
                 <div class="pt-6 border-t-2 border-[#e7ebf3] dark:border-gray-800">
-                    <a href="{{ route('department.request') }}"
+                    <a href="{{ route('department.request.create') }}"
                         class="w-full flex items-center justify-center gap-3 rounded-2xl h-16 px-6 bg-primary text-white text-xl font-black shadow-xl shadow-primary/30 hover:bg-blue-700 hover:scale-[1.02] active:scale-[0.98] transition-all">
                         <span class="material-symbols-outlined !text-3xl">post_add</span>
                         <span>TẠO PHIẾU MỚI</span>
@@ -196,13 +196,13 @@
 
                     <!-- Quick Actions -->
                     <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
-                        <button
-                            class="bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-all hover:scale-105 active:scale-95">
+                        <a href="{{ route('department.request.create') }}"
+                            class="bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-all hover:scale-105 active:scale-95 block text-center">
                             <div class="flex flex-col items-center gap-3">
                                 <span class="material-symbols-outlined !text-5xl">post_add</span>
                                 <span class="text-xl font-black">Tạo yêu cầu mới</span>
                             </div>
-                        </button>
+                        </a>
                         <button
                             class="bg-gradient-to-br from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-all hover:scale-105 active:scale-95">
                             <div class="flex flex-col items-center gap-3">
@@ -210,13 +210,13 @@
                                 <span class="text-xl font-black">Kho VPP</span>
                             </div>
                         </button>
-                        <button
-                            class="bg-gradient-to-br from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-all hover:scale-105 active:scale-95">
+                        <a href="{{ route('department.list_request') }}"
+                            class="bg-gradient-to-br from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-all hover:scale-105 active:scale-95 block text-center">
                             <div class="flex flex-col items-center gap-3">
                                 <span class="material-symbols-outlined !text-5xl">history</span>
                                 <span class="text-xl font-black">Lịch sử</span>
                             </div>
-                        </button>
+                        </a>
                         <button
                             class="bg-gradient-to-br from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-all hover:scale-105 active:scale-95">
                             <div class="flex flex-col items-center gap-3">
@@ -309,7 +309,7 @@
                             <div class="flex items-center justify-between px-2">
                                 <h3 class="text-black dark:text-white text-2xl font-black">Phiếu yêu cầu gần đây</h3>
                                 <a class="text-primary text-lg font-black hover:underline flex items-center gap-1"
-                                    href="#">
+                                    href="{{ route('department.list_request') }}">
                                     Xem tất cả <span class="material-symbols-outlined !text-xl">chevron_right</span>
                                 </a>
                             </div>
