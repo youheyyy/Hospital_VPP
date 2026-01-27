@@ -11,6 +11,7 @@ return new class extends Migration {
             $table->id('category_id');
             $table->string('category_code', 50)->unique()->nullable();
             $table->string('category_name', 100);
+            $table->unsignedBigInteger('supplier_id')->nullable(); // Linked Supplier
 
             $table->timestamps();
             $table->softDeletes();

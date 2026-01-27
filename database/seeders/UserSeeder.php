@@ -29,7 +29,7 @@ class UserSeeder extends Seeder
             [
                 'username' => 'TMMC-NOI',
                 'email' => 'noi@hospital.vn',
-                'full_name' => 'Nguyễn Văn Dược',
+                'full_name' => 'Nguyễn Văn Nội',
                 'password' => '$2y$12$U2Y15a7fbhTyEpad6NP0u.pbbvScpODUsbzZXUQMnaAGUA.fuPyli',
                 'department_id' => 2,
                 'role_code' => 'DEPARTMENT',
@@ -40,7 +40,7 @@ class UserSeeder extends Seeder
             [
                 'username' => 'TMMC-NGOAI',
                 'email' => 'ngoai@hospital.vn',
-                'full_name' => 'Trần Thị Thiết Bị',
+                'full_name' => 'Trần Thị Ngoại',
                 'password' => '$2y$12$U2Y15a7fbhTyEpad6NP0u.pbbvScpODUsbzZXUQMnaAGUA.fuPyli',
                 'department_id' => 3,
                 'role_code' => 'DEPARTMENT',

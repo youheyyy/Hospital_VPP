@@ -13,11 +13,7 @@ return new class extends Migration {
             $table->unsignedBigInteger('product_id');
             $table->unsignedBigInteger('supplier_id')->nullable();
 
-            $table->integer('total_requested')->nullable();
             $table->integer('total_approved')->nullable();
-
-            // NOT_ISSUED, PARTIAL_ISSUED, ISSUED
-            $table->string('fulfilled_type', 20)->nullable();
 
             $table->text('note')->nullable();
 

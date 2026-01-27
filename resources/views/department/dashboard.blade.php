@@ -131,7 +131,8 @@
                 <div class="flex flex-col gap-8">
                     <div class="flex flex-col px-2 gap-1">
                         <h1 class="text-black dark:text-white text-xl font-black leading-normal uppercase">
-                            {{ Auth::user()->department->name ?? 'Khoa Phòng' }}</h1>
+                            {{ Auth::user()->department->name ?? 'Khoa Phòng' }}
+                        </h1>
                         <p
                             class="text-primary font-bold text-sm bg-primary/10 px-3 py-1 rounded-md inline-block self-start">
                             {{ Auth::user()->department->location ?? 'Khu vực chính' }}

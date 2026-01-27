@@ -30,13 +30,13 @@ class DepartmentSeeder extends Seeder
                 'updated_at' => Carbon::now(),
             ],
             [
-                'department_code' => 'KOHA_NHI',
+                'department_code' => 'KHOA_NHI',
                 'department_name' => 'Khoa Nhi',
                 'created_at' => Carbon::now(),
                 'updated_at' => Carbon::now(),
             ],
             [
-                'department_code' => 'KOHA_XET_NGHIEM',
+                'department_code' => 'KHOA_XET_NGHIEM',
                 'department_name' => 'Khoa Xét Nghiệm',
                 'created_at' => Carbon::now(),
                 'updated_at' => Carbon::now(),
