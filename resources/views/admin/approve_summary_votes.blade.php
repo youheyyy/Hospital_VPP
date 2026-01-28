@@ -64,10 +64,18 @@
                 </p>
             </div>
         </div>
-        <div class="flex items-center gap-4">
+        <div class="flex items-center gap-3">
+            <button onclick="printAggregation()" class="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-md shadow-md transition-all">
+                <span class="material-symbols-outlined text-[20px]">print</span>
+                <span class="text-sm">In</span>
+            </button>
+            <a href="{{ route('admin.aggregation.export_excel') }}" class="flex items-center gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white font-bold rounded-md shadow-md transition-all">
+                <span class="material-symbols-outlined text-[20px]">download</span>
+                <span class="text-sm">Xuất Excel</span>
+            </a>
              <form action="{{ route('admin.aggregation.process') }}" method="POST">
                 @csrf
-                <button type="submit" onclick="return confirm('Xác nhận duyệt và tạo PO?')" class="flex items-center gap-2 px-5 py-2.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white font-bold rounded-md shadow-md transition-all ml-1">
+                <button type="submit" onclick="return confirm('Xác nhận duyệt và tạo PO?')" class="flex items-center gap-2 px-5 py-2.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white font-bold rounded-md shadow-md transition-all">
                     <span class="material-symbols-outlined text-[20px]">task_alt</span>
                     <span class="text-sm">Duyệt & Tạo PO</span>
                 </button>
@@ -478,6 +486,32 @@
                 'X-CSRF-TOKEN': '{{ csrf_token() }}'
             }
         });
+    }
+
+    function printAggregation() {
+        // Fetch the print content
+        fetch('{{ route("admin.aggregation.print") }}')
+            .then(response => response.text())
+            .then(html => {
+                // Create a new window for printing
+                const printWindow = window.open('', '_blank', 'width=800,height=600');
+                printWindow.document.write(html);
+                printWindow.document.close();
+                
+                // Wait for content to load then print
+                printWindow.onload = function() {
+                    printWindow.focus();
+                    printWindow.print();
+                    // Close window after printing (optional)
+                    printWindow.onafterprint = function() {
+                        printWindow.close();
+                    };
+                };
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Không thể tải nội dung in. Vui lòng thử lại.');
+            });
     }
 </script>
 @endpush

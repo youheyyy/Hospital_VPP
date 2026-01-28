@@ -29,6 +29,7 @@ Route::group(['prefix' => 'department', 'as' => 'department.', 'middleware' => [
     Route::get('/request/{id}', function ($id) {
         return view('department.request_detail', ['id' => $id]);
     })->name('request.show');
+    Route::get('/request/{id}/detail', [DepartmentController::class, 'getRequestDetail'])->name('request.detail');
 });
 
 // Admin Code
@@ -69,4 +70,8 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['auth', 'r
     Route::post('/request-items/{id}/reject', [AdminController::class, 'rejectRequestItem'])->name('request_items.reject');
     Route::post('/request-items/{id}/approve', [AdminController::class, 'approveRequestItem'])->name('request_items.approve');
     Route::post('/request-items/{id}/note', [AdminController::class, 'updateAggregationItemNote'])->name('request_items.update_note');
+
+    // Print and Export
+    Route::get('/aggregation/print', [AdminController::class, 'printAggregation'])->name('aggregation.print');
+    Route::get('/aggregation/export-excel', [AdminController::class, 'exportAggregationExcel'])->name('aggregation.export_excel');
 });

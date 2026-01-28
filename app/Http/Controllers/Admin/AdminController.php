@@ -14,6 +14,11 @@ use App\Models\AggregationBatch;
 use App\Models\AggregationItem;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Border;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
 
 class AdminController extends Controller
 {
@@ -636,5 +641,344 @@ class AdminController extends Controller
             $order->update(['status' => $request->status]);
         }
         return back()->with('success', 'Cập nhật trạng thái đơn hàng thành công.');
+    }
+
+    public function printAggregation()
+    {
+        // Fetch aggregation data
+        $currentMonth = now()->month;
+        $currentYear = now()->year;
+
+        $currentBatch = AggregationBatch::where('batch_month', $currentMonth)
+            ->where('batch_year', $currentYear)
+            ->where('status', 'ISSUED')
+            ->first();
+
+        if (!$currentBatch) {
+            return back()->with('error', 'Không có dữ liệu tổng hợp để in.');
+        }
+
+        $aggregationItems = AggregationItem::where('aggregation_batch_id', $currentBatch->aggregation_batch_id)
+            ->with(['product.category.supplier'])
+            ->get();
+
+        $aggregatedBySupplier = $aggregationItems->groupBy(function ($item) {
+            return $item->product->supplier->supplier_name ?? 'Chưa gán NCC';
+        });
+
+        return view('admin.print_aggregation', compact('aggregatedBySupplier', 'currentBatch'));
+    }
+
+    public function exportAggregationExcel()
+    {
+        // Fetch aggregation data
+        $currentMonth = now()->month;
+        $currentYear = now()->year;
+
+        $currentBatch = AggregationBatch::where('batch_month', $currentMonth)
+            ->where('batch_year', $currentYear)
+            ->where('status', 'ISSUED')
+            ->first();
+
+        if (!$currentBatch) {
+            return back()->with('error', 'Không có dữ liệu tổng hợp để xuất.');
+        }
+
+        // Get aggregation items
+        $aggregationItems = AggregationItem::where('aggregation_batch_id', $currentBatch->aggregation_batch_id)
+            ->with(['product.category.supplier'])
+            ->get();
+
+        // Get all approved request items to map products to departments
+        $requestItems = PurchaseRequestItem::where('decision_status', 'APPROVED')
+            ->with(['request.department'])
+            ->get();
+
+        // Create a map of product_id => department_name
+        $productDepartmentMap = [];
+        foreach ($requestItems as $item) {
+            if ($item->request && $item->request->department) {
+                $productId = $item->product_id;
+                $deptName = $item->request->department->department_name;
+                
+                // Store all departments that requested this product
+                if (!isset($productDepartmentMap[$productId])) {
+                    $productDepartmentMap[$productId] = [];
+                }
+                if (!in_array($deptName, $productDepartmentMap[$productId])) {
+                    $productDepartmentMap[$productId][] = $deptName;
+                }
+            }
+        }
+
+        // Group aggregation items by department
+        $groupedByDepartment = [];
+        foreach ($aggregationItems as $aggItem) {
+            $productId = $aggItem->product_id;
+            $departments = $productDepartmentMap[$productId] ?? ['Chưa gán khoa'];
+            
+            // Add this item to each department that requested it
+            foreach ($departments as $deptName) {
+                if (!isset($groupedByDepartment[$deptName])) {
+                    $groupedByDepartment[$deptName] = collect();
+                }
+                $groupedByDepartment[$deptName]->push($aggItem);
+            }
+        }
+
+        // Create new Spreadsheet
+        $spreadsheet = new Spreadsheet();
+        $spreadsheet->removeSheetByIndex(0); // Remove default sheet
+
+        $sheetIndex = 0;
+        foreach ($groupedByDepartment as $departmentName => $departmentItems) {
+            // Create new sheet for each department
+            $sheet = new \PhpOffice\PhpSpreadsheet\Worksheet\Worksheet($spreadsheet, $departmentName);
+            $spreadsheet->addSheet($sheet, $sheetIndex);
+            
+            // Set page setup
+            $sheet->getPageSetup()->setPaperSize(\PhpOffice\PhpSpreadsheet\Worksheet\PageSetup::PAPERSIZE_A4);
+            $sheet->getPageSetup()->setOrientation(\PhpOffice\PhpSpreadsheet\Worksheet\PageSetup::ORIENTATION_PORTRAIT);
+
+            // Header - Row 1
+            $sheet->setCellValue('A1', 'CTY CP BV ĐA KHOA TÂM TRÍ CAO LÃNH');
+            $sheet->setCellValue('F1', 'Mẫu số 02-VT');
+            $sheet->getStyle('A1')->getFont()->setBold(true);
+            $sheet->getStyle('F1')->getFont()->setBold(true);
+            $sheet->getStyle('F1')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+
+            // Row 2
+            $sheet->setCellValue('A2', 'P. HỖ TRỢ DỊCH VỤ');
+            $sheet->getStyle('A2')->getFont()->setBold(true);
+            
+            // Row 3-4 - Legal reference
+            $sheet->mergeCells('A3:F3');
+            $sheet->setCellValue('A3', '(Ban hành theo TT số 200/2014/TT-BTC');
+            $sheet->getStyle('A3')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle('A3')->getFont()->setItalic(true)->setSize(10);
+            
+            $sheet->mergeCells('A4:F4');
+            $sheet->setCellValue('A4', 'Ngày 22/12/2014 của Bộ trưởng BTC)');
+            $sheet->getStyle('A4')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle('A4')->getFont()->setItalic(true)->setSize(10);
+
+            // Title - Row 6
+            $sheet->mergeCells('A6:F6');
+            $sheet->setCellValue('A6', 'PHIẾU XUẤT KHO VÀ BIÊN BẢN BÀN GIAO NỘI BỘ');
+            $sheet->getStyle('A6')->getFont()->setBold(true)->setSize(16);
+            $sheet->getStyle('A6')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+            // Date - Row 7
+            $sheet->mergeCells('A7:F7');
+            $sheet->setCellValue('A7', 'Ngày ' . now()->format('d/m/Y'));
+            $sheet->getStyle('A7')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle('A7')->getFont()->setItalic(true);
+
+            // Department section - Row 8
+            $sheet->mergeCells('A8:F8');
+            $sheet->setCellValue('A8', strtoupper($departmentName));
+            $sheet->getStyle('A8')->getFont()->setBold(true)->setSize(12);
+            $sheet->getStyle('A8')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+            // Table header - Row 10
+            $currentRow = 10;
+            $sheet->setCellValue("A{$currentRow}", 'STT');
+            $sheet->setCellValue("B{$currentRow}", 'Tên hàng');
+            $sheet->setCellValue("C{$currentRow}", 'ĐVT');
+            $sheet->setCellValue("D{$currentRow}", 'Số Lượng');
+            $sheet->setCellValue("E{$currentRow}", 'Đơn giá');
+            $sheet->setCellValue("F{$currentRow}", 'Thành tiền');
+
+            // Style table header
+            $sheet->getStyle("A{$currentRow}:F{$currentRow}")->applyFromArray([
+                'font' => ['bold' => true, 'size' => 11],
+                'fill' => [
+                    'fillType' => Fill::FILL_SOLID,
+                    'startColor' => ['rgb' => 'D9EAD3']
+                ],
+                'borders' => [
+                    'allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => '000000']]
+                ],
+                'alignment' => [
+                    'horizontal' => Alignment::HORIZONTAL_CENTER,
+                    'vertical' => Alignment::VERTICAL_CENTER
+                ]
+            ]);
+
+            $currentRow++;
+
+            // Group items by supplier within this department
+            $groupedBySupplier = $departmentItems->groupBy(function ($item) {
+                return $item->product->supplier->supplier_name ?? 'Chưa gán NCC';
+            });
+
+            $departmentTotal = 0;
+            $globalStt = 1;
+
+            foreach ($groupedBySupplier as $supplierName => $supplierItems) {
+                // Supplier header row
+                $sheet->mergeCells("A{$currentRow}:F{$currentRow}");
+                $sheet->setCellValue("A{$currentRow}", strtoupper($supplierName));
+                $sheet->getStyle("A{$currentRow}")->applyFromArray([
+                    'font' => ['bold' => true, 'size' => 11],
+                    'fill' => [
+                        'fillType' => Fill::FILL_SOLID,
+                        'startColor' => ['rgb' => 'FFF2CC']
+                    ],
+                    'borders' => [
+                        'allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => '000000']]
+                    ],
+                    'alignment' => ['vertical' => Alignment::VERTICAL_CENTER]
+                ]);
+
+                $currentRow++;
+                $supplierTotal = 0;
+
+                // Group by product within supplier
+                $groupedByProduct = $supplierItems->groupBy('product_id');
+                foreach ($groupedByProduct as $prodId => $prods) {
+                    $firstItem = $prods->first();
+                    $prod = $firstItem->product;
+                    // Use total_approved from AggregationItem (not quantity_approved from PurchaseRequestItem)
+                    $totalQty = $prods->sum('total_approved');
+                    $lineTotal = $totalQty * $prod->unit_price;
+                    $supplierTotal += $lineTotal;
+                    $departmentTotal += $lineTotal;
+
+                    $sheet->setCellValue("A{$currentRow}", $globalStt++);
+                    $sheet->setCellValue("B{$currentRow}", $prod->product_name);
+                    $sheet->setCellValue("C{$currentRow}", $prod->unit);
+                    $sheet->setCellValue("D{$currentRow}", $totalQty);
+                    $sheet->setCellValue("E{$currentRow}", $prod->unit_price);
+                    $sheet->setCellValue("F{$currentRow}", $lineTotal);
+
+                    // Style data rows
+                    $sheet->getStyle("A{$currentRow}:F{$currentRow}")->applyFromArray([
+                        'borders' => [
+                            'allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => '000000']]
+                        ],
+                        'alignment' => ['vertical' => Alignment::VERTICAL_CENTER]
+                    ]);
+                    
+                    $sheet->getStyle("A{$currentRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                    $sheet->getStyle("C{$currentRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                    $sheet->getStyle("D{$currentRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                    $sheet->getStyle("E{$currentRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+                    $sheet->getStyle("F{$currentRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+
+                    // Number formatting
+                    $sheet->getStyle("E{$currentRow}")->getNumberFormat()->setFormatCode('#,##0');
+                    $sheet->getStyle("F{$currentRow}")->getNumberFormat()->setFormatCode('#,##0');
+
+                    $currentRow++;
+                }
+
+                // Supplier subtotal
+                $sheet->mergeCells("A{$currentRow}:E{$currentRow}");
+                $sheet->setCellValue("A{$currentRow}", 'Tổng cộng:');
+                $sheet->setCellValue("F{$currentRow}", $supplierTotal);
+                $sheet->getStyle("A{$currentRow}:F{$currentRow}")->applyFromArray([
+                    'font' => ['bold' => true],
+                    'fill' => [
+                        'fillType' => Fill::FILL_SOLID,
+                        'startColor' => ['rgb' => 'F3F3F3']
+                    ],
+                    'borders' => [
+                        'allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => '000000']]
+                    ],
+                    'alignment' => ['vertical' => Alignment::VERTICAL_CENTER]
+                ]);
+                $sheet->getStyle("A{$currentRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+                $sheet->getStyle("F{$currentRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+                $sheet->getStyle("F{$currentRow}")->getNumberFormat()->setFormatCode('#,##0');
+
+                $currentRow++;
+            }
+
+            $currentRow++;
+
+            // Department grand total
+            $sheet->mergeCells("A{$currentRow}:E{$currentRow}");
+            $sheet->setCellValue("A{$currentRow}", 'TỔNG GIÁ TRỊ ĐƠN HÀNG:');
+            $sheet->setCellValue("F{$currentRow}", $departmentTotal);
+            $sheet->getStyle("A{$currentRow}:F{$currentRow}")->applyFromArray([
+                'font' => ['bold' => true, 'size' => 12],
+                'borders' => [
+                    'allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => '000000']]
+                ],
+                'alignment' => ['vertical' => Alignment::VERTICAL_CENTER]
+            ]);
+            $sheet->getStyle("A{$currentRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+            $sheet->getStyle("F{$currentRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+            $sheet->getStyle("F{$currentRow}")->getNumberFormat()->setFormatCode('#,##0');
+            $sheet->getStyle("F{$currentRow}")->getFont()->getColor()->setRGB('0000FF');
+
+            $currentRow += 2;
+
+            // Note
+            $sheet->mergeCells("A{$currentRow}:F{$currentRow}");
+            $sheet->setCellValue("A{$currentRow}", '* Ghi chú: Hàng hóa được bàn giao đúng chất lượng và số lượng như trên.');
+            $sheet->getStyle("A{$currentRow}")->getFont()->setItalic(true)->setSize(10);
+
+            $currentRow += 3;
+
+            // Signature section
+            $sheet->setCellValue("A{$currentRow}", 'NGƯỜI LẬP PHIẾU');
+            $sheet->setCellValue("C{$currentRow}", 'THỦ KHO / KẾ TOÁN');
+            $sheet->setCellValue("E{$currentRow}", 'GIÁM ĐỐC');
+            
+            $sheet->getStyle("A{$currentRow}:F{$currentRow}")->getFont()->setBold(true)->setSize(11);
+            $sheet->getStyle("A{$currentRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle("C{$currentRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle("E{$currentRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet->mergeCells("C{$currentRow}:D{$currentRow}");
+            $sheet->mergeCells("E{$currentRow}:F{$currentRow}");
+
+            $currentRow++;
+            $sheet->setCellValue("A{$currentRow}", '(Ký, họ tên)');
+            $sheet->setCellValue("C{$currentRow}", '(Ký, họ tên)');
+            $sheet->setCellValue("E{$currentRow}", '(Ký, họ tên)');
+            
+            $sheet->getStyle("A{$currentRow}:F{$currentRow}")->getFont()->setItalic(true)->setSize(10);
+            $sheet->getStyle("A{$currentRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle("C{$currentRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle("E{$currentRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet->mergeCells("C{$currentRow}:D{$currentRow}");
+            $sheet->mergeCells("E{$currentRow}:F{$currentRow}");
+
+            $currentRow += 4;
+            $userName = Auth::user()->full_name ?? '';
+            $sheet->setCellValue("A{$currentRow}", $userName);
+            $sheet->getStyle("A{$currentRow}")->getFont()->setBold(true);
+            $sheet->getStyle("A{$currentRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+            // Set column widths
+            $sheet->getColumnDimension('A')->setWidth(6);
+            $sheet->getColumnDimension('B')->setWidth(40);
+            $sheet->getColumnDimension('C')->setWidth(10);
+            $sheet->getColumnDimension('D')->setWidth(12);
+            $sheet->getColumnDimension('E')->setWidth(15);
+            $sheet->getColumnDimension('F')->setWidth(15);
+
+            // Set row heights for better spacing
+            $sheet->getRowDimension(10)->setRowHeight(25);
+
+            $sheetIndex++;
+        }
+
+        // Set first sheet as active
+        $spreadsheet->setActiveSheetIndex(0);
+
+        // Create Excel file
+        $writer = new Xlsx($spreadsheet);
+        $fileName = 'Phieu_Xuat_Kho_' . now()->format('dmY') . '.xlsx';
+        
+        // Set headers for download
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header('Content-Disposition: attachment;filename="' . $fileName . '"');
+        header('Cache-Control: max-age=0');
+
+        $writer->save('php://output');
+        exit;
     }
 }

@@ -148,4 +148,58 @@ class DepartmentController extends Controller
 
         return view('department.list_request', compact('requests', 'statistics'));
     }
+
+    public function getRequestDetail($id)
+    {
+        try {
+            $user = Auth::user();
+            $request = PurchaseRequest::where('purchase_request_id', $id)
+                ->where('department_id', $user->department_id)
+                ->with(['requester', 'items.product', 'department'])
+                ->firstOrFail();
+
+            $statusLabels = [
+                'draft' => 'Nháp',
+                'SUBMITTED' => 'Chờ duyệt',
+                'pending' => 'Chờ duyệt',
+                'APPROVED' => 'Đã duyệt',
+                'REJECTED' => 'Từ chối',
+                'ISSUED' => 'Đã phát hành',
+            ];
+
+            $items = $request->items->map(function ($item) {
+                return [
+                    'product_name' => $item->product->product_name ?? 'N/A',
+                    'sku' => $item->product->sku ?? 'N/A',
+                    'unit' => $item->product->unit ?? 'N/A',
+                    'quantity_requested' => $item->quantity_requested,
+                    'unit_price' => $item->product->unit_price ?? 0,
+                    'total_price' => $item->quantity_requested * ($item->product->unit_price ?? 0),
+                ];
+            });
+
+            $totalAmount = $items->sum('total_price');
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'request_code' => $request->request_code,
+                    'request_date' => $request->created_at->format('d/m/Y H:i'),
+                    'status' => $request->status,
+                    'status_label' => $statusLabels[$request->status] ?? 'N/A',
+                    'requester_name' => $request->requester->full_name ?? 'N/A',
+                    'department_name' => $request->department->department_name ?? 'N/A',
+                    'note' => $request->note ?? '',
+                    'items' => $items,
+                    'total_amount' => $totalAmount,
+                    'items_count' => $items->count(),
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Không tìm thấy yêu cầu hoặc bạn không có quyền xem.'
+            ], 404);
+        }
+    }
 }
