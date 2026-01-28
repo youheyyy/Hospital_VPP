@@ -313,18 +313,23 @@ class AdminController extends Controller
             $productIds = $aggregationItems->pluck('product_id')->unique()->toArray();
 
             // Calculate Totals per Department
-            $deptProductCounts = collect(); // For top red row (Count of items)
-            $deptQtyTotals = collect();     // For bottom total row (Sum of quantities)
+            // Calculate Totals per Department
+            $deptTotalRequested = collect(); // For top red row (All requested, even rejected)
+            $deptQtyTotals = collect();      // For bottom total row (Only non-rejected)
 
-            $allRequestItems = PurchaseRequestItem::whereIn('product_id', $productIds)
-                ->where('decision_status', '!=', 'REJECTED')
-                ->with('request') // Eager load request to access department_id
+            // All items for the products present in this batch
+            $allRequestItemsForProducts = PurchaseRequestItem::whereIn('product_id', $productIds)
+                ->with('request')
                 ->get();
 
             foreach ($allDepartments as $dept) {
-                $deptItems = $allRequestItems->where('request.department_id', $dept->department_id);
-                $deptProductCounts[$dept->department_id] = $deptItems->unique('product_id')->count();
-                $deptQtyTotals[$dept->department_id] = $deptItems->sum('quantity_requested');
+                $deptItems = $allRequestItemsForProducts->where('request.department_id', $dept->department_id);
+
+                // Top row: All requested quantities (including rejected)
+                $deptTotalRequested[$dept->department_id] = $deptItems->sum('quantity_requested');
+
+                // Bottom row: Only non-rejected quantities
+                $deptQtyTotals[$dept->department_id] = $deptItems->where('decision_status', '!=', 'REJECTED')->sum('quantity_requested');
             }
 
             // Paginate product IDs manually
@@ -376,7 +381,7 @@ class AdminController extends Controller
             'allDepartments',
             'currentBatch',
             'pivotPagination',
-            'deptProductCounts',
+            'deptTotalRequested',
             'deptQtyTotals'
         ));
     }
