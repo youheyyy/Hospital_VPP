@@ -122,11 +122,11 @@
                             <!-- TOP TOTALS ROW (User Request) -->
                             <tr class="bg-yellow-50/50 dark:bg-yellow-900/10 border-b border-slate-200 dark:border-slate-700">
                                 <th class="sticky-col-1 py-2 bg-yellow-50/50 dark:bg-yellow-900/20"></th>
-                                <th class="sticky-col-2 py-2 text-[10px] font-black text-slate-500 uppercase tracking-tighter text-right pr-4 bg-yellow-50/50 dark:bg-yellow-900/20">SỐ MẶT HÀNG:</th>
+                                <th class="sticky-col-2 py-2 text-[10px] font-black text-slate-500 uppercase tracking-tighter text-right pr-4 bg-yellow-50/50 dark:bg-yellow-900/20">TỔNG SL YÊU CẦU:</th>
                                 <th class="sticky-col-3 py-2 bg-yellow-50/50 dark:bg-yellow-900/20"></th>
                                 @foreach($allDepartments as $dept)
                                 <th class="px-3 py-2 text-[13px] font-black text-red-600 text-center border-l border-slate-200 dark:border-slate-700 font-mono">
-                                    {{ number_format($deptProductCounts[$dept->department_id] ?? 0) }}
+                                    {{ number_format($deptTotalRequested[$dept->department_id] ?? 0) }}
                                 </th>
                                 @endforeach
                                 <th class="px-4 py-2 border-l-2 border-slate-200 bg-yellow-50/50 dark:bg-yellow-900/20"></th>
@@ -140,7 +140,6 @@
                                 @foreach($allDepartments as $dept)
                                 <th class="px-3 py-4 border-l border-slate-200 dark:border-slate-700 min-w-[80px]">
                                     <div class="flex flex-col items-center justify-center">
-                                        <span class="text-[9px] font-black text-slate-400 uppercase leading-none mb-1">{{ $dept->department_code }}</span>
                                         <div class="text-[10px] font-bold text-slate-700 dark:text-slate-300 text-center leading-tight h-[30px] flex items-center justify-center">
                                             {{ $dept->department_name }}
                                         </div>
@@ -233,7 +232,7 @@
                                         <th class="px-6 py-4 text-[11px] font-extrabold text-slate-500 uppercase tracking-widest text-center">Tổng SL</th>
                                         <th class="px-6 py-4 text-[11px] font-extrabold text-slate-500 uppercase tracking-widest text-right">Đơn giá</th>
                                         <th class="px-6 py-4 text-[11px] font-extrabold text-slate-500 uppercase tracking-widest text-right">Thành tiền</th>
-                                        <th class="px-6 py-4 text-[11px] font-extrabold text-slate-500 uppercase tracking-widest w-48">Ghi chú</th>
+                                        <th class="px-6 py-4 text-[11px] font-extrabold text-slate-500 uppercase tracking-widest min-w-[320px]">Ghi chú</th>
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
@@ -261,18 +260,69 @@
                                             <td class="px-6 py-4 text-sm text-center font-black text-emerald-600 bg-emerald-50 dark:bg-emerald-900/10 rounded">{{ $totalQty }}</td>
                                             <td class="px-6 py-4 text-sm text-right font-mono text-slate-600">{{ number_format($prod->unit_price) }}</td>
                                             <td class="px-6 py-4 text-sm text-right font-black font-mono text-slate-800">{{ number_format($lineTotal) }}</td>
-                                            <td class="px-6 py-4">
-                                                <div class="flex items-center gap-1">
-                                                    <input type="text" 
-                                                        id="note-{{ $firstItem->aggregation_item_id }}"
-                                                        value="{{ $note }}" 
-                                                        onblur="updateNote({{ $firstItem->aggregation_item_id }}, this.value)"
-                                                        class="w-full text-xs border-slate-200 rounded-md focus:border-[var(--primary)] focus:ring-0 bg-transparent placeholder-slate-300" 
-                                                        placeholder="Ghi chú...">
-                                                    <button onclick="updateNote({{ $firstItem->aggregation_item_id }}, document.getElementById('note-{{ $firstItem->aggregation_item_id }}').value)" 
-                                                        class="text-slate-400 hover:text-[var(--primary)] p-1 rounded transition-colors" title="Lưu ghi chú">
-                                                        <span class="material-symbols-outlined text-[18px]">save</span>
-                                                    </button>
+                                            <td class="px-6 py-4" x-data="smartNote({{ $firstItem->aggregation_item_id }}, '{{ addslashes($note) }}')">
+                                                <div class="relative" @click.away="dropdownOpen = false">
+                                                    <!-- Note Input Area -->
+                                                    <div class="relative group">
+                                                        <input type="text" 
+                                                            x-model="note"
+                                                            @focus="dropdownOpen = true"
+                                                            class="w-full text-sm font-bold border-slate-200 rounded-lg focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 bg-white dark:bg-slate-800 transition-all pr-10 py-2.5 placeholder-slate-300 shadow-sm" 
+                                                            placeholder="Nhập hoặc chọn mẫu...">
+                                                        
+                                                        <div class="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                                                            <!-- Saving Indicator -->
+                                                            <template x-if="saving">
+                                                                <span class="material-symbols-outlined text-[18px] text-teal-500 animate-spin">sync</span>
+                                                            </template>
+                                                            <template x-if="!saving">
+                                                                <span class="material-symbols-outlined text-[18px] text-slate-300 group-hover:text-[var(--primary)] transition-colors cursor-pointer" @click="dropdownOpen = !dropdownOpen">save</span>
+                                                            </template>
+                                                        </div>
+                                                    </div>
+
+                                                    <!-- Smart Suggestions Dropdown -->
+                                                    <div x-show="dropdownOpen" 
+                                                        x-transition:enter="transition ease-out duration-100"
+                                                        x-transition:enter-start="opacity-0 scale-95"
+                                                        x-transition:enter-end="opacity-100 scale-100"
+                                                        x-transition:leave="transition ease-in duration-75"
+                                                        x-transition:leave-start="opacity-100 scale-100"
+                                                        x-transition:leave-end="opacity-0 scale-95"
+                                                        class="absolute z-50 mt-1 w-full bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-slate-200 dark:border-slate-700 p-2 min-w-[240px]">
+                                                        
+                                                        <div class="flex flex-wrap gap-1.5">
+                                                            <template x-for="(sug, index) in suggestions" :key="index">
+                                                                <div class="flex items-center group/chip">
+                                                                    <button @click="addSuggestion(sug); dropdownOpen = false"
+                                                                        type="button"
+                                                                        :class="getChipClass(index)"
+                                                                        class="px-2.5 py-1 rounded-md text-[11px] font-bold transition-all border hover:bg-opacity-80">
+                                                                        <span x-text="sug"></span>
+                                                                    </button>
+                                                                    <template x-if="settingsOpen">
+                                                                        <button @click="removeSuggestion(index)" class="ml-1 text-red-400 hover:text-red-600">
+                                                                            <span class="material-symbols-outlined text-[14px]">close</span>
+                                                                        </button>
+                                                                    </template>
+                                                                </div>
+                                                            </template>
+                                                            
+                                                            <template x-if="settingsOpen">
+                                                                <button @click="addNewSuggestion()" class="px-2 py-1 rounded-md text-[11px] font-bold border border-dashed border-slate-300 text-slate-400 hover:bg-slate-50 transition-all">
+                                                                    + Thêm mẫu
+                                                                </button>
+                                                            </template>
+                                                        </div>
+
+                                                        <!-- Compact Settings Toggle -->
+                                                        <div class="mt-2 pt-2 border-t border-slate-100 dark:border-slate-700 flex justify-end">
+                                                            <button @click="toggleSettings()" class="text-[var(--primary)] hover:underline flex items-center gap-1">
+                                                                <span class="text-[10px] font-bold">Thêm ghi chú nhanh</span>
+                                                                <span class="material-symbols-outlined text-[14px]">edit_note</span>
+                                                            </button>
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             </td>
                                         </tr>
@@ -469,8 +519,114 @@
         });
     }
 
+    document.addEventListener('alpine:init', () => {
+        Alpine.data('smartNote', (itemId, initialNote) => ({
+            id: itemId,
+            note: initialNote,
+            saving: false,
+            suggestions: [],
+            settingsOpen: false,
+            dropdownOpen: false,
+            saveTimeout: null,
+            
+            init() {
+                this.loadSuggestions();
+                this.$watch('note', (value) => {
+                    this.triggerAutoSave();
+                });
+            },
+
+            loadSuggestions() {
+                const saved = localStorage.getItem('smart_note_templates');
+                if (saved) {
+                    this.suggestions = JSON.parse(saved);
+                } else {
+                    this.suggestions = ["Hàng dễ vỡ", "Giao hỏa tốc 2h", "Kiểm tra tem niêm phong", "Khách VIP - Quà tặng", "Bọc chống sốc 3 lớp"];
+                    this.saveLocalSuggestions();
+                }
+                
+                // Sync with other instances
+                window.addEventListener('suggestions-updated', () => {
+                    this.suggestions = JSON.parse(localStorage.getItem('smart_note_templates'));
+                });
+            },
+
+            saveLocalSuggestions() {
+                localStorage.setItem('smart_note_templates', JSON.stringify(this.suggestions));
+                window.dispatchEvent(new CustomEvent('suggestions-updated'));
+            },
+
+            triggerAutoSave() {
+                if (this.saveTimeout) clearTimeout(this.saveTimeout);
+                this.saveTimeout = setTimeout(() => {
+                    this.saveToServer();
+                }, 800);
+            },
+
+            async saveToServer() {
+                this.saving = true;
+                try {
+                    const response = await fetch(`/admin/request-items/${this.id}/note`, {
+                        method: 'POST',
+                        body: JSON.stringify({ note: this.note }),
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                        }
+                    });
+                    const data = await response.json();
+                    if (!data.success) console.error('Auto-save failed:', data.message);
+                } catch (e) {
+                    console.error('Auto-save error:', e);
+                } finally {
+                    this.saving = false;
+                }
+            },
+
+            addSuggestion(text) {
+                if (!this.note) {
+                    this.note = text;
+                } else if (!this.note.includes(text)) {
+                    this.note += ', ' + text;
+                }
+            },
+
+            toggleSettings() {
+                this.settingsOpen = !this.settingsOpen;
+            },
+
+            addNewSuggestion() {
+                const text = prompt('Nhập mẫu ghi chú mới:');
+                if (text && text.trim()) {
+                    this.suggestions.push(text.trim());
+                    this.saveLocalSuggestions();
+                }
+            },
+
+            removeSuggestion(index) {
+                if (confirm('Xóa mẫu này?')) {
+                    this.suggestions.splice(index, 1);
+                    this.saveLocalSuggestions();
+                }
+            },
+
+            getChipClass(index) {
+                const colors = [
+                    'bg-indigo-50 border-indigo-100 text-indigo-600 hover:bg-indigo-100',
+                    'bg-rose-50 border-rose-100 text-rose-600 hover:bg-rose-100',
+                    'bg-amber-50 border-amber-100 text-amber-600 hover:bg-amber-100',
+                    'bg-emerald-50 border-emerald-100 text-emerald-600 hover:bg-emerald-100',
+                    'bg-sky-50 border-sky-100 text-sky-600 hover:bg-sky-100',
+                    'bg-purple-50 border-purple-100 text-purple-600 hover:bg-purple-100'
+                ];
+                return colors[index % colors.length];
+            }
+        }));
+    });
+
+    // Keeping original functions for compatibility if needed elsewhere
     function updateNote(id, note) {
-        fetch(`/admin/request-items/${id}/note`, {
+        return fetch(`/admin/request-items/${id}/note`, {
             method: 'POST',
             body: JSON.stringify({ note: note }),
             headers: {
