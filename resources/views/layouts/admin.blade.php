@@ -49,12 +49,9 @@
         class="w-64 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col h-screen sticky top-0">
         <div class="p-6">
             <div class="flex items-center gap-3 mb-8">
-                <div class="bg-primary p-1.5 rounded-lg text-white">
-                    <span class="material-symbols-outlined text-2xl">medical_services</span>
-                </div>
+                <img src="{{ asset('images/logo-tmmc.png') }}" alt="Hospital Logo" class="h-12 w-auto">
                 <div>
-                    <h1 class="text-sm font-bold tracking-tight text-slate-900 dark:text-white uppercase">VẬT TƯ Y TẾ
-                    </h1>
+                    <h1 class="text-sm font-bold tracking-tight text-slate-900 dark:text-white uppercase">VẬT TƯ Y TẾ</h1>
                     <p class="text-[10px] font-medium text-slate-400 uppercase tracking-widest">Hệ Thống Quản Trị</p>
                 </div>
             </div>

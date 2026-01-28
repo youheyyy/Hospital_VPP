@@ -61,40 +61,38 @@
 <body class="bg-background-light dark:bg-background-dark text-[#0d121b] dark:text-white antialiased">
     <div class="flex h-screen flex-col overflow-hidden">
         <!-- Header -->
-        <header class="flex items-center justify-between whitespace-nowrap border-b-2 border-solid border-[#e7ebf3] dark:border-gray-800 bg-white dark:bg-gray-900 px-8 py-5 z-10">
-            <div class="flex items-center gap-10">
-                <div class="flex items-center gap-4 text-primary">
-                    <div class="size-12 flex items-center justify-center bg-primary rounded-xl text-white">
-                        <span class="material-symbols-outlined !text-3xl">local_hospital</span>
-                    </div>
-                    <h2 class="text-[#0d121b] dark:text-white text-2xl font-black leading-tight tracking-tight">HSS QUẢN LÝ</h2>
+        <header class="flex items-center justify-between whitespace-nowrap border-b border-solid border-[#e7ebf3] dark:border-gray-800 bg-white dark:bg-gray-900 px-6 py-3 z-10">
+            <div class="flex items-center gap-8">
+                <div class="flex items-center gap-3 text-primary">
+                    <img src="{{ asset('images/logo-tmmc.png') }}" alt="HSS Logo" class="h-12 w-auto">
+                    <h2 class="text-[#0d121b] dark:text-white text-lg font-black leading-tight tracking-tight">HSS QUẢN LÝ</h2>
                 </div>
-                <nav class="hidden md:flex items-center gap-8">
-                    <a class="text-primary text-lg font-bold border-b-4 border-primary pb-1" href="{{ route('department.dashboard') }}">Tổng quan</a>
-                    <a class="text-[#4c669a] dark:text-gray-400 text-lg font-bold hover:text-primary transition-colors" href="{{ route('department.list_request') }}">Yêu cầu của tôi</a>
-                    <a class="text-[#4c669a] dark:text-gray-400 text-lg font-bold hover:text-primary transition-colors" href="#">Thông báo</a>
+                <nav class="hidden md:flex items-center gap-6">
+                    <a class="text-primary text-sm font-bold border-b-2 border-primary pb-0.5" href="{{ route('department.dashboard') }}">Tổng quan</a>
+                    <a class="text-[#4c669a] dark:text-gray-400 text-sm font-bold hover:text-primary transition-colors" href="{{ route('department.list_request') }}">Yêu cầu của tôi</a>
+                    <a class="text-[#4c669a] dark:text-gray-400 text-sm font-bold hover:text-primary transition-colors" href="#">Thông báo</a>
                 </nav>
             </div>
-            <div class="flex flex-1 justify-end gap-6 items-center">
-                <div class="relative w-80">
-                    <span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[#4c669a] !text-2xl">search</span>
-                    <input class="w-full h-14 pl-12 pr-4 rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-[#f8f9fc] dark:bg-gray-800 text-lg font-medium focus:ring-4 focus:ring-primary/20" placeholder="Tìm kiếm phiếu, vật tư..."/>
+            <div class="flex flex-1 justify-end gap-4 items-center">
+                <div class="relative w-64">
+                    <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#4c669a] !text-lg">search</span>
+                    <input class="w-full h-10 pl-10 pr-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-[#f8f9fc] dark:bg-gray-800 text-sm font-medium focus:ring-2 focus:ring-primary/20" placeholder="Tìm kiếm phiếu, vật tư..."/>
                 </div>
-                <div class="flex gap-3">
-                    <button class="flex items-center justify-center rounded-xl h-14 w-14 bg-[#e7ebf3] dark:bg-gray-800 text-[#0d121b] dark:text-white hover:bg-gray-200 dark:hover:bg-gray-700">
-                        <span class="material-symbols-outlined">notifications</span>
+                <div class="flex gap-2">
+                    <button class="flex items-center justify-center rounded-lg h-10 w-10 bg-[#e7ebf3] dark:bg-gray-800 text-[#0d121b] dark:text-white hover:bg-gray-200 dark:hover:bg-gray-700">
+                        <span class="material-symbols-outlined !text-xl">notifications</span>
                     </button>
                 </div>
                 <!-- User Dropdown Menu -->
                 <div style="position: relative;">
                     <button id="userDropdownButton" type="button"
                             onclick="toggleUserDropdown(event)" 
-                            style="display: flex; align-items: center; gap: 12px; background: #f3f4f6; padding: 4px 16px 4px 4px; border-radius: 9999px; border: 1px solid #e5e7eb; cursor: pointer;">
-                        <div style="height: 48px; width: 48px; border-radius: 9999px; background: #135bec; color: white; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 900;">
+                            style="display: flex; align-items: center; gap: 8px; background: #f3f4f6; padding: 3px 12px 3px 3px; border-radius: 9999px; border: 1px solid #e5e7eb; cursor: pointer;">
+                        <div style="height: 32px; width: 32px; border-radius: 9999px; background: #135bec; color: white; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 900;">
                             {{ strtoupper(substr(auth()->user()->full_name ?? 'U', 0, 1)) }}
                         </div>
-                        <span style="font-weight: 700; font-size: 18px;">{{ auth()->user()->full_name ?? 'User' }}</span>
-                        <span class="material-symbols-outlined" style="font-size: 20px; color: #6b7280;">expand_more</span>
+                        <span style="font-weight: 700; font-size: 14px;">{{ auth()->user()->full_name ?? 'User' }}</span>
+                        <span class="material-symbols-outlined" style="font-size: 16px; color: #6b7280;">expand_more</span>
                     </button>
                     
                     <!-- Dropdown -->
@@ -156,41 +154,38 @@
 
         <div class="flex flex-1 overflow-hidden">
             <!-- Sidebar -->
-            <aside class="w-72 flex flex-col justify-between border-r-2 border-[#e7ebf3] dark:border-gray-800 bg-white dark:bg-gray-900 p-6">
-                <div class="flex flex-col gap-8">
-                    <div class="flex flex-col px-2 gap-1">
-                        <h1 class="text-black dark:text-white text-xl font-black leading-normal uppercase">Khoa Tim Mạch</h1>
-                        <p class="text-primary font-bold text-sm bg-primary/10 px-3 py-1 rounded-md inline-block self-start">Khu A • Tầng 2</p>
-                    </div>
-                    <div class="flex flex-col gap-2">
-                        <a class="flex items-center gap-4 px-4 py-4 rounded-xl {{ request()->routeIs('department.dashboard') ? 'bg-primary text-white font-black shadow-md' : 'text-[#4c669a] dark:text-gray-400 hover:bg-[#e7ebf3] dark:hover:bg-gray-800 font-bold' }} text-lg transition-all" href="{{ route('department.dashboard') }}">
-                            <span class="material-symbols-outlined">grid_view</span>
+            <aside class="w-56 flex flex-col justify-between border-r border-[#e7ebf3] dark:border-gray-800 bg-white dark:bg-gray-900 p-4">
+                <div class="flex flex-col gap-6">
+                   
+                    <div class="flex flex-col gap-1">
+                        <a class="flex items-center gap-3 px-3 py-2.5 rounded-lg {{ request()->routeIs('department.dashboard') ? 'bg-primary text-white font-black shadow-md' : 'text-[#4c669a] dark:text-gray-400 hover:bg-[#e7ebf3] dark:hover:bg-gray-800 font-bold' }} text-sm transition-all" href="{{ route('department.dashboard') }}">
+                            <span class="material-symbols-outlined !text-xl">grid_view</span>
                             <span>Tổng quan</span>
                         </a>
-                        <a class="flex items-center gap-4 px-4 py-4 rounded-xl {{ request()->routeIs('department.request.create') ? 'bg-primary text-white font-black shadow-md' : 'text-[#4c669a] dark:text-gray-400 hover:bg-[#e7ebf3] dark:hover:bg-gray-800 font-bold' }} text-lg transition-all" href="{{ route('department.request.create') }}">
-                            <span class="material-symbols-outlined">add_box</span>
+                        <a class="flex items-center gap-3 px-3 py-2.5 rounded-lg {{ request()->routeIs('department.request.create') ? 'bg-primary text-white font-black shadow-md' : 'text-[#4c669a] dark:text-gray-400 hover:bg-[#e7ebf3] dark:hover:bg-gray-800 font-bold' }} text-sm transition-all" href="{{ route('department.request.create') }}">
+                            <span class="material-symbols-outlined !text-xl">add_box</span>
                             <span>Tạo phiếu yêu cầu</span>
                         </a>
-                        <a class="flex items-center gap-4 px-4 py-4 rounded-xl {{ request()->routeIs('department.list_request') ? 'bg-primary text-white font-black shadow-md' : 'text-[#4c669a] dark:text-gray-400 hover:bg-[#e7ebf3] dark:hover:bg-gray-800 font-bold' }} text-lg transition-all" href="{{ route('department.list_request') }}">
-                            <span class="material-symbols-outlined">list_alt</span>
+                        <a class="flex items-center gap-3 px-3 py-2.5 rounded-lg {{ request()->routeIs('department.list_request') ? 'bg-primary text-white font-black shadow-md' : 'text-[#4c669a] dark:text-gray-400 hover:bg-[#e7ebf3] dark:hover:bg-gray-800 font-bold' }} text-sm transition-all" href="{{ route('department.list_request') }}">
+                            <span class="material-symbols-outlined !text-xl">list_alt</span>
                             <span>Danh sách yêu cầu</span>
                         </a>
-                        <a class="flex items-center gap-4 px-4 py-4 rounded-xl text-[#4c669a] dark:text-gray-400 hover:bg-[#e7ebf3] dark:hover:bg-gray-800 transition-all font-bold text-lg" href="#">
-                            <span class="material-symbols-outlined">history</span>
+                        <a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[#4c669a] dark:text-gray-400 hover:bg-[#e7ebf3] dark:hover:bg-gray-800 transition-all font-bold text-sm" href="#">
+                            <span class="material-symbols-outlined !text-xl">history</span>
                             <span>Lịch sử</span>
                         </a>
                     </div>
                 </div>
-                <div class="pt-6 border-t-2 border-[#e7ebf3] dark:border-gray-800">
-                    <a href="{{ route('department.request.create') }}" class="w-full flex items-center justify-center gap-3 rounded-2xl h-16 px-6 bg-primary text-white text-xl font-black shadow-xl shadow-primary/30 hover:bg-blue-700 hover:scale-[1.02] active:scale-[0.98] transition-all">
-                        <span class="material-symbols-outlined !text-3xl">post_add</span>
+                <div class="pt-4 border-t border-[#e7ebf3] dark:border-gray-800">
+                    <a href="{{ route('department.request.create') }}" class="w-full flex items-center justify-center gap-2 rounded-xl h-11 px-4 bg-primary text-white text-sm font-black shadow-lg shadow-primary/30 hover:bg-blue-700 hover:scale-[1.02] active:scale-[0.98] transition-all">
+                        <span class="material-symbols-outlined !text-xl">post_add</span>
                         <span>TẠO PHIẾU MỚI</span>
                     </a>
                 </div>
             </aside>
 
             <!-- Main Content -->
-            <main class="flex-1 overflow-y-auto bg-background-light dark:bg-background-dark p-10">
+            <main class="flex-1 overflow-y-auto bg-background-light dark:bg-background-dark p-6">
                 @yield('content')
             </main>
         </div>
