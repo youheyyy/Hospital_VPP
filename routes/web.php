@@ -48,13 +48,32 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['auth', 'r
     // Orders
     Route::get('/orders', [AdminController::class, 'indexOrders'])->name('orders.index');
 
-    // Other Admin Routes (Placeholders)
-    Route::get('/department', function () {
-        return view('admin.department');
-    })->name('department');
-    Route::get('/product', function () {
-        return view('admin.product');
-    })->name('product');
+    // Product Management (CRUD)
+    Route::get('/product', [AdminController::class, 'indexProducts'])->name('product');
+    Route::post('/product', [AdminController::class, 'storeProduct'])->name('product.store');
+    Route::put('/product/{id}', [AdminController::class, 'updateProduct'])->name('product.update');
+    Route::delete('/product/{id}', [AdminController::class, 'destroyProduct'])->name('product.destroy');
+
+    // Management Functionality (4 Tabs) - Renamed from /system
+    Route::get('/management', [AdminController::class, 'indexManagement'])->name('management');
+
+    // Management CRUD Routes
+    Route::post('/management/categories', [AdminController::class, 'storeCategory'])->name('management.categories.store');
+    Route::put('/management/categories/{id}', [AdminController::class, 'updateCategory'])->name('management.categories.update');
+    Route::delete('/management/categories/{id}', [AdminController::class, 'destroyCategory'])->name('management.categories.destroy');
+
+    Route::post('/management/suppliers', [AdminController::class, 'storeSupplier'])->name('management.suppliers.store');
+    Route::put('/management/suppliers/{id}', [AdminController::class, 'updateSupplier'])->name('management.suppliers.update');
+    Route::delete('/management/suppliers/{id}', [AdminController::class, 'destroySupplier'])->name('management.suppliers.destroy');
+
+    Route::post('/management/departments', [AdminController::class, 'storeDepartment'])->name('management.departments.store');
+    Route::put('/management/departments/{id}', [AdminController::class, 'updateDepartment'])->name('management.departments.update');
+    Route::delete('/management/departments/{id}', [AdminController::class, 'destroyDepartment'])->name('management.departments.destroy');
+
+    Route::post('/management/users', [AdminController::class, 'storeUser'])->name('management.users.store');
+    Route::put('/management/users/{id}', [AdminController::class, 'updateUser'])->name('management.users.update');
+    Route::delete('/management/users/{id}', [AdminController::class, 'destroyUser'])->name('management.users.destroy');
+
     Route::get('/report', function () {
         return view('admin.report');
     })->name('report');

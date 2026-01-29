@@ -37,17 +37,30 @@ class DepartmentController extends Controller
 
     public function createrequest()
     {
-        $initialProducts = Product::take(20)->get();
-        return view('department.request', compact('initialProducts'));
+        $initialProducts = Product::take(50)->get();
+        $categories = \App\Models\Category::all();
+        return view('department.request', compact('initialProducts', 'categories'));
     }
 
     public function searchProducts(Request $request)
     {
         $query = $request->get('q');
-        $products = Product::where('product_name', 'LIKE', "%{$query}%")
-            ->orWhere('sku', 'LIKE', "%{$query}%")
-            ->take(20)
-            ->get();
+        $categoryId = $request->get('category_id');
+
+        $productsQuery = Product::query();
+
+        if ($query) {
+            $productsQuery->where(function ($q) use ($query) {
+                $q->where('product_name', 'LIKE', "%{$query}%")
+                    ->orWhere('product_code', 'LIKE', "%{$query}%");
+            });
+        }
+
+        if ($categoryId && $categoryId !== 'all') {
+            $productsQuery->where('category_id', $categoryId);
+        }
+
+        $products = $productsQuery->take(20)->get();
         return response()->json($products);
     }
 

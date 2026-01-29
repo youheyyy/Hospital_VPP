@@ -1,307 +1,388 @@
 @extends('layouts.department')
 
-@section('title', 'Tạo Phiếu Yêu Cầu Văn Phòng Phẩm')
+@section('title', 'Tạo Phiếu Yêu Cầu')
 
 @section('styles')
-    <style type="text/tailwindcss">
-        .hide-scrollbar::-webkit-scrollbar { display: none; }
-            .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-            input[type="number"]::-webkit-inner-spin-button,
-            input[type="number"]::-webkit-outer-spin-button {
-                -webkit-appearance: none;
-                margin: 0;
-            }
-            .search-dropdown {
-                max-height: 0;
-                opacity: 0;
-                transition: all 0.3s ease;
-                overflow: hidden;
-            }
-            .search-dropdown.active {
-                max-height: 600px;
-                opacity: 1;
-            }
-        </style>
+<style>
+    /* Compact Layout Styles */
+    .glass-card {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(226, 232, 240, 0.8);
+        box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.05);
+    }
+    
+    .table-container {
+        border-radius: 8px;
+        overflow: hidden;
+        border: 1px solid #f1f5f9;
+    }
+
+    .custom-table th {
+        color: #64748b;
+        font-weight: 700;
+        text-transform: uppercase;
+        font-size: 0.7rem;
+        letter-spacing: 0.025em;
+        padding: 0.6rem 1rem;
+        background-color: #f8fafc;
+    }
+
+    .custom-table td {
+        padding: 0.5rem 1rem;
+        vertical-align: middle;
+        border-bottom: 1px solid #f8fafc;
+        font-size: 0.85rem;
+    }
+
+    .btn-add {
+        background-color: #eff6ff;
+        color: #2563eb;
+        font-weight: 700;
+        padding: 0.3rem 0.8rem;
+        border-radius: 6px;
+        font-size: 0.75rem;
+        transition: all 0.2s;
+    }
+
+    .btn-add:hover {
+        background-color: #2563eb;
+        color: white;
+    }
+
+    .search-input {
+        background-color: #f8fafc;
+        border: 1px solid #e2e8f0;
+    }
+
+    .search-input:focus {
+        background-color: white;
+        border-color: #3b82f6;
+    }
+
+    .price-text {
+        color: #2563eb;
+        font-weight: 600;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    }
+    
+    .total-card {
+        background-color: #f8fafc;
+        border-radius: 12px;
+        padding: 0.75rem 1.5rem;
+    }
+
+    /* Hide scrollbars but keep functionality */
+    body { overflow: hidden; }
+    main { padding-top: 0.5rem !important; padding-bottom: 0.5rem !important; }
+
+    input[type="number"]::-webkit-inner-spin-button,
+    input[type="number"]::-webkit-outer-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+
+    /* Pagination Styles */
+    .pagination-btn {
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        border: 1px solid #e2e8f0;
+        font-size: 0.75rem;
+        color: #64748b;
+        transition: all 0.2s;
+    }
+    .pagination-btn:hover:not(:disabled) {
+        background-color: #f1f5f9;
+        color: #1e293b;
+    }
+    .pagination-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+</style>
 @endsection
 
 @section('content')
-    <div class="max-w-7xl mx-auto w-full space-y-6">
-
-        <!-- Search Section -->
-        <section class="relative">
-            <div class="bg-white dark:bg-slate-900 rounded-2xl p-4 shadow-sm border border-slate-200 dark:border-slate-800">
-                <div class="relative group">
-                    <span
-                        class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors">search</span>
-                    <input id="searchInput"
-                        class="w-full pl-12 pr-4 py-4 bg-slate-50 dark:bg-slate-800 border-transparent focus:border-primary focus:ring-0 rounded-xl text-lg transition-all"
-                        placeholder="Tìm kiếm sản phẩm (Nhập tên)..." type="text" autocomplete="off"
-                        onfocus="showInitialProducts()" oninput="handleSearchInput(this.value)" />
-                </div>
+<div class="max-w-7xl mx-auto px-4 space-y-3">
+    
+    <!-- SECTION 1: DANH MỤC VẬT TƯ -->
+    <div class="glass-card rounded-xl p-4">
+        <div class="flex flex-col md:flex-row gap-3 mb-3 text-slate-900 items-center">
+            <div class="relative flex-1 w-full">
+                <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 !text-xl">search</span>
+                <input type="text" id="searchInput" oninput="handleSearch()"
+                    placeholder="Tìm kiếm mã VT hoặc tên hàng..." 
+                    class="w-full pl-10 pr-4 py-2 rounded-lg search-input outline-none border-slate-200 text-sm">
             </div>
-
-            <!-- Search Results Dropdown -->
-            <div id="searchDropdown"
-                class="search-dropdown absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-900 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden z-[60]">
-                <div id="searchResults" class="max-h-64 overflow-y-auto hide-scrollbar p-2 space-y-1">
-                    <!-- Results injected here -->
-                </div>
+            <div class="flex items-center gap-2">
+                <span class="text-[10px] font-bold text-slate-500 uppercase whitespace-nowrap">LOẠI SẢN PHẨM:</span>
+                <select id="categoryFilter" onchange="handleSearch()" 
+                    class="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs outline-none focus:border-blue-500 min-w-[160px]">
+                    <option value="all">Tất cả sản phẩm</option>
+                    @foreach($categories as $cat)
+                        <option value="{{ $cat->category_id }}">{{ $cat->category_name }}</option>
+                    @endforeach
+                </select>
             </div>
-        </section>
-
-        <!-- Details Form -->
-        <div class="bg-white dark:bg-slate-900 rounded-xl p-4 border border-slate-200 dark:border-slate-800">
-            <label class="block text-sm font-bold mb-2">Ghi chú cho yêu cầu:</label>
-            <textarea id="requestNote"
-                class="w-full bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 rounded-lg p-3" rows="2"
-                placeholder="Nhập ghi chú (nếu có)..."></textarea>
         </div>
 
-        <!-- Products Table -->
-        <section
-            class="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden">
-            <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse">
-                    <thead class="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800">
-                        <tr>
-                            <th class="px-4 py-4 font-semibold text-sm w-12 text-center">STT</th>
-                            <th class="px-4 py-4 font-semibold text-sm">Tên hàng</th>
-                            <th class="px-4 py-4 font-semibold text-sm w-24 text-center">ĐVT</th>
-                            <th class="px-4 py-4 font-semibold text-sm w-44 text-center">Số Lượng</th>
-                            <th class="px-4 py-4 font-semibold text-sm w-32 text-right">Đơn giá</th>
-                            <th class="px-4 py-4 font-semibold text-sm w-36 text-right">Thành Tiền</th>
-                            <th class="px-4 py-4 font-semibold text-sm w-12 text-center"></th>
-                        </tr>
-                    </thead>
-                    <tbody id="productTableBody">
-                        <tr id="emptyState">
-                            <td colspan="7" class="px-4 py-20 text-center text-slate-400">
-                                <span class="material-symbols-outlined text-6xl mb-4">inventory_2</span>
-                                <p>Chưa có mặt hàng nào được chọn.</p>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
+        <div class="flex items-center justify-between mb-2">
+            <h3 class="flex items-center gap-2 font-bold text-slate-700 text-sm">
+                <span class="material-symbols-outlined text-blue-600 !text-lg">inventory</span>
+                DANH MỤC VẬT TƯ
+            </h3>
+            <span class="text-[9px] italic text-slate-400">Nhấp '+ Thêm' để chọn</span>
+        </div>
 
-            <!-- Summary Footer -->
-            <div
-                class="sticky bottom-0 bg-slate-50 dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 p-4 px-6 flex items-center justify-between">
-                <div class="flex gap-6">
-                    <div class="text-sm">
-                        <span class="text-slate-500">Số lượng:</span>
-                        <span id="totalQty" class="font-bold ml-1">0</span>
-                    </div>
-                </div>
-                <div class="flex items-center gap-2">
-                    <span class="text-lg font-medium text-slate-500">TỔNG CỘNG:</span>
-                    <span id="grandTotal" class="text-2xl font-black text-primary font-mono tracking-tighter">0 VNĐ</span>
-                </div>
-            </div>
-        </section>
+        <div class="table-container">
+            <table class="w-full custom-table text-left">
+                <thead>
+                    <tr>
+                        <th class="w-24">Mã VT</th>
+                        <th>Tên hàng</th>
+                        <th class="w-20 text-center">ĐVT</th>
+                        <th class="w-32 text-right">Đơn giá</th>
+                        <th class="w-24 text-center">Thêm</th>
+                    </tr>
+                </thead>
+                <tbody id="catalogTableBody">
+                    {{-- JS injects rows here --}}
+                </tbody>
+            </table>
+        </div>
 
-        <!-- Action Buttons -->
-        <div class="flex items-center justify-end gap-4 pt-4">
-            <button onclick="submitRequest()"
-                class="px-10 py-3.5 bg-primary text-white rounded-xl font-bold hover:bg-sky-700 shadow-lg shadow-sky-500/20 active:scale-95 transition-all flex items-center gap-2">
-                Gửi phiếu yêu cầu <span class="material-symbols-outlined">send</span>
+        <!-- Pagination -->
+        <div class="flex items-center justify-end gap-2 mt-2" id="paginationControls">
+            <button onclick="changePage(-1)" id="prevBtn" class="pagination-btn flex items-center gap-1">
+                <span class="material-symbols-outlined !text-sm">chevron_left</span> Trước
+            </button>
+            <span id="pageInfo" class="text-[10px] text-slate-500 font-bold">Trang 1/1</span>
+            <button onclick="changePage(1)" id="nextBtn" class="pagination-btn flex items-center gap-1">
+                Sau <span class="material-symbols-outlined !text-sm">chevron_right</span>
             </button>
         </div>
     </div>
+
+    <!-- SECTION 2: CHI TIẾT PHIẾU ĐANG LẬP -->
+    <div class="glass-card rounded-xl p-4">
+        <h3 class="flex items-center gap-2 font-bold text-slate-700 mb-2 text-sm">
+            <span class="material-symbols-outlined text-blue-600 !text-lg">description</span>
+            CHI TIẾT PHIẾU ĐANG LẬP
+        </h3>
+
+        <div class="table-container mb-3" style="max-height: 220px; overflow-y: auto;">
+            <table class="w-full custom-table text-left text-sm">
+                <thead class="sticky top-0 z-10">
+                    <tr>
+                        <th class="w-10 text-center">STT</th>
+                        <th>Tên hàng / Mã VT</th>
+                        <th class="w-20 text-center">ĐVT</th>
+                        <th class="w-28 text-center">Số lượng</th>
+                        <th class="w-28 text-right">Đơn giá</th>
+                        <th class="w-28 text-right">Thành tiền</th>
+                        <th class="w-10 text-center">Xóa</th>
+                    </tr>
+                </thead>
+                <tbody id="selectedTableBody">
+                    <tr id="emptyState">
+                        <td colspan="7" class="py-8 text-center text-slate-400">
+                            <div class="flex flex-col items-center">
+                                <span class="material-symbols-outlined text-3xl mb-1">draft</span>
+                                <p class="text-xs">Chưa có mặt hàng nào được chọn.</p>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="flex flex-col md:flex-row items-center justify-between gap-4 total-card">
+            <div class="flex items-center gap-6">
+                <div>
+                    <p class="text-[9px] text-slate-500 uppercase font-bold">Mặt hàng</p>
+                    <p class="text-sm font-bold text-slate-800" id="totalItems">00 sản phẩm</p>
+                </div>
+                <div class="h-6 w-[1px] bg-slate-200 hidden md:block"></div>
+                <div>
+                    <p class="text-[9px] text-slate-500 uppercase font-bold">Tổng cộng (VND)</p>
+                    <p class="text-xl font-black text-blue-700 font-mono tracking-tight" id="grandTotal">0</p>
+                </div>
+            </div>
+            
+            <button onclick="submitRequest()"
+                class="w-full md:w-auto px-10 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700 shadow-md shadow-blue-500/20 transition-all flex items-center justify-center gap-2">
+                <span class="material-symbols-outlined !text-lg">send</span>
+                GỬI PHIẾU YÊU CẦU
+            </button>
+        </div>
+    </div>
+</div>
 @endsection
 
 @section('scripts')
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.6.2/axios.min.js"></script>
-    <script>
-        let selectedProducts = [];
-        const initialProducts = @json($initialProducts ?? []);
+<script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.6.2/axios.min.js"></script>
+<script>
+    let allProducts = @json($initialProducts);
+    let filteredProducts = [...allProducts];
+    let selectedProducts = [];
+    
+    let currentPage = 1;
+    const itemsPerPage = 5;
 
-        function showInitialProducts() {
-            const dropdown = document.getElementById('searchDropdown');
-            const resultsContainer = document.getElementById('searchResults');
-            const input = document.getElementById('searchInput');
+    // Initialization
+    renderCatalog();
 
-            if (input.value.trim().length > 0) return; // Don't override if searching
-
-            resultsContainer.innerHTML = '';
-
-            if (initialProducts.length > 0) {
-                const title = document.createElement('div');
-                title.className = "px-4 py-2 text-xs font-bold text-slate-400 uppercase tracking-wider";
-                title.textContent = "Gợi ý cho bạn";
-                resultsContainer.appendChild(title);
-
-                initialProducts.forEach(p => {
-                    const div = document.createElement('div');
-                    div.className = "w-full text-left px-4 py-3 rounded-lg flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer group transition-colors";
-                    div.innerHTML = `
-                            <div>
-                                <div class="font-medium">${p.product_name}</div>
-                                <div class="text-xs text-slate-400">Code: ${p.product_code || ''} • ĐVT: ${p.unit}</div>
-                            </div>
-                            <span class="text-sm font-mono text-slate-500">${parseInt(p.unit_price).toLocaleString()} đ</span>
-                        `;
-                    div.onclick = () => addProduct(p);
-                    resultsContainer.appendChild(div);
-                });
-                dropdown.classList.add('active');
-            }
-        }
-
-        // Close dropdown when clicking outside
-        document.addEventListener('click', function (e) {
-            const searchSection = document.querySelector('section.relative');
-            if (!searchSection.contains(e.target)) {
-                document.getElementById('searchDropdown').classList.remove('active');
-            }
+    function handleSearch() {
+        const query = document.getElementById('searchInput').value.toLowerCase();
+        const categoryId = document.getElementById('categoryFilter').value;
+        
+        filteredProducts = allProducts.filter(p => {
+            const matchesQuery = p.product_name.toLowerCase().includes(query) || 
+                               (p.product_code && p.product_code.toLowerCase().includes(query));
+            const matchesCategory = categoryId === 'all' || p.category_id == categoryId;
+            return matchesQuery && matchesCategory;
         });
 
-        // Debounce function
-        function debounce(func, timeout = 300) {
-            let timer;
-            return (...args) => {
-                clearTimeout(timer);
-                timer = setTimeout(() => { func.apply(this, args); }, timeout);
-            };
-        }
+        currentPage = 1;
+        renderCatalog();
+    }
 
-        const handleSearchInput = debounce(async (value) => {
-            const dropdown = document.getElementById('searchDropdown');
-            const resultsContainer = document.getElementById('searchResults');
+    function renderCatalog() {
+        const tbody = document.getElementById('catalogTableBody');
+        tbody.innerHTML = '';
+        
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const endIndex = startIndex + itemsPerPage;
+        const pageItems = filteredProducts.slice(startIndex, endIndex);
 
-            if (value.length < 1) {
-                showInitialProducts();
-                return;
-            }
-
-            try {
-                const response = await axios.get('{{ route("department.products.search") }}', { params: { q: value } });
-                const products = response.data;
-
-                resultsContainer.innerHTML = '';
-                if (products.length > 0) {
-                    products.forEach(p => {
-                        const div = document.createElement('div');
-                        div.className = "w-full text-left px-4 py-3 rounded-lg flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer group transition-colors";
-                        div.innerHTML = `
-                            <div>
-                                <div class="font-medium">${p.product_name}</div>
-                                <div class="text-xs text-slate-400">Code: ${p.product_code || ''} • ĐVT: ${p.unit}</div>
-                            </div>
-                            <span class="text-sm font-mono text-slate-500">${parseInt(p.unit_price).toLocaleString()} đ</span>
-                        `;
-                        div.onclick = () => addProduct(p);
-                        resultsContainer.appendChild(div);
-                    });
-                    dropdown.classList.add('active');
-                } else {
-                    resultsContainer.innerHTML = '<div class="p-4 text-center text-slate-500">Không tìm thấy sản phẩm</div>';
-                    dropdown.classList.add('active');
-                }
-            } catch (error) {
-                console.error(error);
-            }
-        });
-
-        function addProduct(product) {
-            // Check if exists
-            const existing = selectedProducts.find(p => p.product_id === product.product_id);
-            if (existing) {
-                existing.quantity += 1;
-            } else {
-                selectedProducts.push({ ...product, quantity: 1 });
-            }
-            renderTable();
-            document.getElementById('searchDropdown').classList.remove('active');
-            document.getElementById('searchInput').value = '';
-        }
-
-        function renderTable() {
-            const tbody = document.getElementById('productTableBody');
-            const emptyState = document.getElementById('emptyState');
-
-            if (selectedProducts.length === 0) {
-                tbody.innerHTML = '';
-                tbody.appendChild(emptyState);
-                emptyState.classList.remove('hidden');
-                updateSummary();
-                return;
-            }
-
-            tbody.innerHTML = '';
-
-            selectedProducts.forEach((p, index) => {
-                const total = p.quantity * p.unit_price;
+        if (pageItems.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="py-4 text-center text-slate-400 text-xs">Không tìm thấy sản phẩm</td></tr>';
+        } else {
+            pageItems.forEach(p => {
                 const tr = document.createElement('tr');
-                tr.className = 'border-b border-slate-100 dark:border-slate-800';
                 tr.innerHTML = `
-                    <td class="px-4 py-3 text-center text-slate-400 text-sm">${index + 1}</td>
-                    <td class="px-4 py-3 font-medium">${p.product_name}</td>
-                    <td class="px-4 py-3 text-center text-sm">${p.unit}</td>
-                    <td class="px-4 py-3">
-                        <input type="number" min="1" value="${p.quantity}" 
-                            class="w-20 text-center bg-transparent border border-slate-200 rounded p-1"
-                            onchange="updateQuantity(${p.product_id}, this.value)">
-                    </td>
-                    <td class="px-4 py-3 text-right text-sm font-mono">${parseInt(p.unit_price).toLocaleString()}</td>
-                    <td class="px-4 py-3 text-right text-sm font-bold font-mono text-primary">${total.toLocaleString()}</td>
-                    <td class="px-4 py-3 text-center">
-                         <button onclick="removeProduct(${p.product_id})" class="text-slate-400 hover:text-red-500">
-                            <span class="material-symbols-outlined">delete</span>
-                         </button>
+                    <td class="text-[10px] text-slate-500 font-mono">${p.product_code || ''}</td>
+                    <td class="font-bold text-slate-800">${p.product_name}</td>
+                    <td class="text-center text-xs text-slate-600">${p.unit}</td>
+                    <td class="text-right price-text text-sm">${parseInt(p.unit_price).toLocaleString()}</td>
+                    <td class="text-center">
+                        <button onclick='addProduct(${JSON.stringify(p)})' class="btn-add">+ THÊM</button>
                     </td>
                 `;
                 tbody.appendChild(tr);
             });
+        }
+
+        updatePagination();
+    }
+
+    function updatePagination() {
+        const totalPages = Math.ceil(filteredProducts.length / itemsPerPage) || 1;
+        document.getElementById('pageInfo').textContent = `Trang ${currentPage}/${totalPages}`;
+        document.getElementById('prevBtn').disabled = currentPage === 1;
+        document.getElementById('nextBtn').disabled = currentPage === totalPages;
+    }
+
+    function changePage(dir) {
+        currentPage += dir;
+        renderCatalog();
+    }
+
+    function addProduct(product) {
+        const existing = selectedProducts.find(p => p.product_id === product.product_id);
+        if (existing) {
+            existing.quantity += 1;
+        } else {
+            selectedProducts.push({ ...product, quantity: 1 });
+        }
+        renderSelectedTable();
+    }
+
+    function renderSelectedTable() {
+        const tbody = document.getElementById('selectedTableBody');
+        const emptyState = document.getElementById('emptyState');
+
+        if (selectedProducts.length === 0) {
+            tbody.innerHTML = '';
+            tbody.appendChild(emptyState);
             updateSummary();
+            return;
         }
 
-        function updateQuantity(id, qty) {
-            const product = selectedProducts.find(p => p.product_id === id);
-            if (product) {
-                product.quantity = parseInt(qty);
-                renderTable();
+        tbody.innerHTML = '';
+        selectedProducts.forEach((p, index) => {
+            const total = p.quantity * p.unit_price;
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td class="text-center text-slate-400 text-[10px]">${index + 1}</td>
+                <td>
+                    <div class="font-bold text-slate-800 text-xs">${p.product_name}</div>
+                    <div class="text-[9px] text-slate-400 font-mono">${p.product_code || ''}</div>
+                </td>
+                <td class="text-center text-slate-600 text-xs">${p.unit}</td>
+                <td class="text-center">
+                    <input type="number" min="1" value="${p.quantity}" 
+                        onchange="updateQuantity(${p.product_id}, this.value)"
+                        class="w-16 text-center bg-slate-50 border border-slate-100 rounded-lg py-0.5 outline-none focus:border-blue-400 text-xs text-slate-900">
+                </td>
+                <td class="text-right font-mono text-slate-500 text-xs">${parseInt(p.unit_price).toLocaleString()}</td>
+                <td class="text-right font-bold text-slate-800 font-mono text-xs">${total.toLocaleString()}</td>
+                <td class="text-center">
+                    <button onclick="removeProduct(${p.product_id})" class="text-red-400 hover:text-red-600 transition-colors">
+                        <span class="material-symbols-outlined !text-lg">delete</span>
+                    </button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+        updateSummary();
+    }
+
+    function updateQuantity(id, qty) {
+        const product = selectedProducts.find(p => p.product_id === id);
+        if (product) {
+            product.quantity = Math.max(1, parseInt(qty) || 1);
+            renderSelectedTable();
+        }
+    }
+
+    function removeProduct(id) {
+        selectedProducts = selectedProducts.filter(p => p.product_id !== id);
+        renderSelectedTable();
+    }
+
+    function updateSummary() {
+        const totalItems = selectedProducts.length;
+        const grandTotal = selectedProducts.reduce((sum, p) => sum + (p.quantity * p.unit_price), 0);
+
+        document.getElementById('totalItems').textContent = totalItems.toString().padStart(2, '0') + ' sản phẩm';
+        document.getElementById('grandTotal').textContent = grandTotal.toLocaleString();
+    }
+
+    async function submitRequest() {
+        if (selectedProducts.length === 0) return alert('Vui lòng chọn ít nhất một sản phẩm');
+
+        if (!confirm('Xác nhận gửi yêu cầu này?')) return;
+
+        try {
+            const payload = {
+                items: selectedProducts.map(p => ({
+                    product_id: p.product_id,
+                    quantity: p.quantity
+                })),
+                note: "" // Note removed from UI, sending empty
+            };
+
+            const res = await axios.post('{{ route("department.request.store") }}', payload);
+
+            if (res.data.success) {
+                alert(res.data.message);
+                window.location.href = res.data.redirect;
             }
+        } catch (error) {
+            console.error(error);
+            alert('Có lỗi xảy ra: ' + (error.response?.data?.message || error.message));
         }
-
-        function removeProduct(id) {
-            selectedProducts = selectedProducts.filter(p => p.product_id !== id);
-            renderTable();
-        }
-
-        function updateSummary() {
-            const totalQty = selectedProducts.reduce((sum, p) => sum + p.quantity, 0);
-            const grandTotal = selectedProducts.reduce((sum, p) => sum + (p.quantity * p.unit_price), 0);
-
-            document.getElementById('totalQty').textContent = totalQty;
-            document.getElementById('grandTotal').textContent = grandTotal.toLocaleString() + ' VNĐ';
-        }
-
-        async function submitRequest() {
-            if (selectedProducts.length === 0) return alert('Vui lòng chọn ít nhất một sản phẩm');
-            const note = document.getElementById('requestNote').value;
-
-            if (!confirm('Xác nhận gửi yêu cầu này?')) return;
-
-            try {
-                const payload = {
-                    items: selectedProducts.map(p => ({
-                        product_id: p.product_id,
-                        quantity: p.quantity
-                    })),
-                    note: note
-                };
-
-                const res = await axios.post('{{ route("department.request.store") }}', payload);
-
-                if (res.data.success) {
-                    alert(res.data.message);
-                    window.location.href = res.data.redirect || '{{ route("department.dashboard") }}';
-                }
-            } catch (error) {
-                console.error(error);
-                alert('Có lỗi xảy ra: ' + (error.response?.data?.message || error.message));
-            }
-        }
-    </script>
+    }
+</script>
 @endsection

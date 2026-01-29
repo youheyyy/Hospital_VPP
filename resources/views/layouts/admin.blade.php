@@ -51,7 +51,8 @@
             <div class="flex items-center gap-3 mb-8">
                 <img src="{{ asset('images/logo-tmmc.png') }}" alt="Hospital Logo" class="h-12 w-auto">
                 <div>
-                    <h1 class="text-sm font-bold tracking-tight text-slate-900 dark:text-white uppercase">VẬT TƯ Y TẾ</h1>
+                    <h1 class="text-sm font-bold tracking-tight text-slate-900 dark:text-white uppercase">VẬT TƯ Y TẾ
+                    </h1>
                     <p class="text-[10px] font-medium text-slate-400 uppercase tracking-widest">Hệ Thống Quản Trị</p>
                 </div>
             </div>
@@ -86,6 +87,11 @@
                     href="{{ route('admin.report') }}">
                     <span class="material-symbols-outlined text-[20px]">bar_chart</span>
                     <span class="text-sm font-medium">Báo cáo thống kê</span>
+                </a>
+                <a class="flex items-center gap-3 px-3 py-2.5 rounded-md {{ request()->routeIs('admin.management') ? 'sidebar-item-active' : 'hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400' }}"
+                    href="{{ route('admin.management') }}">
+                    <span class="material-symbols-outlined text-[20px]">settings_applications</span>
+                    <span class="text-sm font-medium">Chức năng quản lý</span>
                 </a>
             </nav>
         </div>
@@ -168,6 +174,30 @@
             </div>
         </header>
         <div class="p-8 max-w-[1600px] w-full mx-auto">
+            @if(session('success'))
+                <div x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 5000)"
+                    class="mb-6 p-4 bg-green-100 border border-green-200 text-green-700 rounded-lg flex items-center justify-between shadow-sm">
+                    <div class="flex items-center gap-3">
+                        <span class="material-symbols-outlined">check_circle</span>
+                        <span class="text-sm font-bold">{{ session('success') }}</span>
+                    </div>
+                    <button @click="show = false" class="text-green-500 hover:text-green-700 transition-colors"><span
+                            class="material-symbols-outlined">close</span></button>
+                </div>
+            @endif
+
+            @if(session('error'))
+                <div x-data="{ show: true }" x-show="show"
+                    class="mb-6 p-4 bg-red-100 border border-red-200 text-red-700 rounded-lg flex items-center justify-between shadow-sm">
+                    <div class="flex items-center gap-3">
+                        <span class="material-symbols-outlined">error</span>
+                        <span class="text-sm font-bold">{{ session('error') }}</span>
+                    </div>
+                    <button @click="show = false" class="text-red-500 hover:text-red-700 transition-colors"><span
+                            class="material-symbols-outlined">close</span></button>
+                </div>
+            @endif
+
             @yield('content')
         </div>
     </main>

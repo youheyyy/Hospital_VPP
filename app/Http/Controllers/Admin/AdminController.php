@@ -237,6 +237,180 @@ class AdminController extends Controller
             ->paginate(10);
         return view('admin.orders.index', compact('orders'));
     }
+
+    /* --- PRODUCT MANAGEMENT --- */
+
+    public function indexProducts(Request $request)
+    {
+        $query = Product::with(['category.supplier']);
+
+        if ($request->has('q')) {
+            $search = $request->q;
+            $query->where(function ($q) use ($search) {
+                $q->where('product_name', 'LIKE', "%{$search}%")
+                    ->orWhere('product_code', 'LIKE', "%{$search}%");
+            });
+        }
+
+        $products = $query->orderBy('created_at', 'desc')->paginate(10);
+        $categories = \App\Models\Category::all();
+
+        return view('admin.product', compact('products', 'categories'));
+    }
+
+    public function storeProduct(Request $request)
+    {
+        $request->validate([
+            'product_name' => 'required|string|max:200',
+            'category_id' => 'required|exists:product_categories,category_id',
+            'unit' => 'nullable|string|max:50',
+            'unit_price' => 'nullable|numeric',
+        ]);
+
+        // Generate product code
+        $category = \App\Models\Category::findOrFail($request->category_id);
+        $prefix = $category->category_code ?: 'PROD';
+        $lastProduct = Product::where('category_id', $request->category_id)->orderBy('product_id', 'desc')->first();
+        $seq = 1;
+        if ($lastProduct && preg_match('/(\d+)$/', $lastProduct->product_code, $matches)) {
+            $seq = intval($matches[1]) + 1;
+        }
+        $code = $prefix . str_pad($seq, 4, '0', STR_PAD_LEFT);
+
+        Product::create(array_merge($request->all(), [
+            'product_code' => $code,
+            'created_by' => Auth::id()
+        ]));
+
+        return redirect()->back()->with('success', 'Thêm sản phẩm thành công.');
+    }
+
+    public function updateProduct(Request $request, $id)
+    {
+        $product = Product::findOrFail($id);
+        $request->validate([
+            'product_name' => 'required|string|max:200',
+            'category_id' => 'required|exists:product_categories,category_id',
+            'unit' => 'nullable|string|max:50',
+            'unit_price' => 'nullable|numeric',
+        ]);
+
+        $product->update($request->all());
+
+        return redirect()->back()->with('success', 'Cập nhật sản phẩm thành công.');
+    }
+
+    public function destroyProduct($id)
+    {
+        $product = Product::findOrFail($id);
+        $product->delete();
+        return redirect()->back()->with('success', 'Xóa sản phẩm thành công.');
+    }
+
+    /* --- MANAGEMENT FUNCTIONALITY --- */
+
+    public function indexManagement()
+    {
+        $categories = \App\Models\Category::with('supplier')->get();
+        $suppliers = Supplier::all();
+        $departments = \App\Models\Department::all();
+        $users = \App\Models\User::with('department')->get();
+
+        return view('admin.management', compact('categories', 'suppliers', 'departments', 'users'));
+    }
+
+    // Category CRUD
+    public function storeCategory(Request $request)
+    {
+        $request->validate(['category_name' => 'required', 'category_code' => 'required|unique:product_categories']);
+        \App\Models\Category::create($request->all());
+        return redirect()->back()->with('success', 'Thêm danh mục thành công.');
+    }
+
+    public function updateCategory(Request $request, $id)
+    {
+        $item = \App\Models\Category::findOrFail($id);
+        $item->update($request->all());
+        return redirect()->back()->with('success', 'Cập nhật danh mục thành công.');
+    }
+
+    public function destroyCategory($id)
+    {
+        \App\Models\Category::findOrFail($id)->delete();
+        return redirect()->back()->with('success', 'Xóa danh mục thành công.');
+    }
+
+    // Supplier CRUD
+    public function storeSupplier(Request $request)
+    {
+        $request->validate(['supplier_name' => 'required', 'supplier_code' => 'required|unique:suppliers']);
+        Supplier::create($request->all());
+        return redirect()->back()->with('success', 'Thêm nhà cung cấp thành công.');
+    }
+
+    public function updateSupplier(Request $request, $id)
+    {
+        Supplier::findOrFail($id)->update($request->all());
+        return redirect()->back()->with('success', 'Cập nhật nhà cung cấp thành công.');
+    }
+
+    public function destroySupplier($id)
+    {
+        Supplier::findOrFail($id)->delete();
+        return redirect()->back()->with('success', 'Xóa nhà cung cấp thành công.');
+    }
+
+    // Department CRUD
+    public function storeDepartment(Request $request)
+    {
+        $request->validate(['department_name' => 'required', 'department_code' => 'required|unique:departments']);
+        \App\Models\Department::create($request->all());
+        return redirect()->back()->with('success', 'Thêm khoa phòng thành công.');
+    }
+
+    public function updateDepartment(Request $request, $id)
+    {
+        \App\Models\Department::findOrFail($id)->update($request->all());
+        return redirect()->back()->with('success', 'Cập nhật khoa phòng thành công.');
+    }
+
+    public function destroyDepartment($id)
+    {
+        \App\Models\Department::findOrFail($id)->delete();
+        return redirect()->back()->with('success', 'Xóa khoa phòng thành công.');
+    }
+
+    // User CRUD
+    public function storeUser(Request $request)
+    {
+        $request->validate([
+            'username' => 'required|unique:users',
+            'full_name' => 'required',
+            'role_code' => 'required',
+            'password' => 'required|min:6'
+        ]);
+        $data = $request->all();
+        $data['password'] = \Hash::make($request->password);
+        \App\Models\User::create($data);
+        return redirect()->back()->with('success', 'Thêm tài khoản thành công.');
+    }
+
+    public function updateUser(Request $request, $id)
+    {
+        $user = \App\Models\User::findOrFail($id);
+        $data = $request->only(['full_name', 'department_id', 'role_code', 'active']);
+        if ($request->filled('password')) {
+            $data['password'] = \Hash::make($request->password);
+        }
+        $user->update($data);
+        return redirect()->back()->with('success', 'Cập nhật tài khoản thành công.');
+    }
+
+    public function destroyUser($id)
+    {
+        \App\Models\User::findOrFail($id)->delete();
+        return redirect()->back()->with('success', 'Xóa tài khoản thành công.');
+    }
     public function approveSummaryVotes()
     {
         // 1. Get raw items for Detail View
@@ -705,7 +879,7 @@ class AdminController extends Controller
             if ($item->request && $item->request->department) {
                 $productId = $item->product_id;
                 $deptName = $item->request->department->department_name;
-                
+
                 // Store all departments that requested this product
                 if (!isset($productDepartmentMap[$productId])) {
                     $productDepartmentMap[$productId] = [];
@@ -721,7 +895,7 @@ class AdminController extends Controller
         foreach ($aggregationItems as $aggItem) {
             $productId = $aggItem->product_id;
             $departments = $productDepartmentMap[$productId] ?? ['Chưa gán khoa'];
-            
+
             // Add this item to each department that requested it
             foreach ($departments as $deptName) {
                 if (!isset($groupedByDepartment[$deptName])) {
@@ -740,7 +914,7 @@ class AdminController extends Controller
             // Create new sheet for each department
             $sheet = new \PhpOffice\PhpSpreadsheet\Worksheet\Worksheet($spreadsheet, $departmentName);
             $spreadsheet->addSheet($sheet, $sheetIndex);
-            
+
             // Set page setup
             $sheet->getPageSetup()->setPaperSize(\PhpOffice\PhpSpreadsheet\Worksheet\PageSetup::PAPERSIZE_A4);
             $sheet->getPageSetup()->setOrientation(\PhpOffice\PhpSpreadsheet\Worksheet\PageSetup::ORIENTATION_PORTRAIT);
@@ -755,13 +929,13 @@ class AdminController extends Controller
             // Row 2
             $sheet->setCellValue('A2', 'P. HỖ TRỢ DỊCH VỤ');
             $sheet->getStyle('A2')->getFont()->setBold(true);
-            
+
             // Row 3-4 - Legal reference
             $sheet->mergeCells('A3:F3');
             $sheet->setCellValue('A3', '(Ban hành theo TT số 200/2014/TT-BTC');
             $sheet->getStyle('A3')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
             $sheet->getStyle('A3')->getFont()->setItalic(true)->setSize(10);
-            
+
             $sheet->mergeCells('A4:F4');
             $sheet->setCellValue('A4', 'Ngày 22/12/2014 của Bộ trưởng BTC)');
             $sheet->getStyle('A4')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
@@ -864,7 +1038,7 @@ class AdminController extends Controller
                         ],
                         'alignment' => ['vertical' => Alignment::VERTICAL_CENTER]
                     ]);
-                    
+
                     $sheet->getStyle("A{$currentRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
                     $sheet->getStyle("C{$currentRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
                     $sheet->getStyle("D{$currentRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
@@ -931,7 +1105,7 @@ class AdminController extends Controller
             $sheet->setCellValue("A{$currentRow}", 'NGƯỜI LẬP PHIẾU');
             $sheet->setCellValue("C{$currentRow}", 'THỦ KHO / KẾ TOÁN');
             $sheet->setCellValue("E{$currentRow}", 'GIÁM ĐỐC');
-            
+
             $sheet->getStyle("A{$currentRow}:F{$currentRow}")->getFont()->setBold(true)->setSize(11);
             $sheet->getStyle("A{$currentRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
             $sheet->getStyle("C{$currentRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
@@ -943,7 +1117,7 @@ class AdminController extends Controller
             $sheet->setCellValue("A{$currentRow}", '(Ký, họ tên)');
             $sheet->setCellValue("C{$currentRow}", '(Ký, họ tên)');
             $sheet->setCellValue("E{$currentRow}", '(Ký, họ tên)');
-            
+
             $sheet->getStyle("A{$currentRow}:F{$currentRow}")->getFont()->setItalic(true)->setSize(10);
             $sheet->getStyle("A{$currentRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
             $sheet->getStyle("C{$currentRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
@@ -977,7 +1151,7 @@ class AdminController extends Controller
         // Create Excel file
         $writer = new Xlsx($spreadsheet);
         $fileName = 'Phieu_Xuat_Kho_' . now()->format('dmY') . '.xlsx';
-        
+
         // Set headers for download
         header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         header('Content-Disposition: attachment;filename="' . $fileName . '"');

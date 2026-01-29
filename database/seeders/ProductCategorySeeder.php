@@ -11,41 +11,13 @@ class ProductCategorySeeder extends Seeder
     public function run(): void
     {
         DB::table('product_categories')->insert([
-            [
-                'category_code' => 'VPP',
-                'category_name' => 'Văn phòng phẩm',
-                'supplier_id' => 3, // Văn phòng phẩm Hồng Hà
-                'created_at' => Carbon::now(),
-                'updated_at' => Carbon::now(),
-            ],
-            [
-                'category_code' => 'VTYT',
-                'category_name' => 'Vật tư y tế',
-                'supplier_id' => 1, // Công ty Thiết bị Y tế Minh Phát
-                'created_at' => Carbon::now(),
-                'updated_at' => Carbon::now(),
-            ],
-            [
-                'category_code' => 'TBYT',
-                'category_name' => 'Thiết bị y tế',
-                'supplier_id' => 1, // Công ty Thiết bị Y tế Minh Phát
-                'created_at' => Carbon::now(),
-                'updated_at' => Carbon::now(),
-            ],
-            [
-                'category_code' => 'HC',
-                'category_name' => 'Hóa chất',
-                'supplier_id' => 4, // Công ty Hóa chất Y Sinh
-                'created_at' => Carbon::now(),
-                'updated_at' => Carbon::now(),
-            ],
-            [
-                'category_code' => 'KHAC',
-                'category_name' => 'Khác',
-                'supplier_id' => 5, // Nhà cung cấp tổng hợp Phúc Long
-                'created_at' => Carbon::now(),
-                'updated_at' => Carbon::now(),
-            ],
+            ['category_id' => 1, 'category_name' => 'Văn phòng phẩm', 'category_code' => 'VPP', 'supplier_id' => 1, 'created_at' => Carbon::now(), 'updated_at' => Carbon::now()],
+            ['category_id' => 2, 'category_name' => 'Vật tư tiêu hao', 'category_code' => 'VTTH', 'supplier_id' => 2, 'created_at' => Carbon::now(), 'updated_at' => Carbon::now()],
+            ['category_id' => 3, 'category_name' => 'Vật tư - Hóa chất vệ sinh', 'category_code' => 'HCVS', 'supplier_id' => 2, 'created_at' => Carbon::now(), 'updated_at' => Carbon::now()],
+            ['category_id' => 4, 'category_name' => 'Quảng cáo', 'category_code' => 'QC', 'supplier_id' => 4, 'created_at' => Carbon::now(), 'updated_at' => Carbon::now()],
+            ['category_id' => 5, 'category_name' => 'Biểu mẫu', 'category_code' => 'BM', 'supplier_id' => 4, 'created_at' => Carbon::now(), 'updated_at' => Carbon::now()],
+            ['category_id' => 6, 'category_name' => 'Nước uống đóng bình', 'category_code' => 'NUOC', 'supplier_id' => 6, 'created_at' => Carbon::now(), 'updated_at' => Carbon::now()],
+            ['category_id' => 7, 'category_name' => 'Danh mục Khác', 'category_code' => 'KHAC', 'supplier_id' => 7, 'created_at' => Carbon::now(), 'updated_at' => Carbon::now()],
         ]);
     }
 }
