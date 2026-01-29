@@ -37,9 +37,8 @@ class DepartmentController extends Controller
 
     public function createrequest()
     {
-        $initialProducts = Product::take(50)->get();
         $categories = \App\Models\Category::all();
-        return view('department.request', compact('initialProducts', 'categories'));
+        return view('department.request', compact('categories'));
     }
 
     public function searchProducts(Request $request)
@@ -47,7 +46,7 @@ class DepartmentController extends Controller
         $query = $request->get('q');
         $categoryId = $request->get('category_id');
 
-        $productsQuery = Product::query();
+        $productsQuery = Product::query()->select('product_id', 'product_name', 'product_code', 'unit', 'unit_price', 'category_id');
 
         if ($query) {
             $productsQuery->where(function ($q) use ($query) {
@@ -60,7 +59,7 @@ class DepartmentController extends Controller
             $productsQuery->where('category_id', $categoryId);
         }
 
-        $products = $productsQuery->take(20)->get();
+        $products = $productsQuery->get();
         return response()->json($products);
     }
 

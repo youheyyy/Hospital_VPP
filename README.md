@@ -61,3 +61,11 @@ The Laravel framework is open-sourced software licensed under the [MIT license](
 ## Cách sửa lỗi bảng session
 php artisan session:table
 php artisan migrate
+
+
+## Chạy lại database mới không tạo databse cũ
+php artisan migrate:fresh --seed
+
+
+php artisan db:seed --class=DepartmentSeeder
+php artisan db:seed --class=UserSeeder
