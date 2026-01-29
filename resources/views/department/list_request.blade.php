@@ -182,12 +182,12 @@
                                                 <span class="material-symbols-outlined text-red-600 dark:text-red-400">delete</span>
                                             </button>
                                         @else
-                                            <a href="{{ route('department.request.show', $request->purchase_request_id) }}"
+                                            <button onclick="viewRequestDetail({{ $request->purchase_request_id }})"
                                                 class="p-2 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
                                                 title="Xem chi tiết">
                                                 <span
                                                     class="material-symbols-outlined text-blue-600 dark:text-blue-400">visibility</span>
-                                            </a>
+                                            </button>
                                             @if(in_array($request->status, ['approved', 'completed']))
                                                 <button onclick="printRequest({{ $request->purchase_request_id }})"
                                                     class="p-2 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors"
@@ -253,6 +253,103 @@
             @endif
         </section>
 
+        <!-- Request Detail Modal -->
+        <div id="requestDetailModal" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+                <!-- Modal Header -->
+                <div class="bg-gradient-to-r from-primary to-sky-700 px-6 py-4 flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <span class="material-symbols-outlined text-white text-3xl">description</span>
+                        <div>
+                            <h3 class="text-xl font-bold text-white" id="modalRequestCode">Chi tiết yêu cầu</h3>
+                            <p class="text-sky-100 text-sm" id="modalRequestDate"></p>
+                        </div>
+                    </div>
+                    <button onclick="closeRequestModal()" class="p-2 hover:bg-white/20 rounded-lg transition-colors">
+                        <span class="material-symbols-outlined text-white">close</span>
+                    </button>
+                </div>
+
+                <!-- Modal Body -->
+                <div class="overflow-y-auto max-h-[calc(90vh-80px)] p-6 space-y-6">
+                    <!-- Request Info -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="bg-slate-50 dark:bg-slate-800 rounded-xl p-4">
+                            <div class="text-xs font-bold text-slate-500 uppercase mb-1">Người tạo</div>
+                            <div class="font-bold text-slate-900 dark:text-white" id="modalRequester"></div>
+                        </div>
+                        <div class="bg-slate-50 dark:bg-slate-800 rounded-xl p-4">
+                            <div class="text-xs font-bold text-slate-500 uppercase mb-1">Khoa phòng</div>
+                            <div class="font-bold text-slate-900 dark:text-white" id="modalDepartment"></div>
+                        </div>
+                        <div class="bg-slate-50 dark:bg-slate-800 rounded-xl p-4">
+                            <div class="text-xs font-bold text-slate-500 uppercase mb-1">Trạng thái</div>
+                            <div id="modalStatus"></div>
+                        </div>
+                        <div class="bg-slate-50 dark:bg-slate-800 rounded-xl p-4">
+                            <div class="text-xs font-bold text-slate-500 uppercase mb-1">Số mặt hàng</div>
+                            <div class="font-bold text-slate-900 dark:text-white" id="modalItemsCount"></div>
+                        </div>
+                    </div>
+
+                    <!-- Products Table -->
+                    <div class="bg-slate-50 dark:bg-slate-800 rounded-xl overflow-hidden">
+                        <div class="px-4 py-3 bg-slate-200 dark:bg-slate-700">
+                            <h4 class="font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                                <span class="material-symbols-outlined">inventory_2</span>
+                                Danh sách sản phẩm
+                            </h4>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full">
+                                <thead class="bg-slate-100 dark:bg-slate-700/50">
+                                    <tr>
+                                        <th class="px-4 py-3 text-left text-xs font-bold text-slate-600 dark:text-slate-300">STT</th>
+                                        <th class="px-4 py-3 text-left text-xs font-bold text-slate-600 dark:text-slate-300">Tên sản phẩm</th>
+                                        <th class="px-4 py-3 text-left text-xs font-bold text-slate-600 dark:text-slate-300">Mã SKU</th>
+                                        <th class="px-4 py-3 text-center text-xs font-bold text-slate-600 dark:text-slate-300">Đơn vị</th>
+                                        <th class="px-4 py-3 text-right text-xs font-bold text-slate-600 dark:text-slate-300">Số lượng</th>
+                                        <th class="px-4 py-3 text-right text-xs font-bold text-slate-600 dark:text-slate-300">Đơn giá</th>
+                                        <th class="px-4 py-3 text-right text-xs font-bold text-slate-600 dark:text-slate-300">Thành tiền</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="modalProductsTable" class="divide-y divide-slate-200 dark:divide-slate-700">
+                                    <!-- Products will be inserted here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Total Amount -->
+                    <div class="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-xl p-4 border-2 border-green-200 dark:border-green-800">
+                        <div class="flex items-center justify-between">
+                            <span class="text-lg font-bold text-slate-700 dark:text-slate-300">Tổng tiền:</span>
+                            <div class="text-right">
+                                <div class="text-2xl font-black text-green-700 dark:text-green-400 font-mono" id="modalTotalAmount"></div>
+                                <div class="text-xs text-green-600 dark:text-green-500">VNĐ</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Note -->
+                    <div id="modalNoteSection" class="hidden bg-amber-50 dark:bg-amber-900/20 rounded-xl p-4 border border-amber-200 dark:border-amber-800">
+                        <div class="text-xs font-bold text-amber-700 dark:text-amber-400 uppercase mb-2 flex items-center gap-2">
+                            <span class="material-symbols-outlined text-sm">note</span>
+                            Ghi chú
+                        </div>
+                        <div class="text-sm text-slate-700 dark:text-slate-300" id="modalNote"></div>
+                    </div>
+                </div>
+
+                <!-- Modal Footer -->
+                <div class="bg-slate-50 dark:bg-slate-800 px-6 py-4 flex items-center justify-end gap-3 border-t border-slate-200 dark:border-slate-700">
+                    <button onclick="closeRequestModal()" class="px-6 py-2.5 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg font-bold hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors">
+                        Đóng
+                    </button>
+                </div>
+            </div>
+        </div>
+
     </div>
 @endsection
 
@@ -293,5 +390,108 @@
                 window.location.href = `/department/request/${id}/recreate`;
             }
         }
+
+        // View request detail in modal
+        function viewRequestDetail(id) {
+            const modal = document.getElementById('requestDetailModal');
+            modal.classList.remove('hidden');
+
+            // Fetch request details
+            fetch(`/department/request/${id}/detail`)
+                .then(response => response.json())
+                .then(result => {
+                    if (result.success) {
+                        const data = result.data;
+                        
+                        // Update modal header
+                        document.getElementById('modalRequestCode').textContent = data.request_code;
+                        document.getElementById('modalRequestDate').textContent = data.request_date;
+
+                        // Update request info
+                        document.getElementById('modalRequester').textContent = data.requester_name;
+                        document.getElementById('modalDepartment').textContent = data.department_name;
+                        document.getElementById('modalItemsCount').textContent = data.items_count;
+
+                        // Update status badge
+                        const statusConfig = {
+                            'draft': { bg: 'bg-slate-100 dark:bg-slate-800', text: 'text-slate-600 dark:text-slate-400', icon: 'draft' },
+                            'SUBMITTED': { bg: 'bg-amber-100 dark:bg-amber-900/40', text: 'text-amber-700 dark:text-amber-400', icon: 'pending' },
+                            'pending': { bg: 'bg-amber-100 dark:bg-amber-900/40', text: 'text-amber-700 dark:text-amber-400', icon: 'pending' },
+                            'APPROVED': { bg: 'bg-green-100 dark:bg-green-900/40', text: 'text-green-700 dark:text-green-400', icon: 'check_circle' },
+                            'REJECTED': { bg: 'bg-red-100 dark:bg-red-900/40', text: 'text-red-700 dark:text-red-400', icon: 'cancel' },
+                            'ISSUED': { bg: 'bg-blue-100 dark:bg-blue-900/40', text: 'text-blue-700 dark:text-blue-400', icon: 'local_shipping' }
+                        };
+                        const status = statusConfig[data.status] || statusConfig['draft'];
+                        document.getElementById('modalStatus').innerHTML = `
+                            <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full ${status.bg} ${status.text} text-xs font-bold">
+                                <span class="material-symbols-outlined text-sm">${status.icon}</span>
+                                ${data.status_label}
+                            </span>
+                        `;
+
+                        // Update products table
+                        const tbody = document.getElementById('modalProductsTable');
+                        tbody.innerHTML = '';
+                        data.items.forEach((item, index) => {
+                            const row = document.createElement('tr');
+                            row.className = 'hover:bg-slate-100 dark:hover:bg-slate-700/30';
+                            row.innerHTML = `
+                                <td class="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">${index + 1}</td>
+                                <td class="px-4 py-3 text-sm font-medium text-slate-900 dark:text-white">${item.product_name}</td>
+                                <td class="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">${item.sku}</td>
+                                <td class="px-4 py-3 text-sm text-center text-slate-600 dark:text-slate-400">${item.unit}</td>
+                                <td class="px-4 py-3 text-sm text-right font-bold text-slate-900 dark:text-white">${item.quantity_requested}</td>
+                                <td class="px-4 py-3 text-sm text-right font-mono text-slate-600 dark:text-slate-400">${formatNumber(item.unit_price)}</td>
+                                <td class="px-4 py-3 text-sm text-right font-mono font-bold text-slate-900 dark:text-white">${formatNumber(item.total_price)}</td>
+                            `;
+                            tbody.appendChild(row);
+                        });
+
+                        // Update total amount
+                        document.getElementById('modalTotalAmount').textContent = formatNumber(data.total_amount);
+
+                        // Update note
+                        const noteSection = document.getElementById('modalNoteSection');
+                        if (data.note && data.note.trim() !== '') {
+                            noteSection.classList.remove('hidden');
+                            document.getElementById('modalNote').textContent = data.note;
+                        } else {
+                            noteSection.classList.add('hidden');
+                        }
+                    } else {
+                        alert(result.message || 'Không thể tải thông tin yêu cầu');
+                        closeRequestModal();
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Đã xảy ra lỗi khi tải thông tin yêu cầu');
+                    closeRequestModal();
+                });
+        }
+
+        // Close modal
+        function closeRequestModal() {
+            document.getElementById('requestDetailModal').classList.add('hidden');
+        }
+
+        // Close modal when clicking outside
+        document.getElementById('requestDetailModal')?.addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeRequestModal();
+            }
+        });
+
+        // Format number with thousand separators
+        function formatNumber(num) {
+            return new Intl.NumberFormat('vi-VN').format(num);
+        }
+
+        // Close modal on ESC key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeRequestModal();
+            }
+        });
     </script>
 @endsection
