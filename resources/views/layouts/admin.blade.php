@@ -116,63 +116,91 @@
                             class="absolute top-1 right-1 w-2 h-2 bg-red-500 border-2 border-white dark:border-slate-900 rounded-full"></span>
                     </button>
 
-                    <!-- User Profile Dropdown -->
-                    <div class="relative" x-data="{ open: false }">
-                        <button @click="open = !open"
-                            class="flex items-center gap-2 p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors">
-                            <div class="size-7 rounded-full bg-cover bg-center ring-2 ring-primary/20"
-                                style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDwW7nsZi-I9duwko3cgQ1S6rVqpQymVRRN6AR8lIU7086B5y3d1SXJffjIToNIGTDWXsUi4pFTTGljjBMIvCY1sSwF8cAqd9tLwM0FgmKV49Q_X6MpxED7AsTe38BGh2VKbZavAZTYHMciAsSiWpPQbyKCIrNbxiBOYFEgrEcXRVubs06SPUFLTYCwutVprnNUdN7-Dxhv1tCZwwywNHsM5L6_PBSxtFf0Bezki4Uhwank13ymjqlQ__a7bWEHgrF4YAmyCbu-gE_7')">
+                    <!-- User Dropdown Menu -->
+                    <div style="position: relative;">
+                        <button id="userDropdownButton" type="button" onclick="toggleUserDropdown(event)"
+                            style="display: flex; align-items: center; gap: 8px; background: #f3f4f6; padding: 3px 12px 3px 3px; border-radius: 9999px; border: 1px solid #e5e7eb; cursor: pointer;">
+                            <div
+                                style="height: 32px; width: 32px; border-radius: 9999px; background: #135bec; color: white; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 900;">
+                                {{ strtoupper(substr(auth()->user()->full_name ?? 'U', 0, 1)) }}
                             </div>
                             <span
-                                class="text-xs font-semibold text-slate-700 dark:text-slate-300">{{ Auth::user()->name ?? 'Admin' }}</span>
-                            <span class="material-symbols-outlined text-sm text-slate-500">expand_more</span>
+                                style="font-weight: 700; font-size: 14px; color: #111827;">{{ auth()->user()->full_name ?? 'User' }}</span>
+                            <span class="material-symbols-outlined"
+                                style="font-size: 16px; color: #6b7280;">expand_more</span>
                         </button>
 
-                        <!-- Dropdown Menu -->
-                        <div x-show="open" @click.away="open = false"
-                            x-transition:enter="transition ease-out duration-100"
-                            x-transition:enter-start="transform opacity-0 scale-95"
-                            x-transition:enter-end="transform opacity-100 scale-100"
-                            x-transition:leave="transition ease-in duration-75"
-                            x-transition:leave-start="transform opacity-100 scale-100"
-                            x-transition:leave-end="transform opacity-0 scale-95"
-                            class="absolute right-0 mt-2 w-56 bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 py-1 z-50"
-                            style="display: none;">
-                            <div class="px-4 py-3 border-b border-slate-100 dark:border-slate-700">
-                                <p class="text-xs font-bold text-slate-800 dark:text-slate-200">
-                                    {{ Auth::user()->name ?? 'Admin Hiếu' }}
-                                </p>
-                                <p class="text-[10px] text-slate-500 mt-0.5">{{ Auth::user()->email ??
-                                    'admin@hospital.com' }}</p>
+                        <!-- Dropdown -->
+                        <div id="userDropdown"
+                            style="display: none; position: absolute; right: 0; top: 100%; margin-top: 8px; width: 240px; background: white; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.15); border: 1px solid #e5e7eb; z-index: 1000;">
+                            <div style="padding: 12px 16px; border-bottom: 1px solid #e5e7eb;">
+                                <div style="font-weight: 600; font-size: 14px; color: #111827; text-align: left;">
+                                    {{ auth()->user()->full_name }}
+                                </div>
+                                <div style="font-size: 12px; color: #6b7280; margin-top: 2px; text-align: left;">
+                                    {{ auth()->user()->email }}
+                                </div>
                             </div>
-                            <a href="#"
-                                class="flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
-                                <span
-                                    class="material-symbols-outlined text-sm text-slate-600 dark:text-slate-400">person</span>
-                                <span class="text-xs font-medium text-slate-700 dark:text-slate-300">Thông tin cá
-                                    nhân</span>
+
+                            <a href="javascript:void(0)" onclick="showModal('personalInfoModal')"
+                                style="display: flex; align-items: center; gap: 8px; padding: 10px 16px; text-decoration: none; color: #374151; font-size: 14px; text-align: left;"
+                                onmouseover="this.style.background='#f3f4f6'"
+                                onmouseout="this.style.background='white'">
+                                <span class="material-symbols-outlined" style="font-size: 18px;">person</span>
+                                Thông tin cá nhân
                             </a>
-                            <a href="#"
-                                class="flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
-                                <span
-                                    class="material-symbols-outlined text-sm text-slate-600 dark:text-slate-400">settings</span>
-                                <span class="text-xs font-medium text-slate-700 dark:text-slate-300">Cài đặt</span>
+
+                            <a href="javascript:void(0)" onclick="showModal('changePasswordModal')"
+                                style="display: flex; align-items: center; gap: 8px; padding: 10px 16px; text-decoration: none; color: #374151; font-size: 14px; text-align: left;"
+                                onmouseover="this.style.background='#f3f4f6'"
+                                onmouseout="this.style.background='white'">
+                                <span class="material-symbols-outlined" style="font-size: 18px;">lock</span>
+                                Đổi mật khẩu
                             </a>
-                            <div class="border-t border-slate-100 dark:border-slate-700 my-1"></div>
-                            <a href="{{ route('logout') }}"
-                                onclick="event.preventDefault(); document.getElementById('logout-form-header').submit();"
-                                class="flex items-center gap-3 px-4 py-2.5 hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors text-red-500">
-                                <span class="material-symbols-outlined text-sm">logout</span>
-                                <span class="text-xs font-bold">Đăng xuất</span>
-                            </a>
+
+                            <div style="border-top: 1px solid #e5e7eb; margin: 4px 0;"></div>
+
+                            <form method="POST" action="{{ route('logout') }}" style="margin: 0;">
+                                @csrf
+                                <button type="submit"
+                                    style="width: 100%; display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: none; border: none; color: #dc2626; font-size: 14px; font-weight: 600; cursor: pointer; border-radius: 0 0 12px 12px; text-align: left;"
+                                    onmouseover="this.style.background='#fef2f2'"
+                                    onmouseout="this.style.background='transparent'">
+                                    <span class="material-symbols-outlined" style="font-size: 18px;">logout</span>
+                                    Đăng xuất
+                                </button>
+                            </form>
                         </div>
                     </div>
-                    <form id="logout-form-header" action="{{ route('logout') }}" method="POST" class="hidden">
-                        @csrf
-                    </form>
                 </div>
             </div>
         </header>
+
+        @include('layouts.profile-modals')
+
+        <script>
+            // Toggle dropdown function
+            function toggleUserDropdown(event) {
+                event.stopPropagation();
+                const dropdown = document.getElementById('userDropdown');
+                if (!dropdown) return;
+                const isVisible = dropdown.style.display === 'block';
+                dropdown.style.display = isVisible ? 'none' : 'block';
+            }
+
+            // Close dropdown when clicking outside
+            document.addEventListener('click', function (event) {
+                const dropdown = document.getElementById('userDropdown');
+                const button = document.getElementById('userDropdownButton');
+
+                // Check if click is outside both dropdown and button
+                if (dropdown && button &&
+                    !dropdown.contains(event.target) &&
+                    !button.contains(event.target)) {
+                    dropdown.style.display = 'none';
+                }
+            });
+        </script>
         <div class="p-8 max-w-[1600px] w-full mx-auto">
             @if(session('success'))
                 <div x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 5000)"

@@ -5,8 +5,8 @@
 @section('styles')
     <style type="text/tailwindcss">
         .hide-scrollbar::-webkit-scrollbar { display: none; }
-                    .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-                </style>
+                                    .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+                                </style>
 @endsection
 
 @section('content')
@@ -122,7 +122,8 @@
                                 </td>
                                 <td class="px-6 py-4">
                                     <div class="text-sm">{{ $request->created_at->format('d/m/Y') }}</div>
-                                    <div class="text-xs text-slate-400">{{ $request->created_at->format('h:i A') }}</div>
+                                    <div class="text-xs text-slate-400">
+                                        {{ $request->created_at->format('h:i A') }}</div>
                                 </td>
                                 <td class="px-6 py-4">
                                     <div class="flex items-center gap-2">
@@ -139,7 +140,8 @@
                                     </div>
                                 </td>
                                 <td class="px-6 py-4 text-center">
-                                    <span class="font-bold">{{ $request->items_count ?? 0 }}</span>
+                                    <span
+                                        class="font-bold">{{ $request->items_count ?? 0 }}</span>
                                 </td>
                                 <td class="px-6 py-4 text-right">
                                     @php
@@ -147,7 +149,7 @@
                                             return $item->quantity_requested * $item->product->unit_price;
                                         });
                                     @endphp
-                                    <div class="font-bold font-mono">{{ number_format($totalAmount) }}</div>
+                                    <div class="font-bold font-mono">{{ number_format($totalAmount, 0, ',', '.') }}</div>
                                     <div class="text-xs text-slate-400">VNĐ</div>
                                 </td>
                                 <td class="px-6 py-4 text-center">
@@ -254,7 +256,8 @@
         </section>
 
         <!-- Request Detail Modal -->
-        <div id="requestDetailModal" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div id="requestDetailModal"
+            class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
             <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
                 <!-- Modal Header -->
                 <div class="bg-gradient-to-r from-primary to-sky-700 px-6 py-4 flex items-center justify-between">
@@ -304,13 +307,27 @@
                             <table class="w-full">
                                 <thead class="bg-slate-100 dark:bg-slate-700/50">
                                     <tr>
-                                        <th class="px-4 py-3 text-left text-xs font-bold text-slate-600 dark:text-slate-300">STT</th>
-                                        <th class="px-4 py-3 text-left text-xs font-bold text-slate-600 dark:text-slate-300">Tên sản phẩm</th>
-                                        <th class="px-4 py-3 text-left text-xs font-bold text-slate-600 dark:text-slate-300">Mã SKU</th>
-                                        <th class="px-4 py-3 text-center text-xs font-bold text-slate-600 dark:text-slate-300">Đơn vị</th>
-                                        <th class="px-4 py-3 text-right text-xs font-bold text-slate-600 dark:text-slate-300">Số lượng</th>
-                                        <th class="px-4 py-3 text-right text-xs font-bold text-slate-600 dark:text-slate-300">Đơn giá</th>
-                                        <th class="px-4 py-3 text-right text-xs font-bold text-slate-600 dark:text-slate-300">Thành tiền</th>
+                                        <th
+                                            class="px-4 py-3 text-left text-xs font-bold text-slate-600 dark:text-slate-300">
+                                            STT</th>
+                                        <th
+                                            class="px-4 py-3 text-left text-xs font-bold text-slate-600 dark:text-slate-300">
+                                            Tên sản phẩm</th>
+                                        <th
+                                            class="px-4 py-3 text-left text-xs font-bold text-slate-600 dark:text-slate-300">
+                                            Mã sản phẩm</th>
+                                        <th
+                                            class="px-4 py-3 text-center text-xs font-bold text-slate-600 dark:text-slate-300">
+                                            Đơn vị</th>
+                                        <th
+                                            class="px-4 py-3 text-right text-xs font-bold text-slate-600 dark:text-slate-300">
+                                            Số lượng</th>
+                                        <th
+                                            class="px-4 py-3 text-right text-xs font-bold text-slate-600 dark:text-slate-300">
+                                            Đơn giá</th>
+                                        <th
+                                            class="px-4 py-3 text-right text-xs font-bold text-slate-600 dark:text-slate-300">
+                                            Thành tiền</th>
                                     </tr>
                                 </thead>
                                 <tbody id="modalProductsTable" class="divide-y divide-slate-200 dark:divide-slate-700">
@@ -321,19 +338,23 @@
                     </div>
 
                     <!-- Total Amount -->
-                    <div class="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-xl p-4 border-2 border-green-200 dark:border-green-800">
+                    <div
+                        class="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-xl p-4 border-2 border-green-200 dark:border-green-800">
                         <div class="flex items-center justify-between">
                             <span class="text-lg font-bold text-slate-700 dark:text-slate-300">Tổng tiền:</span>
                             <div class="text-right">
-                                <div class="text-2xl font-black text-green-700 dark:text-green-400 font-mono" id="modalTotalAmount"></div>
+                                <div class="text-2xl font-black text-green-700 dark:text-green-400 font-mono"
+                                    id="modalTotalAmount"></div>
                                 <div class="text-xs text-green-600 dark:text-green-500">VNĐ</div>
                             </div>
                         </div>
                     </div>
 
                     <!-- Note -->
-                    <div id="modalNoteSection" class="hidden bg-amber-50 dark:bg-amber-900/20 rounded-xl p-4 border border-amber-200 dark:border-amber-800">
-                        <div class="text-xs font-bold text-amber-700 dark:text-amber-400 uppercase mb-2 flex items-center gap-2">
+                    <div id="modalNoteSection"
+                        class="hidden bg-amber-50 dark:bg-amber-900/20 rounded-xl p-4 border border-amber-200 dark:border-amber-800">
+                        <div
+                            class="text-xs font-bold text-amber-700 dark:text-amber-400 uppercase mb-2 flex items-center gap-2">
                             <span class="material-symbols-outlined text-sm">note</span>
                             Ghi chú
                         </div>
@@ -342,8 +363,10 @@
                 </div>
 
                 <!-- Modal Footer -->
-                <div class="bg-slate-50 dark:bg-slate-800 px-6 py-4 flex items-center justify-end gap-3 border-t border-slate-200 dark:border-slate-700">
-                    <button onclick="closeRequestModal()" class="px-6 py-2.5 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg font-bold hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors">
+                <div
+                    class="bg-slate-50 dark:bg-slate-800 px-6 py-4 flex items-center justify-end gap-3 border-t border-slate-200 dark:border-slate-700">
+                    <button onclick="closeRequestModal()"
+                        class="px-6 py-2.5 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg font-bold hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors">
                         Đóng
                     </button>
                 </div>
@@ -402,7 +425,7 @@
                 .then(result => {
                     if (result.success) {
                         const data = result.data;
-                        
+
                         // Update modal header
                         document.getElementById('modalRequestCode').textContent = data.request_code;
                         document.getElementById('modalRequestDate').textContent = data.request_date;
@@ -423,11 +446,11 @@
                         };
                         const status = statusConfig[data.status] || statusConfig['draft'];
                         document.getElementById('modalStatus').innerHTML = `
-                            <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full ${status.bg} ${status.text} text-xs font-bold">
-                                <span class="material-symbols-outlined text-sm">${status.icon}</span>
-                                ${data.status_label}
-                            </span>
-                        `;
+                                            <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full ${status.bg} ${status.text} text-xs font-bold">
+                                                <span class="material-symbols-outlined text-sm">${status.icon}</span>
+                                                ${data.status_label}
+                                            </span>
+                                        `;
 
                         // Update products table
                         const tbody = document.getElementById('modalProductsTable');
@@ -436,14 +459,14 @@
                             const row = document.createElement('tr');
                             row.className = 'hover:bg-slate-100 dark:hover:bg-slate-700/30';
                             row.innerHTML = `
-                                <td class="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">${index + 1}</td>
-                                <td class="px-4 py-3 text-sm font-medium text-slate-900 dark:text-white">${item.product_name}</td>
-                                <td class="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">${item.sku}</td>
-                                <td class="px-4 py-3 text-sm text-center text-slate-600 dark:text-slate-400">${item.unit}</td>
-                                <td class="px-4 py-3 text-sm text-right font-bold text-slate-900 dark:text-white">${item.quantity_requested}</td>
-                                <td class="px-4 py-3 text-sm text-right font-mono text-slate-600 dark:text-slate-400">${formatNumber(item.unit_price)}</td>
-                                <td class="px-4 py-3 text-sm text-right font-mono font-bold text-slate-900 dark:text-white">${formatNumber(item.total_price)}</td>
-                            `;
+                                                <td class="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">${index + 1}</td>
+                                                <td class="px-4 py-3 text-sm font-medium text-slate-900 dark:text-white">${item.product_name}</td>
+                                                <td class="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">${item.product_code}</td>
+                                                <td class="px-4 py-3 text-sm text-center text-slate-600 dark:text-slate-400">${item.unit}</td>
+                                                <td class="px-4 py-3 text-sm text-right font-bold text-slate-900 dark:text-white">${item.quantity_requested}</td>
+                                                <td class="px-4 py-3 text-sm text-right font-mono text-slate-600 dark:text-slate-400">${formatNumber(item.unit_price)}</td>
+                                                <td class="px-4 py-3 text-sm text-right font-mono font-bold text-slate-900 dark:text-white">${formatNumber(item.total_price)}</td>
+                                            `;
                             tbody.appendChild(row);
                         });
 
@@ -476,7 +499,7 @@
         }
 
         // Close modal when clicking outside
-        document.getElementById('requestDetailModal')?.addEventListener('click', function(e) {
+        document.getElementById('requestDetailModal')?.addEventListener('click', function (e) {
             if (e.target === this) {
                 closeRequestModal();
             }
@@ -488,7 +511,7 @@
         }
 
         // Close modal on ESC key
-        document.addEventListener('keydown', function(e) {
+        document.addEventListener('keydown', function (e) {
             if (e.key === 'Escape') {
                 closeRequestModal();
             }

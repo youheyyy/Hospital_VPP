@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\Admin\AdminController;
 use App\Http\Controllers\Department\DepartmentController;
+use App\Http\Controllers\ProfileController;
 
 // Redirect root to login
 Route::get('/', function () {
@@ -14,6 +15,12 @@ Route::get('/', function () {
 Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
 Route::post('/login', [AuthController::class, 'login'])->name('login.post');
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+
+// Profile routes
+Route::middleware('auth')->group(function () {
+    Route::post('/profile/update', [ProfileController::class, 'update'])->name('profile.update');
+    Route::post('/password/update', [ProfileController::class, 'updatePassword'])->name('password.update');
+});
 
 // Department Code
 Route::group(['prefix' => 'department', 'as' => 'department.', 'middleware' => ['auth', 'role:DEPARTMENT']], function () {

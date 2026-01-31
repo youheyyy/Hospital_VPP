@@ -1,9 +1,6 @@
 @extends('layouts.department')
 
-@section('title', 'Tạo Phiếu Yêu Cầu')
-
-@section('styles')
-    <style>
+@section('title', 'Tạo Phiếu Yêu Cầu')@section('styles')<style>
         /* Compact Layout Styles */
         .glass-card {
             background: rgba(255, 255, 255, 0.95);
@@ -107,6 +104,38 @@
             opacity: 0.5;
             cursor: not-allowed;
         }
+
+        .search-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            max-height: 0;
+            opacity: 0;
+            transition: all 0.2s ease-out;
+            overflow: hidden;
+            z-index: 100;
+            background: white;
+            border-radius: 12px;
+            margin-top: 8px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+        }
+
+        .search-dropdown.active {
+            max-height: 400px;
+            opacity: 1;
+            overflow-y: auto;
+            border: 1px solid #e2e8f0;
+        }
+
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
     </style>
 @endsection
 
@@ -119,9 +148,16 @@
                 <div class="relative flex-1 w-full">
                     <span
                         class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 !text-xl">search</span>
-                    <input type="text" id="searchInput" oninput="handleSearch()"
-                        placeholder="Tìm kiếm mã VT hoặc tên hàng..."
+                    <input type="text" id="searchInput" oninput="handleSearch()" onclick="showInitialProducts()"
+                        onfocus="showInitialProducts()" placeholder="Tìm kiếm mã VT hoặc tên hàng..." autocomplete="off"
                         class="w-full pl-10 pr-4 py-2 rounded-lg search-input outline-none border-slate-200 text-sm">
+
+                    <!-- SEARCH DROPDOWN FOR SUGGESTIONS -->
+                    <div id="searchDropdown" class="search-dropdown hide-scrollbar">
+                        <div id="searchResults" class="p-2 space-y-1">
+                            <!-- Results injected here -->
+                        </div>
+                    </div>
                 </div>
                 <div class="flex items-center gap-2">
                     <span class="text-[10px] font-bold text-slate-500 uppercase whitespace-nowrap">LOẠI SẢN PHẨM:</span>
@@ -233,6 +269,62 @@
     <script>
         let filteredProducts = [];
         let selectedProducts = [];
+        const initialProducts = @json($initialProducts ?? []);
+
+        function showInitialProducts() {
+            const dropdown = document.getElementById('searchDropdown');
+            const resultsContainer = document.getElementById('searchResults');
+            const input = document.getElementById('searchInput');
+
+            if (input.value.trim().length > 0) return;
+
+            resultsContainer.innerHTML = '';
+            if (initialProducts.length > 0) {
+                const title = document.createElement('div');
+                title.className = "px-4 py-2 text-[10px] font-black text-slate-400 uppercase tracking-widest";
+                title.textContent = "Gợi ý cho bạn";
+                resultsContainer.appendChild(title);
+
+                initialProducts.forEach(p => {
+                    renderResultItem(p, resultsContainer);
+                });
+                dropdown.classList.add('active');
+            }
+        }
+
+        function renderResultItem(p, container) {
+            const div = document.createElement('div');
+            div.className = "w-full text-left px-4 py-3 rounded-lg flex items-center justify-between hover:bg-slate-50 cursor-pointer group transition-all border border-transparent hover:border-slate-200";
+            div.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        <div class="p-2 rounded-lg bg-slate-100 text-slate-500 group-hover:bg-blue-100 group-hover:text-blue-600 transition-colors">
+                            <span class="material-symbols-outlined !text-xl">inventory_2</span>
+                        </div>
+                        <div>
+                            <div class="font-bold text-slate-800 text-sm">${p.product_name}</div>
+                            <div class="text-[10px] text-slate-400 font-mono tracking-tight uppercase">${p.product_code || ''} • ĐVT: ${p.unit}</div>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-sm font-black text-blue-600 font-mono">${parseInt(p.unit_price).toLocaleString('vi-VN')}</div>
+                        <div class="text-[9px] text-slate-400 font-bold uppercase">VNĐ</div>
+                    </div>
+                `;
+            div.onclick = () => {
+                addProduct(p);
+                document.getElementById('searchDropdown').classList.remove('active');
+            };
+            container.appendChild(div);
+        }
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function (e) {
+            const searchContainer = document.querySelector('.relative.flex-1');
+            const dropdown = document.getElementById('searchDropdown');
+            if (searchContainer && !searchContainer.contains(e.target)) {
+                dropdown.classList.remove('active');
+            }
+        });
 
         let currentPage = 1;
         const itemsPerPage = 10;
@@ -243,6 +335,9 @@
         let searchTimeout;
 
         async function handleSearch(instant = false) {
+            // Hide suggestion dropdown when searching
+            document.getElementById('searchDropdown').classList.remove('active');
+
             if (searchTimeout) clearTimeout(searchTimeout);
 
             if (instant) {
@@ -291,14 +386,14 @@
                 pageItems.forEach(p => {
                     const tr = document.createElement('tr');
                     tr.innerHTML = `
-                                    <td class="text-[10px] text-slate-500 font-mono">${p.product_code || ''}</td>
-                                    <td class="font-bold text-slate-800">${p.product_name}</td>
-                                    <td class="text-center text-xs text-slate-600">${p.unit}</td>
-                                    <td class="text-right price-text text-sm">${parseInt(p.unit_price).toLocaleString()}</td>
-                                    <td class="text-center">
-                                        <button onclick='addProduct(${JSON.stringify(p)})' class="btn-add">+ THÊM</button>
-                                    </td>
-                                `;
+                                                <td class="text-[10px] text-slate-500 font-mono">${p.product_code || ''}</td>
+                                                <td class="font-bold text-slate-800">${p.product_name}</td>
+                                                <td class="text-center text-xs text-slate-600">${p.unit}</td>
+                                                <td class="text-right price-text text-sm">${parseInt(p.unit_price).toLocaleString('vi-VN')}</td>
+                                                <td class="text-center">
+                                                    <button onclick='addProduct(${JSON.stringify(p)})' class="btn-add">+ THÊM</button>
+                                                </td>
+                                            `;
                     tbody.appendChild(tr);
                 });
             }
@@ -344,25 +439,25 @@
                 const total = p.quantity * p.unit_price;
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
-                                <td class="text-center text-slate-400 text-[10px]">${index + 1}</td>
-                                <td>
-                                    <div class="font-bold text-slate-800 text-xs">${p.product_name}</div>
-                                    <div class="text-[9px] text-slate-400 font-mono">${p.product_code || ''}</div>
-                                </td>
-                                <td class="text-center text-slate-600 text-xs">${p.unit}</td>
-                                <td class="text-center">
-                                    <input type="number" min="1" value="${p.quantity}" 
-                                        onchange="updateQuantity(${p.product_id}, this.value)"
-                                        class="w-16 text-center bg-slate-50 border border-slate-100 rounded-lg py-0.5 outline-none focus:border-blue-400 text-xs text-slate-900">
-                                </td>
-                                <td class="text-right font-mono text-slate-500 text-xs">${parseInt(p.unit_price).toLocaleString()}</td>
-                                <td class="text-right font-bold text-slate-800 font-mono text-xs">${total.toLocaleString()}</td>
-                                <td class="text-center">
-                                    <button onclick="removeProduct(${p.product_id})" class="text-red-400 hover:text-red-600 transition-colors">
-                                        <span class="material-symbols-outlined !text-lg">delete</span>
-                                    </button>
-                                </td>
-                            `;
+                                            <td class="text-center text-slate-400 text-[10px]">${index + 1}</td>
+                                            <td>
+                                                <div class="font-bold text-slate-800 text-xs">${p.product_name}</div>
+                                                <div class="text-[9px] text-slate-400 font-mono">${p.product_code || ''}</div>
+                                            </td>
+                                            <td class="text-center text-slate-600 text-xs">${p.unit}</td>
+                                            <td class="text-center">
+                                                <input type="number" min="1" value="${p.quantity}" 
+                                                    onchange="updateQuantity(${p.product_id}, this.value)"
+                                                    class="w-16 text-center bg-slate-50 border border-slate-100 rounded-lg py-0.5 outline-none focus:border-blue-400 text-xs text-slate-900">
+                                            </td>
+                                            <td class="text-right font-mono text-slate-500 text-xs">${parseInt(p.unit_price).toLocaleString('vi-VN')}</td>
+                                            <td class="text-right font-bold text-slate-800 font-mono text-xs">${total.toLocaleString('vi-VN')}</td>
+                                            <td class="text-center">
+                                                <button onclick="removeProduct(${p.product_id})" class="text-red-400 hover:text-red-600 transition-colors">
+                                                    <span class="material-symbols-outlined !text-lg">delete</span>
+                                                </button>
+                                            </td>
+                                        `;
                 tbody.appendChild(tr);
             });
             updateSummary();
@@ -386,7 +481,7 @@
             const grandTotal = selectedProducts.reduce((sum, p) => sum + (p.quantity * p.unit_price), 0);
 
             document.getElementById('totalItems').textContent = totalItems.toString().padStart(2, '0') + ' sản phẩm';
-            document.getElementById('grandTotal').textContent = grandTotal.toLocaleString();
+            document.getElementById('grandTotal').textContent = grandTotal.toLocaleString('vi-VN');
         }
 
         async function submitRequest() {

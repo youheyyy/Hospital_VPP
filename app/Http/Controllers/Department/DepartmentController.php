@@ -12,33 +12,75 @@ use Illuminate\Support\Facades\DB;
 
 class DepartmentController extends Controller
 {
-    public function dashboard()
+    public function dashboard(Request $request)
     {
         $user = Auth::user();
         if (!$user->department) {
             return redirect()->route('login')->with('error', 'User has no department.');
         }
 
-        $requests = PurchaseRequest::where('department_id', $user->department_id)
-            ->orderBy('created_at', 'desc')
-            ->take(5)
+        $month = $request->get('month', date('m'));
+        $year = $request->get('year', date('Y'));
+        $status = $request->get('status');
+
+        $query = PurchaseRequest::where('department_id', $user->department_id)
+            ->whereMonth('created_at', $month)
+            ->whereYear('created_at', $year);
+
+        // Stats filtered by month/year
+        $pendingCount = (clone $query)->where('status', 'SUBMITTED')->count();
+        $approvedCount = (clone $query)->where('status', 'APPROVED')->count();
+        $totalCount = (clone $query)->count();
+
+        // Recent requests with pagination and optional status filter
+        $requestsQuery = PurchaseRequest::where('department_id', $user->department_id)
+            ->whereMonth('created_at', $month)
+            ->whereYear('created_at', $year);
+
+        if ($status) {
+            $requestsQuery->where('status', $status);
+        }
+
+        $requests = $requestsQuery->orderBy('created_at', 'desc')
+            ->paginate(3)
+            ->appends(['month' => $month, 'year' => $year, 'status' => $status]);
+
+        // Top 3 Demand Products for the month
+        $topDemands = \App\Models\PurchaseRequestItem::whereHas('request', function ($q) use ($user, $month, $year) {
+            $q->where('department_id', $user->department_id)
+                ->whereMonth('created_at', $month)
+                ->whereYear('created_at', $year);
+        })
+            ->select('product_id', \DB::raw('SUM(quantity_requested) as total_qty'))
+            ->with('product')
+            ->groupBy('product_id')
+            ->orderBy('total_qty', 'desc')
+            ->take(3)
             ->get();
 
-        $pendingCount = PurchaseRequest::where('department_id', $user->department_id)
-            ->where('status', 'SUBMITTED')
-            ->count();
+        // Calculate percentages for top demand bars (max as 100%)
+        $maxQty = $topDemands->max('total_qty') ?: 1;
+        foreach ($topDemands as $demand) {
+            $demand->percentage = round(($demand->total_qty / $maxQty) * 100);
+        }
 
-        $approvedCount = PurchaseRequest::where('department_id', $user->department_id)
-            ->where('status', 'APPROVED')
-            ->count();
-
-        return view('department.dashboard', compact('requests', 'pendingCount', 'approvedCount'));
+        return view('department.dashboard', compact(
+            'requests',
+            'pendingCount',
+            'approvedCount',
+            'totalCount',
+            'topDemands',
+            'month',
+            'year',
+            'status'
+        ));
     }
 
     public function createrequest()
     {
         $categories = \App\Models\Category::all();
-        return view('department.request', compact('categories'));
+        $initialProducts = Product::take(5)->get();
+        return view('department.request', compact('categories', 'initialProducts'));
     }
 
     public function searchProducts(Request $request)
@@ -182,7 +224,7 @@ class DepartmentController extends Controller
             $items = $request->items->map(function ($item) {
                 return [
                     'product_name' => $item->product->product_name ?? 'N/A',
-                    'sku' => $item->product->sku ?? 'N/A',
+                    'product_code' => $item->product->product_code ?? 'N/A',
                     'unit' => $item->product->unit ?? 'N/A',
                     'quantity_requested' => $item->quantity_requested,
                     'unit_price' => $item->product->unit_price ?? 0,
