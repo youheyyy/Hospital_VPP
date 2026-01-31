@@ -25,10 +25,10 @@ class AdminController extends Controller
     public function dashboard()
     {
         $pendingRequests = PurchaseRequest::where('status', 'SUBMITTED')->count();
-        $todayOrders = PurchaseOrder::whereDate('created_at', today())->count();
+        $totalDepartments = \App\Models\Department::count();
         $totalOrders = PurchaseOrder::count();
 
-        return view('admin.dashboard', compact('pendingRequests', 'todayOrders', 'totalOrders'));
+        return view('admin.dashboard', compact('pendingRequests', 'totalDepartments', 'totalOrders'));
     }
 
     public function indexRequests()
@@ -208,6 +208,15 @@ class AdminController extends Controller
                         $lineTotal = $qty * $product->unit_price;
 
                         $poTotal += $lineTotal;
+
+                        // Create PO Item
+                        PurchaseOrderItem::create([
+                            'purchase_order_id' => $po->purchase_order_id,
+                            'product_id' => $prodId,
+                            'quantity_ordered' => $qty,
+                            'unit_price' => $product->unit_price,
+                            'total_price' => $lineTotal,
+                        ]);
 
                         // Update items status
                         foreach ($prodItems as $item) {
@@ -411,11 +420,17 @@ class AdminController extends Controller
         \App\Models\User::findOrFail($id)->delete();
         return redirect()->back()->with('success', 'Xóa tài khoản thành công.');
     }
-    public function approveSummaryVotes()
+    public function approveSummaryVotes(Request $request)
     {
-        // 1. Get raw items for Detail View
-        $items = PurchaseRequestItem::whereHas('request', function ($query) {
-            $query->whereIn('status', ['SUBMITTED', 'APPROVED']);
+        // Get month/year from query params (default to current month)
+        $currentMonth = $request->input('month', now()->month);
+        $currentYear = $request->input('year', now()->year);
+
+        // 1. Get raw items for Detail View - Filter by REQUEST creation date
+        $items = PurchaseRequestItem::whereHas('request', function ($query) use ($currentMonth, $currentYear) {
+            $query->whereIn('status', ['SUBMITTED', 'APPROVED'])
+                ->whereYear('created_at', $currentYear)
+                ->whereMonth('created_at', $currentMonth);
         })->with(['product.category.supplier', 'request.department'])
             ->get();
 
@@ -425,10 +440,18 @@ class AdminController extends Controller
 
         $departments = \App\Models\Department::orderBy('department_code')->get();
 
+        // Separate logic for "Pending Notifications" (Yêu cầu chờ)
+        // Only count items that are TRULY pending action
+        $pendingItems = $items->filter(function ($item) {
+            return $item->decision_status === 'PENDING' || $item->decision_status === null;
+        });
+
+        $pendingGroupedByDept = $pendingItems->groupBy(function ($item) {
+            return $item->request->department_id;
+        });
+
         // 2. Sync with Aggregation Logic (DB)
-        // Find or Create DRAFT Batch for current month
-        $currentMonth = now()->month;
-        $currentYear = now()->year;
+        // Find or Create Batch for selected month
 
         $currentBatch = AggregationBatch::firstOrCreate(
             [
@@ -442,6 +465,11 @@ class AdminController extends Controller
             ]
         );
 
+        // Only sync aggregation data if viewing the CURRENT month
+        // For historical months, we just read the existing data without modifying it
+        $isCurrentMonth = ($currentMonth == now()->month && $currentYear == now()->year);
+
+        // if ($isCurrentMonth) {
         // Group valid items by Product to sync quantities
         $aggregatedData = $items->groupBy('product_id');
 
@@ -465,14 +493,12 @@ class AdminController extends Controller
             );
         }
 
-        // Cleanup: Remove AggregationItems that are NO LONGER in the pending list? 
-        // For simplicity/performance, we might skip deletion or do it if strictness required.
-        // Let's assume strictly syncing:
-        // Get all product IDs in current pending list
+        // Cleanup: Remove AggregationItems that are NO LONGER in the pending list
         $activeProductIds = $aggregatedData->keys()->toArray();
         AggregationItem::where('aggregation_batch_id', $currentBatch->aggregation_batch_id)
             ->whereNotIn('product_id', $activeProductIds)
             ->delete();
+        // }
 
         // 3. Fetch from DB for View (with Note)
         $aggregationItems = AggregationItem::where('aggregation_batch_id', $currentBatch->aggregation_batch_id)
@@ -491,24 +517,29 @@ class AdminController extends Controller
         if ($currentBatch) {
             $productIds = $aggregationItems->pluck('product_id')->unique()->toArray();
 
-            // Calculate Totals per Department
-            // Calculate Totals per Department
-            $deptTotalRequested = collect(); // For top red row (All requested, even rejected)
-            $deptQtyTotals = collect();      // For bottom total row (Only non-rejected)
+            // User Request: Only show items that have been created as PO and PO status is ISSUED
+            $issuedPOs = PurchaseOrder::where('status', 'ISSUED')
+                ->whereYear('order_date', $currentBatch->batch_year)
+                ->whereMonth('order_date', $currentBatch->batch_month)
+                ->get();
 
-            // All items for the products present in this batch
-            $allRequestItemsForProducts = PurchaseRequestItem::whereIn('product_id', $productIds)
-                ->with('request')
+            $issuedPOsExist = $issuedPOs->isNotEmpty();
+            $issuedPOIds = $issuedPOs->pluck('purchase_order_id');
+
+            // Calculate Totals per Department
+            $deptTotalRequested = collect(); // For top red row (Only ISSUED quantities)
+            $deptQtyTotals = collect();      // For bottom total row (Only ISSUED quantities)
+
+            // Get all PurchaseOrderItems from ISSUED POs for these products
+            $issuedPOItems = PurchaseOrderItem::whereIn('purchase_order_id', $issuedPOIds)
+                ->whereIn('product_id', $productIds)
+                ->with(['purchaseOrder', 'product'])
                 ->get();
 
             foreach ($allDepartments as $dept) {
-                $deptItems = $allRequestItemsForProducts->where('request.department_id', $dept->department_id);
-
-                // Top row: All requested quantities (including rejected)
-                $deptTotalRequested[$dept->department_id] = $deptItems->sum('quantity_requested');
-
-                // Bottom row: Only non-rejected quantities
-                $deptQtyTotals[$dept->department_id] = $deptItems->where('decision_status', '!=', 'REJECTED')->sum('quantity_requested');
+                $deptTotal = $issuedPOItems->where('purchaseOrder.department_id', $dept->department_id)->sum('quantity_ordered');
+                $deptTotalRequested[$dept->department_id] = $deptTotal;
+                $deptQtyTotals[$dept->department_id] = $deptTotal;
             }
 
             // Paginate product IDs manually
@@ -516,29 +547,23 @@ class AdminController extends Controller
             $perPage = 15;
             $paginatedProductIds = collect($productIds)->forPage($page, $perPage);
 
-            $requestItems = PurchaseRequestItem::whereIn('product_id', $paginatedProductIds)
-                ->where('decision_status', '!=', 'REJECTED')
-                ->with(['product', 'request.department'])
-                ->get();
+            // Build pivot: products × departments from issued items
+            $pivotData = $issuedPOItems->whereIn('product_id', $paginatedProductIds)
+                ->groupBy('product_id')
+                ->map(function ($items) use ($allDepartments) {
+                    $row = [
+                        'product' => $items->first()->product,
+                        'departments' => []
+                    ];
 
-            // Build pivot: products × departments
-            $pivotData = $requestItems->groupBy('product_id')->map(function ($items) use ($allDepartments) {
-                $row = [
-                    'product' => $items->first()->product,
-                    'departments' => []
-                ];
+                    foreach ($allDepartments as $dept) {
+                        $deptQty = $items->where('purchaseOrder.department_id', $dept->department_id)->sum('quantity_ordered');
+                        $row['departments'][$dept->department_id] = $deptQty > 0 ? $deptQty : null;
+                    }
 
-                foreach ($allDepartments as $dept) {
-                    $deptItems = $items->filter(function ($item) use ($dept) {
-                        return $item->request && $item->request->department_id == $dept->department_id;
-                    });
-                    $qty = $deptItems->sum('quantity_requested');
-                    $row['departments'][$dept->department_id] = $qty > 0 ? $qty : null;
-                }
-
-                $row['total'] = $items->sum('quantity_requested');
-                return $row;
-            });
+                    $row['total'] = $items->sum('quantity_ordered');
+                    return $row;
+                });
 
             // Create a manual LengthAwarePaginator for the view
             $pivotPagination = new \Illuminate\Pagination\LengthAwarePaginator(
@@ -561,7 +586,10 @@ class AdminController extends Controller
             'currentBatch',
             'pivotPagination',
             'deptTotalRequested',
-            'deptQtyTotals'
+            'deptQtyTotals',
+            'pendingGroupedByDept',
+            'currentMonth',
+            'currentYear'
         ));
     }
 
@@ -664,6 +692,10 @@ class AdminController extends Controller
             $item = PurchaseRequestItem::findOrFail($id);
             \Log::info("Item found: " . $item->request_item_id);
 
+            if ($item->decision_status !== 'PENDING' && $item->decision_status !== null) {
+                return response()->json(['success' => false, 'message' => 'Mục này đã được xử lý (trạng thái: ' . $item->decision_status . ')'], 422);
+            }
+
             $item->update(['decision_status' => 'APPROVED']);
             \Log::info("Item updated successfully");
 
@@ -704,6 +736,11 @@ class AdminController extends Controller
             DB::beginTransaction();
 
             $item = PurchaseRequestItem::findOrFail($id);
+
+            if ($item->decision_status !== 'PENDING' && $item->decision_status !== null) {
+                return response()->json(['success' => false, 'message' => 'Mục này đã được xử lý (trạng thái: ' . $item->decision_status . ')'], 422);
+            }
+
             $item->update(['decision_status' => 'REJECTED']);
 
             // Check parent request status
@@ -848,11 +885,11 @@ class AdminController extends Controller
         return view('admin.print_aggregation', compact('aggregatedBySupplier', 'currentBatch'));
     }
 
-    public function exportAggregationExcel()
+    public function exportAggregationExcel(Request $request)
     {
         // Fetch aggregation data
-        $currentMonth = now()->month;
-        $currentYear = now()->year;
+        $currentMonth = $request->input('month', now()->month);
+        $currentYear = $request->input('year', now()->year);
 
         $currentBatch = AggregationBatch::where('batch_month', $currentMonth)
             ->where('batch_year', $currentYear)
@@ -903,6 +940,10 @@ class AdminController extends Controller
                 }
                 $groupedByDepartment[$deptName]->push($aggItem);
             }
+        }
+
+        if (empty($groupedByDepartment)) {
+            return back()->with('error', 'Không có dữ liệu chi tiết theo khoa để xuất file Excel.');
         }
 
         // Create new Spreadsheet

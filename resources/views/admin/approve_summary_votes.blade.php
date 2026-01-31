@@ -48,6 +48,13 @@
             this.activeTab = tab;
             const url = new URL(window.location);
             url.searchParams.set('tab', tab);
+            // Preserve month and year filter parameters
+            @if(request('month'))
+                url.searchParams.set('month', '{{ request('month') }}');
+            @endif
+            @if(request('year'))
+                url.searchParams.set('year', '{{ request('year') }}');
+            @endif
             window.history.replaceState({}, '', url);
         }
     }">
@@ -64,12 +71,91 @@
                 </p>
             </div>
         </div>
-        <div class="flex items-center gap-3">
+        
+        <!-- Month/Year Filter -->
+        <form method="GET" action="{{ route('admin.approve_summary_votes') }}" class="flex items-center gap-3">
+            <div class="flex items-center gap-2 bg-slate-50 dark:bg-slate-800/50 px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700">
+                <span class="material-symbols-outlined text-slate-400 text-[18px]">calendar_month</span>
+                <select name="month" class="text-sm font-bold border-0 bg-transparent focus:ring-0 text-slate-700 dark:text-slate-200 pr-8">
+                    @for($m = 1; $m <= 12; $m++)
+                        <option value="{{ $m }}" {{ $currentMonth == $m ? 'selected' : '' }}>
+                            Tháng {{ $m }}
+                        </option>
+                    @endfor
+                </select>
+                <span class="text-slate-300 dark:text-slate-600">/</span>
+                <select name="year" class="text-sm font-bold border-0 bg-transparent focus:ring-0 text-slate-700 dark:text-slate-200 pr-8">
+                    @for($y = now()->year - 1; $y <= now()->year + 1; $y++)
+                        <option value="{{ $y }}" {{ $currentYear == $y ? 'selected' : '' }}>
+                            {{ $y }}
+                        </option>
+                    @endfor
+                </select>
+                <button type="submit" class="ml-2 px-3 py-1.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-md text-xs font-bold transition-all flex items-center gap-1">
+                    <span class="material-symbols-outlined text-[16px]">filter_alt</span>
+                    Lọc
+                </button>
+            </div>
+        </form>
+        
+        <div class="flex items-center gap-3" x-data="{ openPending: false }">
+            <!-- Pending List Button -->
+            <div class="relative">
+                <button @click="openPending = !openPending" class="flex items-center gap-2 px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-md shadow-md transition-all relative">
+                    <span class="material-symbols-outlined text-[20px]">notifications_active</span>
+                    <span class="text-sm">Yêu cầu chờ ({{ $pendingGroupedByDept->count() }})</span>
+                    @if($pendingGroupedByDept->count() > 0)
+                        <span class="absolute -top-1 -right-1 flex h-3 w-3">
+                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                            <span class="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                        </span>
+                    @endif
+                </button>
+
+                <!-- Popup -->
+                <div x-show="openPending" 
+                    @click.away="openPending = false"
+                    x-transition:enter="transition ease-out duration-200"
+                    x-transition:enter-start="opacity-0 translate-y-1"
+                    x-transition:enter-end="opacity-100 translate-y-0"
+                    class="absolute right-0 mt-2 w-72 bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-700 z-[100] overflow-hidden">
+                    <div class="px-4 py-3 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
+                        <p class="text-xs font-black text-slate-500 uppercase tracking-widest">Khoa/Phòng có yêu cầu</p>
+                    </div>
+                    <div class="max-h-80 overflow-y-auto custom-scrollbar">
+                        @if($pendingGroupedByDept->count() > 0)
+                            @foreach($departments as $dept)
+                                @if($pendingGroupedByDept->has($dept->department_id))
+                                    <button @click="updateTab('dept_{{ $dept->department_id }}'); openPending = false" 
+                                        class="w-full px-4 py-3 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors border-b border-slate-50 dark:border-slate-800 last:border-0">
+                                        <div class="flex items-center gap-3">
+                                            <div class="w-8 h-8 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center text-amber-600 font-bold text-xs">
+                                                {{ substr($dept->department_name, 0, 1) }}
+                                            </div>
+                                            <div class="text-left">
+                                                <p class="text-xs font-bold text-slate-700 dark:text-slate-200">{{ $dept->department_name }}</p>
+                                                <p class="text-[10px] text-slate-400 font-medium">{{ $pendingGroupedByDept->get($dept->department_id)->count() }} mặt hàng</p>
+                                            </div>
+                                        </div>
+                                        <span class="material-symbols-outlined text-slate-300 text-sm">chevron_right</span>
+                                    </button>
+                                @endif
+                            @endforeach
+                        @else
+                            <div class="px-4 py-8 text-center">
+                                <span class="material-symbols-outlined text-slate-200 text-4xl mb-2">check_circle</span>
+                                <p class="text-xs font-bold text-slate-400">Không có yêu cầu chờ duyệt</p>
+                            </div>
+                        @endif
+                    </div>
+                </div>
+            </div>
+
             <button onclick="printAggregation()" class="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-md shadow-md transition-all">
                 <span class="material-symbols-outlined text-[20px]">print</span>
                 <span class="text-sm">In</span>
             </button>
-            <a href="{{ route('admin.aggregation.export_excel') }}" class="flex items-center gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white font-bold rounded-md shadow-md transition-all">
+            <a href="{{ route('admin.aggregation.export_excel', ['month' => $currentMonth, 'year' => $currentYear]) }}" class="flex items-center gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white font-bold rounded-md shadow-md transition-all">
                 <span class="material-symbols-outlined text-[20px]">download</span>
                 <span class="text-sm">Xuất Excel</span>
             </a>
@@ -101,8 +187,11 @@
                 @foreach($departments as $dept)
                     <button @click="updateTab('dept_{{ $dept->department_id }}')" 
                         :class="activeTab === 'dept_{{ $dept->department_id }}' ? 'tab-active' : 'tab-default'"
-                        class="px-5 py-4 text-xs font-bold border-b-2 uppercase tracking-wide">
+                        class="px-5 py-4 text-xs font-bold border-b-2 uppercase tracking-wide flex items-center gap-1.5 relative">
                         {{ $dept->department_name }}
+                        @if($pendingGroupedByDept->has($dept->department_id))
+                            <span class="flex h-2 w-2 rounded-full bg-red-500 shadow-[0_0_5px_rgba(239,68,68,0.8)]"></span>
+                        @endif
                     </button>
                 @endforeach
             </div>
@@ -134,7 +223,7 @@
                                 <th class="sticky-col-3 py-2 bg-yellow-50/50 dark:bg-yellow-900/20"></th>
                                 @foreach($allDepartments as $dept)
                                 <th class="px-3 py-2 text-[13px] font-black text-red-600 text-center border-l border-slate-200 dark:border-slate-700 font-mono">
-                                    {{ number_format($deptTotalRequested[$dept->department_id] ?? 0) }}
+                                    {{ number_format($deptTotalRequested[$dept->department_id] ?? 0, 0, ',', '.') }}
                                 </th>
                                 @endforeach
                                 <th class="px-4 py-2 border-l-2 border-slate-200 bg-yellow-50/50 dark:bg-yellow-900/20"></th>
@@ -144,7 +233,7 @@
                             <tr class="sticky-header border-b border-slate-200 dark:border-slate-700">
                                 <th class="sticky-col-1 px-4 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest text-center" style="width: 50px;">STT</th>
                                 <th class="sticky-col-2 px-4 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest" style="width: 200px;">Tên hàng hóa / Vật tư</th>
-                                <th class="sticky-col-3 px-4 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest text-center" style="width: 70px;">ĐVT</th>
+                                <th class="px-4 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest text-center">ĐVT</th>
                                 @foreach($allDepartments as $dept)
                                 <th class="px-3 py-4 border-l border-slate-200 dark:border-slate-700 min-w-[80px]">
                                     <div class="flex flex-col items-center justify-center">
@@ -162,14 +251,14 @@
                             <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors group">
                                 <td class="sticky-col-1 px-4 py-3 text-xs text-center text-slate-400 font-bold group-hover:bg-slate-50 dark:group-hover:bg-slate-800/40">{{ (($pivotPagination->currentPage() - 1) * $pivotPagination->perPage()) + $loop->iteration }}</td>
                                 <td class="sticky-col-2 px-4 py-3 text-sm font-bold text-slate-700 dark:text-slate-200 group-hover:bg-slate-50 dark:group-hover:bg-slate-800/40">{{ $row['product']->product_name }}</td>
-                                <td class="sticky-col-3 px-4 py-3 text-xs text-center text-slate-500 font-medium group-hover:bg-slate-50 dark:group-hover:bg-slate-800/40">{{ $row['product']->unit }}</td>
+                                <td class="px-4 py-3 text-xs text-center text-slate-500 font-medium group-hover:bg-slate-50 dark:group-hover:bg-slate-800/40">{{ $row['product']->unit }}</td>
                                 @foreach($allDepartments as $dept)
                                     @php $qty = $row['departments'][$dept->department_id] ?? null; @endphp
                                 <td class="px-3 py-3 text-sm text-center font-black {{ $qty ? 'text-slate-900 dark:text-white bg-green-50/30' : 'text-slate-300' }} border-l border-slate-100 dark:border-slate-800">
                                     {{ $qty ?: '-' }}
                                 </td>
                                 @endforeach
-                                <td class="px-4 py-3 text-sm text-center font-black text-blue-800 dark:text-blue-400 border-l-2 border-blue-200 bg-blue-50/30">{{ number_format($row['total']) }}</td>
+                                <td class="px-4 py-3 text-sm text-center font-black text-blue-800 dark:text-blue-400 border-l-2 border-blue-200 bg-blue-50/30">{{ number_format($row['total'], 0, ',', '.') }}</td>
                             </tr>
                             @endforeach
                         </tbody>
@@ -180,11 +269,11 @@
                                 <td class="sticky-col-3 px-4 py-4 bg-slate-50 dark:bg-slate-800"></td>
                                 @foreach($allDepartments as $dept)
                                 <td class="px-3 py-4 text-sm text-center font-black text-slate-900 dark:text-white border-l border-slate-200 dark:border-slate-700 font-mono">
-                                    {{ number_format($deptQtyTotals[$dept->department_id] ?? 0) }}
+                                    {{ number_format($deptQtyTotals[$dept->department_id] ?? 0, 0, ',', '.') }}
                                 </td>
                                 @endforeach
                                 <td class="px-4 py-4 text-sm text-center font-black text-blue-800 dark:text-blue-400 border-l-2 border-blue-200 bg-blue-100/50 font-mono">
-                                    {{ number_format($deptQtyTotals->sum()) }}
+                                    {{ number_format($deptQtyTotals->sum(), 0, ',', '.') }}
                                 </td>
                             </tr>
                         </tfoot>
@@ -226,7 +315,7 @@
                             </div>
                             <h3 class="font-black text-slate-700 dark:text-slate-200 text-lg uppercase">{{ $supplierName }}</h3>
                         </div>
-                        <span class="text-sm font-bold text-slate-500 font-mono">Tổng cộng: {{ number_format($totalAmount) }} đ</span>
+                        <span class="text-sm font-bold text-slate-500 font-mono">Tổng cộng: {{ number_format($totalAmount, 0, ',', '.') }} VNĐ</span>
                     </div>
 
                     <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
@@ -266,8 +355,8 @@
                                             </td>
                                             <td class="px-6 py-4 text-sm text-center text-slate-600">{{ $prod->unit }}</td>
                                             <td class="px-6 py-4 text-sm text-center font-black text-emerald-600 bg-emerald-50 dark:bg-emerald-900/10 rounded">{{ $totalQty }}</td>
-                                            <td class="px-6 py-4 text-sm text-right font-mono text-slate-600">{{ number_format($prod->unit_price) }}</td>
-                                            <td class="px-6 py-4 text-sm text-right font-black font-mono text-slate-800">{{ number_format($lineTotal) }}</td>
+                                            <td class="px-6 py-4 text-sm text-right font-mono text-slate-600">{{ number_format($prod->unit_price, 0, ',', '.') }} VNĐ</td>
+                                            <td class="px-6 py-4 text-sm text-right font-black font-mono text-slate-800">{{ number_format($lineTotal, 0, ',', '.') }} VNĐ</td>
                                             <td class="px-6 py-4" x-data="smartNote({{ $firstItem->aggregation_item_id }}, '{{ addslashes($note) }}')">
                                                 <div class="relative" @click.away="dropdownOpen = false">
                                                     <!-- Note Input Area -->
@@ -339,7 +428,7 @@
                                 <tfoot class="bg-gray-100 dark:bg-slate-800">
                                     <tr>
                                         <td colspan="5" class="px-6 py-4 text-sm font-black text-slate-600 text-right uppercase tracking-wider">Tổng tiền thanh toán</td>
-                                        <td class="px-6 py-4 text-sm font-black text-slate-800 font-mono text-right">{{ number_format($totalAmount) }}</td>
+                                        <td class="px-6 py-4 text-sm font-black text-slate-800 font-mono text-right">{{ number_format($totalAmount, 0, ',', '.') }} VNĐ</td>
                                         <td></td>
                                     </tr>
                                 </tfoot>
@@ -361,7 +450,7 @@
         @foreach($departments as $dept)
             <div x-show="activeTab === 'dept_{{ $dept->department_id }}'" style="display: none;" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0">
                 @php
-                    // Filter items for this department
+                    // Show ALL items for this department (to see history)
                     $deptItems = $groupedByDept->get($dept->department_id);
                 @endphp
 
@@ -378,13 +467,28 @@
                             <span class="material-symbols-outlined text-[var(--primary)]">apartment</span>
                             {{ $dept->department_name }}
                         </h2>
-                        <form action="{{ route('admin.aggregation.approve_dept', $dept->department_id) }}" method="POST" onsubmit="return confirm('Bạn có chắc muốn duyệt toàn bộ yêu cầu của khoa này và tạo PO?')">
-                            @csrf
-                            <button type="submit" class="flex items-center gap-1 px-3 py-1.5 bg-green-100 hover:bg-green-200 text-green-700 rounded-md transition-colors text-xs font-bold">
-                                <span class="material-symbols-outlined text-[16px]">done_all</span>
-                                Duyệt toàn bộ khoa & Tạo PO
-                            </button>
-                        </form>
+                        @php
+                            $hasPendingItems = $deptItems->whereNull('decision_status')->where('decision_status', '!=', 'APPROVED')->where('decision_status', '!=', 'REJECTED')->isNotEmpty();
+                            // Simplified check: since decision_status is null or 'PENDING' for items to be approved
+                            $pendingCount = $deptItems->filter(function($item) {
+                                return $item->decision_status === 'PENDING' || $item->decision_status === null;
+                            })->count();
+                        @endphp
+
+                        @if($pendingCount > 0)
+                            <form action="{{ route('admin.aggregation.approve_dept', $dept->department_id) }}" method="POST" onsubmit="return confirm('Bạn có chắc muốn duyệt toàn bộ yêu cầu của khoa này và tạo PO?')">
+                                @csrf
+                                <button type="submit" class="flex items-center gap-1 px-3 py-1.5 bg-green-100 hover:bg-green-200 text-green-700 rounded-md transition-colors text-xs font-bold">
+                                    <span class="material-symbols-outlined text-[16px]">done_all</span>
+                                    Duyệt toàn bộ khoa & Tạo PO ({{ $pendingCount }})
+                                </button>
+                            </form>
+                        @else
+                            <div class="flex items-center gap-1 px-3 py-1.5 bg-slate-100 text-slate-500 rounded-md text-xs font-bold">
+                                <span class="material-symbols-outlined text-[16px]">task_alt</span>
+                                Đã xử lý tất cả
+                            </div>
+                        @endif
                     </div>
 
                     <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden mb-6">
@@ -398,7 +502,7 @@
                                         <th class="px-6 py-4 text-[11px] font-extrabold text-slate-500 uppercase tracking-widest text-center w-28">Số lượng</th>
                                         <th class="px-6 py-4 text-[11px] font-extrabold text-slate-500 uppercase tracking-widest text-right w-40">Đơn giá</th>
                                         <th class="px-6 py-4 text-[11px] font-extrabold text-slate-500 uppercase tracking-widest text-right w-44">Thành tiền</th>
-                                        <th class="px-6 py-4 text-[11px] font-extrabold text-slate-500 uppercase tracking-widest text-center w-24">Tác vụ</th>
+                                        <th class="px-6 py-4 text-[11px] font-extrabold text-slate-500 uppercase tracking-widest text-center w-24">HÀNH ĐỘNG</th>
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
@@ -414,7 +518,7 @@
                                         @foreach($items as $index => $item)
                                             @php 
                                                 $lineTotal = $item->quantity_requested * $item->product->unit_price; 
-                                                // Calculate totalAmount here if needed or use pre-calc
+                                                $totalAmount += $lineTotal;
                                             @endphp
                                             <tr id="row-{{ $item->request_item_id }}" class="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors {{ $item->decision_status == 'REJECTED' ? 'rejected-row' : '' }} {{ $item->decision_status == 'APPROVED' ? 'bg-green-50/50' : '' }}">
                                                 <td class="px-6 py-4 text-sm text-center text-slate-400 font-medium">{{ $index + 1 }}</td>
@@ -423,15 +527,23 @@
                                                 </td>
                                                 <td class="px-6 py-4 text-sm text-center font-medium text-slate-600">{{ $item->product->unit }}</td>
                                                 <td class="px-6 py-4 text-sm text-center font-black text-red-500 bg-red-50 dark:bg-red-900/10">{{ $item->quantity_requested }}</td>
-                                                <td class="px-6 py-4 text-sm text-right font-bold text-slate-600 font-mono">{{ number_format($item->product->unit_price) }}</td>
-                                                <td class="px-6 py-4 text-sm text-right font-black text-slate-800 font-mono">{{ number_format($lineTotal) }}</td>
+                                                <td class="px-6 py-4 text-sm text-right font-bold text-slate-600 font-mono">{{ number_format($item->product->unit_price, 0, ',', '.') }} VNĐ</td>
+                                                <td class="px-6 py-4 text-sm text-right font-black text-slate-800 font-mono">{{ number_format($lineTotal, 0, ',', '.') }} VNĐ</td>
                                                 <td class="px-6 py-4 text-center">
-                                                    <button onclick="approveItem({{ $item->request_item_id }})" class="text-green-600 hover:text-green-800 bg-green-50 hover:bg-green-100 p-1.5 rounded-lg transition-all mr-1" title="Duyệt">
-                                                        <span class="material-symbols-outlined text-[18px]">check</span>
-                                                    </button>
-                                                    <button onclick="rejectItem({{ $item->request_item_id }})" class="text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 p-1.5 rounded-lg transition-all" title="Từ chối">
-                                                        <span class="material-symbols-outlined text-[18px]">block</span>
-                                                    </button>
+                                                    <div class="flex items-center justify-center gap-2">
+                                                        @if($item->decision_status == 'PENDING' || $item->decision_status == null)
+                                                            <button onclick="approveItem({{ $item->request_item_id }})" class="text-green-600 hover:text-green-800 bg-green-50 hover:bg-green-100 p-1.5 rounded-lg transition-all" title="Duyệt">
+                                                                <span class="material-symbols-outlined text-[18px]">check</span>
+                                                            </button>
+                                                            <button onclick="rejectItem({{ $item->request_item_id }})" class="text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 p-1.5 rounded-lg transition-all" title="Từ chối">
+                                                                <span class="material-symbols-outlined text-[18px]">block</span>
+                                                            </button>
+                                                        @elseif($item->decision_status == 'APPROVED')
+                                                            <span class="px-2 py-1 bg-green-100 text-green-700 text-[10px] font-black uppercase rounded shadow-sm border border-green-200">Đã duyệt</span>
+                                                        @elseif($item->decision_status == 'REJECTED')
+                                                            <span class="px-2 py-1 bg-red-100 text-red-700 text-[10px] font-black uppercase rounded shadow-sm border border-red-200">Từ chối</span>
+                                                        @endif
+                                                    </div>
                                                 </td>
                                             </tr>
                                         @endforeach
@@ -440,7 +552,7 @@
                                 <tfoot>
                                     <tr class="bg-[var(--primary)] text-white">
                                         <td class="px-6 py-4 text-sm font-black text-right uppercase tracking-widest" colspan="5">Tổng cộng</td>
-                                        <td class="px-6 py-4 text-lg font-black text-right font-mono">{{ number_format($totalAmount) }}</td>
+                                        <td class="px-6 py-4 text-lg font-black text-right font-mono">{{ number_format($totalAmount, 0, ',', '.') }} VNĐ</td>
                                         <td></td>
                                     </tr>
                                 </tfoot>

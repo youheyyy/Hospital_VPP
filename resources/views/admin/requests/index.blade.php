@@ -85,7 +85,7 @@
                             </td>
                             <td class="px-6 py-4 text-right">
                                 <div class="text-sm font-black font-mono text-slate-800 dark:text-white">
-                                    {{ number_format($total) }} ₫
+                                    {{ number_format($total, 0, ',', '.') }} VNĐ
                                 </div>
                             </td>
                             <td class="px-6 py-4 text-center">
@@ -110,7 +110,7 @@
                             </td>
                             <td class="px-6 py-4 text-center">
                                 <!-- Currently no detailed view for single PR, maybe open modal or link to something. 
-                                                      For now just a placeholder button or link to approve logic if pending. -->
+                                                              For now just a placeholder button or link to approve logic if pending. -->
                                 @if($req->status == 'SUBMITTED')
                                     <a href="{{ route('admin.approve_summary_votes', ['dept_id' => $req->department_id]) }}"
                                         class="p-1.5 bg-yellow-50 text-yellow-600 rounded-lg hover:bg-yellow-100 transition-colors"

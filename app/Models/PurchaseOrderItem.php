@@ -28,8 +28,18 @@ class PurchaseOrderItem extends Model
         return $this->belongsTo(PurchaseOrder::class, 'purchase_order_id', 'purchase_order_id');
     }
 
+    public function purchaseOrder()
+    {
+        return $this->belongsTo(PurchaseOrder::class, 'purchase_order_id', 'purchase_order_id');
+    }
+
     public function aggregationItem()
     {
         return $this->belongsTo(AggregationItem::class, 'aggregation_item_id', 'aggregation_item_id');
+    }
+
+    public function product()
+    {
+        return $this->belongsTo(Product::class, 'product_id', 'product_id');
     }
 }

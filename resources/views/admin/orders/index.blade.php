@@ -77,7 +77,7 @@
                             </td>
                             <td class="px-6 py-4 text-right">
                                 <div class="text-sm font-black font-mono text-slate-800 dark:text-white">
-                                    {{ number_format($order->total_amount) }} ₫</div>
+                                    {{ number_format($order->total_amount, 0, ',', '.') }} VNĐ</div>
                             </td>
                             <td class="px-6 py-4 text-center">
                                 @if($order->status == 'APPROVED')

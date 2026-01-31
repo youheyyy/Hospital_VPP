@@ -100,7 +100,7 @@
                                         class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-white">{{ $product->unit }}</span>
                                 </td>
                                 <td class="px-6 py-5 text-sm text-slate-900 dark:text-slate-300 font-medium">
-                                    {{ number_format($product->unit_price, 0, ',', '.') }} ₫</td>
+                                    {{ number_format($product->unit_price, 0, ',', '.') }} VNĐ</td>
                                 <td class="px-6 py-5 text-sm text-slate-500">{{ $product->category->category_name ?? 'N/A' }}
                                 </td>
                                 <td class="px-6 py-5 text-right">

@@ -63,11 +63,6 @@
                     <span class="text-sm font-semibold">Tổng quan</span>
                 </a>
 
-                <a class="flex items-center gap-3 px-3 py-2.5 rounded-md {{ request()->routeIs('admin.requests.index') ? 'sidebar-item-active' : 'hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400' }}"
-                    href="{{ route('admin.requests.index') }}">
-                    <span class="material-symbols-outlined text-[20px]">description</span>
-                    <span class="text-sm font-medium">Phiếu yêu cầu</span>
-                </a>
                 <a class="flex items-center gap-3 px-3 py-2.5 rounded-md {{ request()->routeIs('admin.approve_summary_votes') ? 'sidebar-item-active' : 'hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400' }}"
                     href="{{ route('admin.approve_summary_votes') }}">
                     <span class="material-symbols-outlined text-[20px]">receipt_long</span>
@@ -83,11 +78,6 @@
                     <span class="material-symbols-outlined text-[20px]">inventory_2</span>
                     <span class="text-sm font-medium">Danh mục vật tư</span>
                 </a>
-                <a class="flex items-center gap-3 px-3 py-2.5 rounded-md {{ request()->routeIs('admin.report') ? 'sidebar-item-active' : 'hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400' }}"
-                    href="{{ route('admin.report') }}">
-                    <span class="material-symbols-outlined text-[20px]">bar_chart</span>
-                    <span class="text-sm font-medium">Báo cáo thống kê</span>
-                </a>
                 <a class="flex items-center gap-3 px-3 py-2.5 rounded-md {{ request()->routeIs('admin.management') ? 'sidebar-item-active' : 'hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400' }}"
                     href="{{ route('admin.management') }}">
                     <span class="material-symbols-outlined text-[20px]">settings_applications</span>
@@ -102,19 +92,7 @@
             class="h-14 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-8 flex items-center justify-between sticky top-0 z-20">
             <h2 class="text-base font-bold text-slate-800 dark:text-white">@yield('page-title', 'Bảng Điều Khiển')</h2>
             <div class="flex items-center gap-4">
-                <div class="relative w-72">
-                    <span
-                        class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">search</span>
-                    <input
-                        class="w-full pl-9 pr-4 py-1.5 bg-slate-100 dark:bg-slate-800 border-none rounded-md focus:ring-1 focus:ring-primary text-xs"
-                        placeholder="Tìm kiếm nhanh..." type="text" />
-                </div>
-                <div class="flex items-center gap-2 border-l border-slate-200 dark:border-slate-700 ml-2 pl-4">
-                    <button class="relative p-1.5 text-slate-500 hover:text-primary transition-colors">
-                        <span class="material-symbols-outlined text-xl">notifications</span>
-                        <span
-                            class="absolute top-1 right-1 w-2 h-2 bg-red-500 border-2 border-white dark:border-slate-900 rounded-full"></span>
-                    </button>
+                <div class="flex items-center gap-2">
 
                     <!-- User Dropdown Menu -->
                     <div style="position: relative;">

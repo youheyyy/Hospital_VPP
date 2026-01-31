@@ -59,7 +59,7 @@
                     <div class="text-right">
                         <p class="text-sm font-bold text-slate-400 uppercase tracking-widest mb-1">Tổng giá trị</p>
                         <p class="text-2xl font-black font-mono text-indigo-600 dark:text-indigo-400">
-                            {{ number_format($order->total_amount) }} ₫</p>
+                            {{ number_format($order->total_amount, 0, ',', '.') }} VNĐ</p>
                     </div>
                 </div>
             </div>
@@ -136,11 +136,11 @@
                                     {{ $item->product->product_name }}</p>
                             </td>
                             <td class="px-8 py-4 text-sm text-center text-slate-600">{{ $item->product->unit }}</td>
-                            <td class="px-8 py-4 text-sm text-center font-bold text-slate-800">{{ $item->quantity }}</td>
+                            <td class="px-8 py-4 text-sm text-center font-bold text-slate-800">{{ $item->quantity_ordered }}</td>
                             <td class="px-8 py-4 text-sm text-right font-mono text-slate-600">
-                                {{ number_format($item->unit_price) }}</td>
+                                {{ number_format($item->unit_price, 0, ',', '.') }} VNĐ</td>
                             <td class="px-8 py-4 text-sm text-right font-black font-mono text-indigo-600">
-                                {{ number_format($item->total_price) }}</td>
+                                {{ number_format($item->total_price, 0, ',', '.') }} VNĐ</td>
                         </tr>
                     @endforeach
                 </tbody>
@@ -150,7 +150,7 @@
                             class="px-8 py-4 text-sm font-bold text-slate-500 text-right uppercase tracking-widest">Tổng
                             tiền thanh toán</td>
                         <td class="px-8 py-4 text-xl font-black text-right font-mono text-indigo-600">
-                            {{ number_format($order->total_amount) }} ₫</td>
+                            {{ number_format($order->total_amount, 0, ',', '.') }} VNĐ</td>
                     </tr>
                 </tfoot>
             </table>
