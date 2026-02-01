@@ -1,310 +1,328 @@
 <!DOCTYPE html>
-<html class="light" lang="vi">
 
-<head>
-    <meta charset="utf-8" />
-    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
-    <title>Admin - Tổng Quan | Hệ Thống Vật Tư Y Tế</title>
-    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap"
-        rel="stylesheet" />
-    <link
-        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
-        rel="stylesheet" />
-    <script id="tailwind-config">
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Asymmetric Premium Admin Dashboard Variant 1</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
         tailwind.config = {
             darkMode: "class",
             theme: {
                 extend: {
                     colors: {
-                        "primary": "#135bec",
-                        "background-light": "#f8fafc",
-                        "background-dark": "#0f172a",
+                        "primary": "#2b8cee",
+                        "background-light": "#f6f7f8",
+                        "background-dark": "#101922",
                     },
                     fontFamily: {
-                        "sans": ["Inter", "sans-serif"]
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
                     },
                 },
             },
         }
     </script>
-    <style type="text/tailwindcss">
-        @layer base {
-            body {
-                @apply font-sans text-slate-900 bg-background-light;
-            }
+<style>
+        .glass-card {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
         }
-        .sidebar-item-active {
-            @apply bg-primary/10 text-primary border-r-4 border-primary;
+        .dark .glass-card {
+            background: rgba(16, 25, 34, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.1);
         }
-        .chart-bar {
-            @apply rounded-t-sm transition-all duration-300;
+        .asymmetric-grid {
+            display: grid;
+            grid-template-columns: 280px 1fr 320px;
+            gap: 1.5rem;
+        }
+        .donut-ring {
+            stroke-dasharray: 100;
+            stroke-dashoffset: 25;
+            transition: stroke-dashoffset 0.3s ease;
         }
     </style>
 </head>
-
-<body class="dark:bg-background-dark dark:text-slate-100 min-h-screen flex">
-    <aside
-        class="w-64 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col h-screen sticky top-0">
-        <div class="p-6">
-            <div class="flex items-center gap-3 mb-8">
-                <div class="bg-primary p-1.5 rounded-lg text-white">
-                    <span class="material-symbols-outlined text-2xl">medical_services</span>
-                </div>
-                <div>
-                    <h1 class="text-sm font-bold tracking-tight text-slate-900 dark:text-white uppercase">VẬT TƯ Y TẾ
-                    </h1>
-                    <p class="text-[10px] font-medium text-slate-400 uppercase tracking-widest">Hệ Thống Quản Trị</p>
-                </div>
-            </div>
-            <nav class="flex flex-col gap-1">
-                <a class="flex items-center gap-3 px-3 py-2.5 rounded-md sidebar-item-active" href="#">
-                    <span class="material-symbols-outlined text-[20px]">dashboard</span>
-                    <span class="text-sm font-semibold">Tổng quan</span>
-                </a>
-                <a class="flex items-center gap-3 px-3 py-2.5 rounded-md hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400"
-                    href="#">
-                    <span class="material-symbols-outlined text-[20px]">inventory_2</span>
-                    <span class="text-sm font-medium">Danh mục vật tư</span>
-                </a>
-                <a class="flex items-center gap-3 px-3 py-2.5 rounded-md hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400"
-                    href="#">
-                    <span class="material-symbols-outlined text-[20px]">warehouse</span>
-                    <span class="text-sm font-medium">Quản lý kho</span>
-                </a>
-                <a class="flex items-center gap-3 px-3 py-2.5 rounded-md hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400"
-                    href="#">
-                    <span class="material-symbols-outlined text-[20px]">description</span>
-                    <span class="text-sm font-medium">Phiếu yêu cầu</span>
-                </a>
-                <a class="flex items-center gap-3 px-3 py-2.5 rounded-md hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400"
-                    href="#">
-                    <span class="material-symbols-outlined text-[20px]">apartment</span>
-                    <span class="text-sm font-medium">Khoa/Phòng</span>
-                </a>
-                <a class="flex items-center gap-3 px-3 py-2.5 rounded-md hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400"
-                    href="#">
-                    <span class="material-symbols-outlined text-[20px]">bar_chart</span>
-                    <span class="text-sm font-medium">Báo cáo thống kê</span>
-                </a>
-            </nav>
-        </div>
-        <div class="mt-auto p-4 border-t border-slate-100 dark:border-slate-800">
-            <div class="flex items-center gap-3 px-3 py-3 rounded-lg bg-slate-50 dark:bg-slate-800/50 mb-2">
-                <div class="size-8 rounded-full bg-cover bg-center ring-2 ring-primary/20"
-                    style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDwW7nsZi-I9duwko3cgQ1S6rVqpQymVRRN6AR8lIU7086B5y3d1SXJffjIToNIGTDWXsUi4pFTTGljjBMIvCY1sSwF8cAqd9tLwM0FgmKV49Q_X6MpxED7AsTe38BGh2VKbZavAZTYHMciAsSiWpPQbyKCIrNbxiBOYFEgrEcXRVubs06SPUFLTYCwutVprnNUdN7-Dxhv1tCZwwywNHsM5L6_PBSxtFf0Bezki4Uhwank13ymjqlQ__a7bWEHgrF4YAmyCbu-gE_7')">
-                </div>
-                <div class="overflow-hidden">
-                    <p class="text-xs font-bold truncate">Admin Hiếu</p>
-                    <p class="text-[10px] text-slate-500 font-medium">Quản trị viên</p>
-                </div>
-            </div>
-            <a class="flex items-center gap-3 px-3 py-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-md"
-                href="#">
-                <span class="material-symbols-outlined text-sm">logout</span>
-                <span class="text-xs font-bold">Đăng xuất</span>
-            </a>
-        </div>
-    </aside>
-    <main class="flex-1 flex flex-col h-screen overflow-y-auto">
-        <header
-            class="h-14 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-8 flex items-center justify-between sticky top-0 z-20">
-            <h2 class="text-base font-bold text-slate-800 dark:text-white">Bảng Điều Khiển</h2>
-            <div class="flex items-center gap-4">
-                <div class="relative w-72">
-                    <span
-                        class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">search</span>
-                    <input
-                        class="w-full pl-9 pr-4 py-1.5 bg-slate-100 dark:bg-slate-800 border-none rounded-md focus:ring-1 focus:ring-primary text-xs"
-                        placeholder="Tìm kiếm nhanh..." type="text" />
-                </div>
-                <div class="flex items-center gap-2 border-l border-slate-200 dark:border-slate-700 ml-2 pl-4">
-                    <button class="relative p-1.5 text-slate-500 hover:text-primary transition-colors">
-                        <span class="material-symbols-outlined text-xl">notifications</span>
-                        <span
-                            class="absolute top-1 right-1 w-2 h-2 bg-red-500 border-2 border-white dark:border-slate-900 rounded-full"></span>
-                    </button>
-                    <button class="p-1.5 text-slate-500 hover:text-primary transition-colors">
-                        <span class="material-symbols-outlined text-xl">settings</span>
-                    </button>
-                </div>
-            </div>
-        </header>
-        <div class="p-8 max-w-[1600px] w-full mx-auto">
-            <div class="mb-8">
-                <h1 class="text-2xl font-bold text-slate-900 dark:text-white mb-1">Chào buổi sáng, Admin</h1>
-                <p class="text-sm text-slate-500 dark:text-slate-400">Hệ thống đang hoạt động ổn định. Bạn có <span
-                        class="text-primary font-semibold">12 thông báo</span> cần xử lý trong hôm nay.</p>
-            </div>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                <div
-                    class="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-center justify-between">
-                    <div>
-                        <p class="text-[13px] font-semibold text-slate-500 dark:text-slate-400 mb-1">Phiếu chờ duyệt</p>
-                        <div class="flex items-baseline gap-2">
-                            <span class="text-2xl font-bold text-slate-900 dark:text-white">45</span>
-                            <span
-                                class="text-xs font-medium text-amber-500 bg-amber-50 dark:bg-amber-900/20 px-1.5 py-0.5 rounded">Cần
-                                xử lý</span>
-                        </div>
-                    </div>
-                    <div class="bg-primary/5 p-3 rounded-lg text-primary">
-                        <span class="material-symbols-outlined text-2xl">pending_actions</span>
-                    </div>
-                </div>
-                <div
-                    class="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-center justify-between">
-                    <div>
-                        <p class="text-[13px] font-semibold text-slate-500 dark:text-slate-400 mb-1">Tổng sản phẩm trong
-                            kho</p>
-                        <div class="flex items-baseline gap-2">
-                            <span class="text-2xl font-bold text-slate-900 dark:text-white">1,200</span>
-                            <span class="text-[11px] font-medium text-emerald-600">Đã cập nhật</span>
-                        </div>
-                    </div>
-                    <div class="bg-emerald-50 dark:bg-emerald-900/10 p-3 rounded-lg text-emerald-600">
-                        <span class="material-symbols-outlined text-2xl">inventory</span>
-                    </div>
-                </div>
-                <div
-                    class="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-center justify-between">
-                    <div>
-                        <p class="text-[13px] font-semibold text-slate-500 dark:text-slate-400 mb-1">Khoa/Phòng hoạt
-                            động</p>
-                        <div class="flex items-baseline gap-2">
-                            <span class="text-2xl font-bold text-slate-900 dark:text-white">28</span>
-                            <span class="text-[11px] font-medium text-blue-600">Trực tuyến</span>
-                        </div>
-                    </div>
-                    <div class="bg-blue-50 dark:bg-blue-900/10 p-3 rounded-lg text-blue-600">
-                        <span class="material-symbols-outlined text-2xl">local_hospital</span>
-                    </div>
-                </div>
-            </div>
-            <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
-                <div
-                    class="lg:col-span-3 bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
-                    <div class="flex items-center justify-between mb-8">
-                        <div>
-                            <h3 class="text-lg font-bold text-slate-900 dark:text-white">Biểu đồ yêu cầu hàng tháng</h3>
-                            <p class="text-xs text-slate-500 mt-1">Dữ liệu thống kê năm 2024 (Đơn vị: Phiếu)</p>
-                        </div>
-                        <div class="flex p-1 bg-slate-100 dark:bg-slate-700 rounded-md">
-                            <button
-                                class="px-3 py-1 text-xs font-semibold text-slate-600 dark:text-slate-300">Tháng</button>
-                            <button
-                                class="px-3 py-1 text-xs font-semibold bg-white dark:bg-slate-600 shadow-sm rounded text-primary">Năm</button>
-                        </div>
-                    </div>
-                    <div
-                        class="h-64 flex items-end justify-between gap-6 px-4 border-b border-slate-100 dark:border-slate-700 pb-2">
-                        <div class="flex-1 flex flex-col items-center gap-3">
-                            <div class="w-full bg-primary/20 hover:bg-primary/40 rounded-t-sm chart-bar"
-                                style="height: 40%;"></div>
-                            <span class="text-[11px] font-medium text-slate-400 uppercase">T4</span>
-                        </div>
-                        <div class="flex-1 flex flex-col items-center gap-3">
-                            <div class="w-full bg-primary/20 hover:bg-primary/40 rounded-t-sm chart-bar"
-                                style="height: 60%;"></div>
-                            <span class="text-[11px] font-medium text-slate-400 uppercase">T5</span>
-                        </div>
-                        <div class="flex-1 flex flex-col items-center gap-3">
-                            <div class="w-full bg-primary/20 hover:bg-primary/40 rounded-t-sm chart-bar"
-                                style="height: 50%;"></div>
-                            <span class="text-[11px] font-medium text-slate-400 uppercase">T6</span>
-                        </div>
-                        <div class="flex-1 flex flex-col items-center gap-3">
-                            <div class="w-full bg-primary/40 hover:bg-primary/60 rounded-t-sm chart-bar border-x-2 border-t-2 border-primary/20"
-                                style="height: 80%;"></div>
-                            <span class="text-[11px] font-bold text-primary uppercase">T7</span>
-                        </div>
-                        <div class="flex-1 flex flex-col items-center gap-3">
-                            <div class="w-full bg-primary/20 hover:bg-primary/40 rounded-t-sm chart-bar"
-                                style="height: 70%;"></div>
-                            <span class="text-[11px] font-medium text-slate-400 uppercase">T8</span>
-                        </div>
-                        <div class="flex-1 flex flex-col items-center gap-3">
-                            <div class="w-full bg-primary/60 rounded-t-sm chart-bar" style="height: 95%;"></div>
-                            <span class="text-[11px] font-medium text-slate-400 uppercase">T9</span>
-                        </div>
-                        <div class="flex-1 flex flex-col items-center gap-3">
-                            <div class="w-full bg-primary/20 rounded-t-sm chart-bar" style="height: 55%;"></div>
-                            <span class="text-[11px] font-medium text-slate-400 uppercase">T10</span>
-                        </div>
-                        <div class="flex-1 flex flex-col items-center gap-3">
-                            <div class="w-full bg-primary/20 rounded-t-sm chart-bar" style="height: 45%;"></div>
-                            <span class="text-[11px] font-medium text-slate-400 uppercase">T11</span>
-                        </div>
-                    </div>
-                </div>
-                <div
-                    class="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col">
-                    <div class="flex items-center justify-between mb-5">
-                        <h3 class="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider">Xử lý
-                            nhanh</h3>
-                        <button class="text-primary font-semibold text-[11px] hover:underline">Xem tất cả</button>
-                    </div>
-                    <div class="space-y-4 flex-1">
-                        <div
-                            class="flex gap-3 items-start pb-4 border-b border-slate-50 dark:border-slate-700 last:border-0 hover:bg-slate-50 dark:hover:bg-slate-900/50 p-1 -mx-1 rounded-lg transition-colors cursor-pointer">
-                            <div
-                                class="size-8 rounded bg-amber-100 text-amber-600 flex items-center justify-center shrink-0">
-                                <span class="material-symbols-outlined text-lg">priority_high</span>
-                            </div>
-                            <div class="overflow-hidden">
-                                <p class="text-xs font-bold text-slate-800 dark:text-slate-200 leading-tight truncate">
-                                    Khoa Nội: 50 ram giấy A4</p>
-                                <p class="text-[10px] text-slate-500 font-medium mt-1">15 phút trước • Chờ duyệt</p>
-                            </div>
-                        </div>
-                        <div
-                            class="flex gap-3 items-start pb-4 border-b border-slate-50 dark:border-slate-700 last:border-0 hover:bg-slate-50 dark:hover:bg-slate-900/50 p-1 -mx-1 rounded-lg transition-colors cursor-pointer">
-                            <div
-                                class="size-8 rounded bg-red-100 text-red-600 flex items-center justify-center shrink-0">
-                                <span class="material-symbols-outlined text-lg">warning</span>
-                            </div>
-                            <div class="overflow-hidden">
-                                <p class="text-xs font-bold text-slate-800 dark:text-slate-200 leading-tight truncate">
-                                    Hết mực in Canon LBP</p>
-                                <p class="text-[10px] text-slate-500 font-medium mt-1">1 giờ trước • Cần nhập kho</p>
-                            </div>
-                        </div>
-                        <div
-                            class="flex gap-3 items-start pb-4 border-b border-slate-50 dark:border-slate-700 last:border-0 hover:bg-slate-50 dark:hover:bg-slate-900/50 p-1 -mx-1 rounded-lg transition-colors cursor-pointer">
-                            <div
-                                class="size-8 rounded bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
-                                <span class="material-symbols-outlined text-lg">done</span>
-                            </div>
-                            <div class="overflow-hidden">
-                                <p class="text-xs font-bold text-slate-800 dark:text-slate-200 leading-tight truncate">
-                                    Khoa Ngoại: Đã nhận viết</p>
-                                <p class="text-[10px] text-slate-500 font-medium mt-1">2 giờ trước • Hoàn tất</p>
-                            </div>
-                        </div>
-                    </div>
-                    <button
-                        class="w-full mt-6 py-2.5 bg-primary text-white rounded-lg font-bold text-xs hover:bg-blue-700 transition-colors shadow-sm shadow-primary/20">TẠO
-                        PHIẾU MỚI</button>
-                </div>
-            </div>
-            <div class="mt-8 grid grid-cols-1 md:grid-cols-4 gap-6">
-                <div
-                    class="md:col-span-3 bg-white dark:bg-slate-800 rounded-xl p-5 border border-slate-200 dark:border-slate-700 flex items-center justify-between">
-                    <div class="flex items-center gap-4">
-                        <div class="p-2 bg-slate-100 dark:bg-slate-700 rounded-full">
-                            <span class="material-symbols-outlined text-slate-500">info</span>
-                        </div>
-                        <p class="text-sm text-slate-600 dark:text-slate-300">Cần hỗ trợ về hệ thống? Liên hệ phòng
-                            CNTT: <span class="font-bold">Ext 112</span></p>
-                    </div>
-                    <button
-                        class="px-4 py-1.5 text-xs font-bold border border-slate-200 dark:border-slate-600 rounded-lg hover:bg-slate-50">Hướng
-                        dẫn sử dụng</button>
-                </div>
-            </div>
-        </div>
-    </main>
-
-</body>
-
-</html>
+<body class="bg-background-light dark:bg-background-dark font-display text-[#111418] dark:text-white min-h-screen">
+<div class="flex flex-col h-full w-full">
+<!-- Top Navigation -->
+<header class="flex items-center justify-between px-8 py-4 bg-white/50 dark:bg-background-dark/50 backdrop-blur-md border-b border-[#f0f2f4] dark:border-white/10 sticky top-0 z-50">
+<div class="flex items-center gap-8">
+<div class="flex items-center gap-3">
+<div class="size-8 bg-primary rounded-lg flex items-center justify-center text-white">
+<span class="material-symbols-outlined">medical_services</span>
+</div>
+<h2 class="text-lg font-bold tracking-tight">MedEquip <span class="text-primary">Admin</span></h2>
+</div>
+<div class="relative w-72">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#617589] text-sm">search</span>
+<input class="w-full h-10 bg-[#f0f2f4] dark:bg-white/5 border-none rounded-lg pl-10 pr-4 text-sm focus:ring-2 focus:ring-primary/50" placeholder="Search equipment, orders..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-6">
+<button class="relative p-2 text-[#617589] hover:bg-[#f0f2f4] dark:hover:bg-white/5 rounded-lg transition-colors">
+<span class="material-symbols-outlined">notifications</span>
+<span class="absolute top-2 right-2 size-2 bg-red-500 rounded-full border-2 border-white dark:border-background-dark"></span>
+</button>
+<button class="p-2 text-[#617589] hover:bg-[#f0f2f4] dark:hover:bg-white/5 rounded-lg transition-colors">
+<span class="material-symbols-outlined">settings</span>
+</button>
+<div class="flex items-center gap-3 pl-4 border-l border-[#f0f2f4] dark:border-white/10">
+<div class="text-right">
+<p class="text-sm font-semibold">Dr. Alex Chen</p>
+<p class="text-xs text-[#617589]">Hospital Director</p>
+</div>
+<div class="size-10 rounded-full bg-cover bg-center ring-2 ring-primary/20" data-alt="User profile picture of a doctor" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuD-VOmqwPAVTrDn1jy9j-LbvBb8a3MSiPeIezSDZTVuW08C4jufCJ3gXWNNZ9pX-F2yLp8aVVkCa_lmGSVSLSOe_ypWFieJB66UWRrFnV7FcUnvaY4UBrh7sL5oAOLnY_PrAWNMSIvgx5PMYQmFcaKhqR2ivnodoHRKG7DR4owPmVHBtnlMZgv8xW7MtyggCI_TGOkA0D_xzjXjjqactxmpyrxZ6kbL_mbs5WH1kXiZY_Uc3zzZ2SHagXSw2FLuQB4xGs6ApMn-bxf8');"></div>
+</div>
+</div>
+</header>
+<main class="px-8 py-8 flex-1">
+<div class="mb-8">
+<h1 class="text-3xl font-bold tracking-tight">Command Center</h1>
+<p class="text-[#617589] mt-1">Real-time medical inventory and departmental oversight.</p>
+</div>
+<div class="asymmetric-grid">
+<!-- Left Sidebar: Status Cards -->
+<div class="flex flex-col gap-6">
+<div class="glass-card rounded-xl p-6 relative overflow-hidden group hover:translate-y-[-4px] transition-all">
+<div class="flex justify-between items-start mb-4">
+<div class="p-2 bg-primary/10 text-primary rounded-lg">
+<span class="material-symbols-outlined">assignment_late</span>
+</div>
+<span class="text-[10px] font-bold uppercase tracking-wider px-2 py-1 bg-primary text-white rounded">Urgent</span>
+</div>
+<p class="text-sm font-medium text-[#617589]">Phiếu chờ duyệt</p>
+<div class="flex items-end gap-2 mt-1">
+<h3 class="text-4xl font-bold">24</h3>
+<span class="text-xs font-bold text-green-500 mb-1">+12% ↑</span>
+</div>
+<div class="mt-4 h-12 w-full opacity-50">
+<svg class="w-full h-full text-primary" preserveaspectratio="none" viewbox="0 0 100 40">
+<path d="M0,35 Q10,10 20,25 T40,15 T60,30 T80,10 T100,20" fill="none" stroke="currentColor" stroke-width="2" vector-effect="non-scaling-stroke"></path>
+</svg>
+</div>
+</div>
+<div class="glass-card rounded-xl p-6 group hover:translate-y-[-4px] transition-all">
+<div class="flex justify-between items-start mb-4">
+<div class="p-2 bg-purple-500/10 text-purple-500 rounded-lg">
+<span class="material-symbols-outlined">vitals</span>
+</div>
+</div>
+<p class="text-sm font-medium text-[#617589]">Khoa/Phòng hoạt động</p>
+<div class="flex items-end gap-2 mt-1">
+<h3 class="text-4xl font-bold">12</h3>
+<span class="text-xs font-bold text-red-500 mb-1">-2% ↓</span>
+</div>
+<div class="mt-6 flex gap-1 items-center">
+<div class="h-1 flex-1 bg-purple-500 rounded-full"></div>
+<div class="h-1 flex-1 bg-purple-500 rounded-full"></div>
+<div class="h-1 flex-1 bg-purple-500 rounded-full opacity-30"></div>
+<div class="h-1 flex-1 bg-purple-500 rounded-full opacity-30"></div>
+<span class="text-[10px] font-bold text-[#617589] ml-2">High Load</span>
+</div>
+</div>
+<div class="glass-card rounded-xl p-6 group hover:translate-y-[-4px] transition-all">
+<div class="flex justify-between items-start mb-4">
+<div class="p-2 bg-orange-500/10 text-orange-500 rounded-lg">
+<span class="material-symbols-outlined">local_shipping</span>
+</div>
+</div>
+<p class="text-sm font-medium text-[#617589]">Chờ xác nhận đã giao</p>
+<div class="flex items-end gap-2 mt-1">
+<h3 class="text-4xl font-bold">48</h3>
+<span class="text-xs font-bold text-green-500 mb-1">+5% ↑</span>
+</div>
+<p class="text-[10px] text-[#617589] mt-4 flex items-center gap-1">
+<span class="material-symbols-outlined text-xs">schedule</span> Average: 14 mins
+                        </p>
+</div>
+</div>
+<!-- Center: Main Trends Chart -->
+<div class="glass-card rounded-xl p-8 flex flex-col">
+<div class="flex justify-between items-start mb-8">
+<div>
+<h2 class="text-xl font-bold">Departmental Request Trends</h2>
+<p class="text-sm text-[#617589]">Analytics for all active hospital wings</p>
+</div>
+<div class="flex gap-2">
+<button class="px-3 py-1.5 text-xs font-semibold bg-[#f0f2f4] dark:bg-white/10 rounded-lg">Week</button>
+<button class="px-3 py-1.5 text-xs font-semibold bg-primary text-white rounded-lg">Month</button>
+</div>
+</div>
+<div class="flex items-center gap-10 mb-8">
+<div>
+<p class="text-xs text-[#617589] font-medium uppercase tracking-wider">Total Volume</p>
+<p class="text-3xl font-bold mt-1">1,284 <span class="text-sm font-normal text-green-500">+8.4%</span></p>
+</div>
+<div class="h-10 w-[1px] bg-[#f0f2f4] dark:bg-white/10"></div>
+<div>
+<p class="text-xs text-[#617589] font-medium uppercase tracking-wider">Avg Resolution</p>
+<p class="text-3xl font-bold mt-1">4.2h <span class="text-sm font-normal text-green-500">-12%</span></p>
+</div>
+</div>
+<div class="flex-1 relative min-h-[300px]">
+<svg class="w-full h-full" preserveaspectratio="none" viewbox="0 0 800 300">
+<defs>
+<lineargradient id="chartGradient" x1="0" x2="0" y1="0" y2="1">
+<stop offset="0%" stop-color="#2b8cee" stop-opacity="0.2"></stop>
+<stop offset="100%" stop-color="#2b8cee" stop-opacity="0"></stop>
+</lineargradient>
+</defs>
+<!-- Grid lines -->
+<line class="text-[#f0f2f4] dark:text-white/5" stroke="currentColor" stroke-width="0.5" x1="0" x2="800" y1="0" y2="0"></line>
+<line class="text-[#f0f2f4] dark:text-white/5" stroke="currentColor" stroke-width="0.5" x1="0" x2="800" y1="100" y2="100"></line>
+<line class="text-[#f0f2f4] dark:text-white/5" stroke="currentColor" stroke-width="0.5" x1="0" x2="800" y1="200" y2="200"></line>
+<line class="text-[#f0f2f4] dark:text-white/5" stroke="currentColor" stroke-width="0.5" x1="0" x2="800" y1="300" y2="300"></line>
+<!-- Area -->
+<path d="M0,250 C100,230 150,150 200,160 S300,240 400,180 S550,50 650,80 S800,40 800,40 V300 H0 Z" fill="url(#chartGradient)"></path>
+<!-- Line -->
+<path d="M0,250 C100,230 150,150 200,160 S300,240 400,180 S550,50 650,80 S800,40 800,40" fill="none" stroke="#2b8cee" stroke-linecap="round" stroke-width="3"></path>
+<!-- Custom Tooltip Node -->
+<circle cx="580" cy="62" fill="#2b8cee" r="6" stroke="white" stroke-width="2"></circle>
+</svg>
+<!-- Floating Tooltip Card -->
+<div class="absolute left-[560px] top-[10px] glass-card p-3 rounded-lg shadow-xl border-primary/20 scale-90">
+<p class="text-[10px] text-[#617589] font-bold">OCT 24</p>
+<p class="text-sm font-bold">Surgery Wing</p>
+<p class="text-primary font-bold">242 Requests</p>
+</div>
+</div>
+<div class="flex justify-between mt-4 px-2">
+<span class="text-xs font-bold text-[#617589]">Mon</span>
+<span class="text-xs font-bold text-[#617589]">Tue</span>
+<span class="text-xs font-bold text-[#617589]">Wed</span>
+<span class="text-xs font-bold text-[#617589]">Thu</span>
+<span class="text-xs font-bold text-[#617589]">Fri</span>
+<span class="text-xs font-bold text-[#617589]">Sat</span>
+<span class="text-xs font-bold text-[#617589]">Sun</span>
+</div>
+</div>
+<!-- Right: Top Products Donut Feed -->
+<div class="flex flex-col gap-4">
+<div class="glass-card rounded-xl p-6 flex-1">
+<h2 class="text-lg font-bold mb-6">Top Requested</h2>
+<div class="space-y-6">
+<!-- Product Item -->
+<div class="flex items-center gap-4">
+<div class="relative size-12 flex-shrink-0">
+<svg class="size-full" viewbox="0 0 36 36">
+<path class="text-[#f0f2f4] dark:text-white/5" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-width="3"></path>
+<path class="text-primary" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-dasharray="85, 100" stroke-linecap="round" stroke-width="3"></path>
+</svg>
+<div class="absolute inset-0 flex items-center justify-center text-[10px] font-bold">85%</div>
+</div>
+<div class="flex-1 min-w-0">
+<p class="text-sm font-bold truncate">Ventilator Pro-3</p>
+<p class="text-xs text-[#617589]">ICU Unit</p>
+</div>
+<span class="material-symbols-outlined text-primary text-sm">trending_up</span>
+</div>
+<div class="flex items-center gap-4">
+<div class="relative size-12 flex-shrink-0">
+<svg class="size-full" viewbox="0 0 36 36">
+<path class="text-[#f0f2f4] dark:text-white/5" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-width="3"></path>
+<path class="text-purple-500" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-dasharray="62, 100" stroke-linecap="round" stroke-width="3"></path>
+</svg>
+<div class="absolute inset-0 flex items-center justify-center text-[10px] font-bold">62%</div>
+</div>
+<div class="flex-1 min-w-0">
+<p class="text-sm font-bold truncate">MRI Consumables</p>
+<p class="text-xs text-[#617589]">Radiology</p>
+</div>
+<span class="material-symbols-outlined text-purple-500 text-sm">trending_up</span>
+</div>
+<div class="flex items-center gap-4">
+<div class="relative size-12 flex-shrink-0">
+<svg class="size-full" viewbox="0 0 36 36">
+<path class="text-[#f0f2f4] dark:text-white/5" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-width="3"></path>
+<path class="text-orange-500" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-dasharray="45, 100" stroke-linecap="round" stroke-width="3"></path>
+</svg>
+<div class="absolute inset-0 flex items-center justify-center text-[10px] font-bold">45%</div>
+</div>
+<div class="flex-1 min-w-0">
+<p class="text-sm font-bold truncate">Defibrillator Pads</p>
+<p class="text-xs text-[#617589]">Emergency</p>
+</div>
+<span class="material-symbols-outlined text-orange-500 text-sm">trending_down</span>
+</div>
+<div class="flex items-center gap-4">
+<div class="relative size-12 flex-shrink-0">
+<svg class="size-full" viewbox="0 0 36 36">
+<path class="text-[#f0f2f4] dark:text-white/5" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-width="3"></path>
+<path class="text-green-500" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-dasharray="30, 100" stroke-linecap="round" stroke-width="3"></path>
+</svg>
+<div class="absolute inset-0 flex items-center justify-center text-[10px] font-bold">30%</div>
+</div>
+<div class="flex-1 min-w-0">
+<p class="text-sm font-bold truncate">Oxygen Regulators</p>
+<p class="text-xs text-[#617589]">General Ward</p>
+</div>
+<span class="material-symbols-outlined text-green-500 text-sm">trending_up</span>
+</div>
+</div>
+<div class="mt-8 pt-6 border-t border-[#f0f2f4] dark:border-white/10">
+<button class="w-full py-3 bg-primary/10 text-primary font-bold text-sm rounded-xl hover:bg-primary hover:text-white transition-all">
+                                View Inventory Report
+                            </button>
+</div>
+</div>
+<!-- Micro Performance Card -->
+<div class="bg-primary p-6 rounded-xl text-white shadow-xl shadow-primary/20">
+<div class="flex justify-between items-center mb-4">
+<h4 class="text-sm font-bold opacity-80 uppercase tracking-tighter">System Efficiency</h4>
+<span class="material-symbols-outlined text-sm">bolt</span>
+</div>
+<p class="text-2xl font-bold">99.2%</p>
+<p class="text-[10px] opacity-70 mt-1">Uptime across all medical hubs</p>
+</div>
+</div>
+</div>
+<!-- Bottom Section: Detailed Feed (Small list) -->
+<div class="mt-8">
+<div class="glass-card rounded-xl p-6">
+<div class="flex justify-between items-center mb-6">
+<h3 class="text-lg font-bold">Recent Activities</h3>
+<button class="text-sm text-primary font-semibold">See all</button>
+</div>
+<div class="space-y-4">
+<div class="flex items-center justify-between py-3 border-b border-[#f0f2f4] dark:border-white/5 last:border-0">
+<div class="flex items-center gap-4">
+<div class="size-8 rounded-full bg-green-500/20 text-green-500 flex items-center justify-center">
+<span class="material-symbols-outlined text-sm">check_circle</span>
+</div>
+<div>
+<p class="text-sm font-bold">Oxygen Concentrator Delivered</p>
+<p class="text-xs text-[#617589]">Ward 4C • 12 mins ago</p>
+</div>
+</div>
+<span class="text-xs font-bold text-[#617589]">Ref: #INV-9281</span>
+</div>
+<div class="flex items-center justify-between py-3 border-b border-[#f0f2f4] dark:border-white/5 last:border-0">
+<div class="flex items-center gap-4">
+<div class="size-8 rounded-full bg-primary/20 text-primary flex items-center justify-center">
+<span class="material-symbols-outlined text-sm">add_shopping_cart</span>
+</div>
+<div>
+<p class="text-sm font-bold">New Request: Infusion Pumps (10)</p>
+<p class="text-xs text-[#617589]">Pediatrics • 45 mins ago</p>
+</div>
+</div>
+<span class="text-xs font-bold text-[#617589]">Ref: #REQ-4421</span>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+</body></html>

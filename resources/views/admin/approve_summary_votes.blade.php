@@ -169,6 +169,8 @@
         </div>
     </div>
     
+    <!-- Tabs and Contents Wrapper with Alpine.js -->
+    <div x-data="{ showApproved: false }">
     <!-- Navigation Tabs -->
     <div class="bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800 sticky top-[56px] z-10 shadow-sm">
         <div class="px-6 overflow-x-auto custom-scrollbar">
@@ -183,6 +185,88 @@
                     class="px-5 py-4 text-xs font-extrabold border-b-2 uppercase tracking-wide">
                     TỔNG HỢP
                 </button>
+                <div class="w-px h-6 bg-slate-200 dark:bg-slate-700 mx-2"></div>
+                
+                <!-- Department Filter Dropdown -->
+                <div class="relative" x-data="{ 
+                    open: false,
+                    toggleDropdown() {
+                        this.open = !this.open;
+                        if (this.open) {
+                            this.$nextTick(() => {
+                                const button = this.$refs.filterButton;
+                                const dropdown = this.$refs.dropdown;
+                                const rect = button.getBoundingClientRect();
+                                dropdown.style.top = rect.bottom + 'px';
+                                dropdown.style.left = rect.left + 'px';
+                            });
+                        }
+                    }
+                }">
+                    <button @click="toggleDropdown()" 
+                        x-ref="filterButton" 
+                        class="px-4 py-4 text-xs font-bold border-b-2 border-transparent hover:bg-slate-50 dark:hover:bg-slate-800 transition-all flex items-center gap-2 text-slate-600 dark:text-slate-300">
+                        <span class="material-symbols-outlined text-[18px]">filter_list</span>
+                        LỌC THEO KHOA
+                        <span class="material-symbols-outlined text-[16px]" :class="open ? 'rotate-180' : ''">expand_more</span>
+                    </button>
+                    
+                    <!-- Dropdown Menu -->
+                    <div x-show="open" 
+                        x-ref="dropdown"
+                        style="display: none;"
+                        @click.away="open = false"
+                        x-transition:enter="transition ease-out duration-200"
+                        x-transition:enter-start="opacity-0 translate-y-1"
+                        x-transition:enter-end="opacity-100 translate-y-0"
+                        class="fixed w-72 bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-700 z-[200] overflow-hidden">
+                        
+                        <!-- Search Input -->
+                        <div class="p-3 border-b border-slate-100 dark:border-slate-700">
+                            <div class="relative">
+                                <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[18px]">search</span>
+                                <input type="text" 
+                                    x-ref="searchInput"
+                                    @input="$refs.searchInput.value"
+                                    placeholder="Tìm kiếm khoa..."
+                                    class="w-full pl-10 pr-4 py-2 text-sm border border-slate-200 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-[var(--primary)] focus:border-[var(--primary)] dark:bg-slate-700 dark:text-white">
+                            </div>
+                        </div>
+                        
+                        <!-- Department List -->
+                        <div class="max-h-80 overflow-y-auto custom-scrollbar">
+                            @foreach($departments as $dept)
+                                <button @click="updateTab('dept_{{ $dept->department_id }}'); open = false" 
+                                    x-show="'{{ strtolower($dept->department_name) }}'.includes(($refs.searchInput?.value || '').toLowerCase())"
+                                    class="w-full px-4 py-3 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors border-b border-slate-50 dark:border-slate-800 last:border-0 text-left">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-8 h-8 rounded-full bg-gradient-to-br from-[var(--primary)] to-teal-600 flex items-center justify-center text-white font-bold text-xs shadow-sm">
+                                            {{ substr($dept->department_name, 0, 1) }}
+                                        </div>
+                                        <div>
+                                            <p class="text-xs font-bold text-slate-700 dark:text-slate-200">{{ $dept->department_name }}</p>
+                                            <p class="text-[10px] text-slate-400 font-medium">{{ $dept->department_code }}</p>
+                                        </div>
+                                    </div>
+                                    @if($pendingGroupedByDept->has($dept->department_id))
+                                        <span class="flex h-2 w-2 rounded-full bg-red-500 shadow-[0_0_5px_rgba(239,68,68,0.8)]"></span>
+                                    @else
+                                        <span class="material-symbols-outlined text-slate-300 text-sm">chevron_right</span>
+                                    @endif
+                                </button>
+                            @endforeach
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Toggle Approved Items Button -->
+                <button @click="showApproved = !showApproved" 
+                    :class="showApproved ? 'text-green-600 bg-green-50 dark:bg-green-900/20' : 'text-slate-600 dark:text-slate-300'"
+                    class="px-4 py-4 text-xs font-bold border-b-2 border-transparent hover:bg-slate-50 dark:hover:bg-slate-800 transition-all flex items-center gap-2 rounded-t-lg">
+                    <span class="material-symbols-outlined text-[18px]" x-text="showApproved ? 'check_box' : 'check_box_outline_blank'"></span>
+                    <span x-text="showApproved ? 'ẨN ĐÃ DUYỆT' : 'HIỆN ĐÃ DUYỆT'"></span>
+                </button>
+                
                 <div class="w-px h-6 bg-slate-200 dark:bg-slate-700 mx-2"></div>
                 @foreach($departments as $dept)
                     <button @click="updateTab('dept_{{ $dept->department_id }}')" 
@@ -475,20 +559,29 @@
                             })->count();
                         @endphp
 
-                        @if($pendingCount > 0)
-                            <form action="{{ route('admin.aggregation.approve_dept', $dept->department_id) }}" method="POST" onsubmit="return confirm('Bạn có chắc muốn duyệt toàn bộ yêu cầu của khoa này và tạo PO?')">
-                                @csrf
-                                <button type="submit" class="flex items-center gap-1 px-3 py-1.5 bg-green-100 hover:bg-green-200 text-green-700 rounded-md transition-colors text-xs font-bold">
-                                    <span class="material-symbols-outlined text-[16px]">done_all</span>
-                                    Duyệt toàn bộ khoa & Tạo PO ({{ $pendingCount }})
-                                </button>
-                            </form>
-                        @else
-                            <div class="flex items-center gap-1 px-3 py-1.5 bg-slate-100 text-slate-500 rounded-md text-xs font-bold">
-                                <span class="material-symbols-outlined text-[16px]">task_alt</span>
-                                Đã xử lý tất cả
-                            </div>
-                        @endif
+                        <div class="flex items-center gap-2">
+                            <!-- Print Button -->
+                            <button onclick="printDepartment({{ $dept->department_id }}, '{{ $dept->department_name }}')" 
+                                class="flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors text-xs font-bold shadow-sm">
+                                <span class="material-symbols-outlined text-[16px]">print</span>
+                                In
+                            </button>
+
+                            @if($pendingCount > 0)
+                                <form action="{{ route('admin.aggregation.approve_dept', $dept->department_id) }}" method="POST" onsubmit="return confirm('Bạn có chắc muốn duyệt toàn bộ yêu cầu của khoa này và tạo PO?')">
+                                    @csrf
+                                    <button type="submit" class="flex items-center gap-1 px-3 py-1.5 bg-green-100 hover:bg-green-200 text-green-700 rounded-md transition-colors text-xs font-bold">
+                                        <span class="material-symbols-outlined text-[16px]">done_all</span>
+                                        Duyệt toàn bộ khoa & Tạo PO ({{ $pendingCount }})
+                                    </button>
+                                </form>
+                            @else
+                                <div class="flex items-center gap-1 px-3 py-1.5 bg-slate-100 text-slate-500 rounded-md text-xs font-bold">
+                                    <span class="material-symbols-outlined text-[16px]">task_alt</span>
+                                    Đã xử lý tất cả
+                                </div>
+                            @endif
+                        </div>
                     </div>
 
                     <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden mb-6">
@@ -520,7 +613,9 @@
                                                 $lineTotal = $item->quantity_requested * $item->product->unit_price; 
                                                 $totalAmount += $lineTotal;
                                             @endphp
-                                            <tr id="row-{{ $item->request_item_id }}" class="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors {{ $item->decision_status == 'REJECTED' ? 'rejected-row' : '' }} {{ $item->decision_status == 'APPROVED' ? 'bg-green-50/50' : '' }}">
+                                            <tr id="row-{{ $item->request_item_id }}" 
+                                                x-show="showApproved || !['APPROVED', 'REJECTED'].includes('{{ $item->decision_status }}')"
+                                                class="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors {{ $item->decision_status == 'REJECTED' ? 'rejected-row' : '' }} {{ $item->decision_status == 'APPROVED' ? 'bg-green-50/50' : '' }}">
                                                 <td class="px-6 py-4 text-sm text-center text-slate-400 font-medium">{{ $index + 1 }}</td>
                                                 <td class="px-6 py-4">
                                                     <div class="text-sm font-bold text-slate-700 dark:text-slate-200">{{ $item->product->product_name }}</div>
@@ -569,7 +664,8 @@
         @endforeach
 
     </div>
-</div>
+    </div>
+    <!-- End Alpine.js Wrapper -->
 
 @push('scripts')
 <script>
@@ -780,6 +876,56 @@
                 console.error('Error:', error);
                 alert('Không thể tải nội dung in. Vui lòng thử lại.');
             });
+    }
+
+    function printDepartment(deptId, deptName) {
+        const currentMonth = {{ $currentMonth ?? 'now()->month' }};
+        const currentYear = {{ $currentYear ?? 'now()->year' }};
+        
+        const deptTab = document.querySelector(`[x-show="activeTab === 'dept_${deptId}'"]`);
+        if (!deptTab) {
+            alert('Không tìm thấy dữ liệu khoa.');
+            return;
+        }
+
+        const tableContainer = deptTab.querySelector('.bg-white');
+        if (!tableContainer) {
+            alert('Không tìm thấy bảng dữ liệu.');
+            return;
+        }
+
+        const table = tableContainer.querySelector('table').cloneNode(true);
+        
+        const headerRow = table.querySelector('thead tr');
+        if (headerRow) {
+            const lastTh = headerRow.querySelector('th:last-child');
+            if (lastTh && lastTh.textContent.includes('HÀNH ĐỘNG')) {
+                lastTh.remove();
+            }
+        }
+
+        const bodyRows = table.querySelectorAll('tbody tr');
+        bodyRows.forEach(row => {
+            const lastTd = row.querySelector('td:last-child');
+            if (lastTd && (lastTd.querySelector('button') || lastTd.querySelector('.bg-green-100') || lastTd.querySelector('.bg-red-100'))) {
+                lastTd.remove();
+            }
+        });
+
+        const footerRow = table.querySelector('tfoot tr');
+        if (footerRow) {
+            const lastTd = footerRow.querySelector('td:last-child');
+            if (lastTd && !lastTd.textContent.trim()) {
+                lastTd.remove();
+            }
+        }
+
+        const printWindow = window.open('', '_blank', 'width=1200,height=800');
+        
+        const printContent = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Bảng Tổng Hợp - ${deptName}</title><style>@page{size:A4 landscape;margin:15mm}*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Times New Roman',Times,serif;font-size:12pt;line-height:1.4;color:#000;background:white}.print-header{text-align:center;margin-bottom:20px;border-bottom:2px solid #000;padding-bottom:15px}.company-name{font-size:14pt;font-weight:bold;text-transform:uppercase;margin-bottom:5px}.company-address{font-size:10pt;font-style:italic;margin-bottom:15px}.report-title{font-size:16pt;font-weight:bold;text-transform:uppercase;margin:15px 0 10px 0}.department-info{text-align:left;margin:15px 0;font-size:12pt;font-weight:bold}table{width:100%;border-collapse:collapse;margin-top:10px}th,td{border:1px solid #000;padding:8px 6px;text-align:left}th{background-color:#f0f0f0;font-weight:bold;text-align:center;font-size:10pt;text-transform:uppercase}td{font-size:11pt}td:nth-child(1){text-align:center;width:40px}td:nth-child(3),td:nth-child(4){text-align:center}td:nth-child(5),td:nth-child(6){text-align:right}.bg-slate-50{background-color:#e8f5e9!important;font-weight:bold}tfoot{background-color:#1976d2;color:white;font-weight:bold}tfoot td{border-color:#1565c0;font-size:12pt}.rejected-row{opacity:0.5;text-decoration:line-through}@media print{body{print-color-adjust:exact;-webkit-print-color-adjust:exact}}</style></head><body><div class="print-header"><div class="company-name">CÔNG TY CỔ PHẦN BỆNH VIỆN ĐA KHOA TÂM TRÍ CAO LÃNH</div><div class="company-address">Số 01, đường Lê Thị Riêng, phường 1, Thành phố Cao Lãnh, tỉnh Đồng Tháp</div><div class="report-title">BẢNG TỔNG HỢP YÊU CẦU THÁNG ${currentMonth}/${currentYear}</div></div><div class="department-info"><span style="display:inline-block;width:8px;height:8px;background:#1976d2;border-radius:50%;margin-right:8px"></span>Khoa: ${deptName}</div>${table.outerHTML}<script>window.onload=function(){window.print();window.onafterprint=function(){window.close()}};<\/script></body></html>`;
+        
+        printWindow.document.write(printContent);
+        printWindow.document.close();
     }
 </script>
 @endpush

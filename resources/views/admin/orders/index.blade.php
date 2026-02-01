@@ -5,8 +5,9 @@
 @section('page-title', 'Quản lý Đơn hàng (PO)')
 
 @section('content')
-    <div
-        class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm mb-6 -mx-8 -mt-8">
+    <div x-data="{ showModal: false, selectedPO: null }" 
+         @open-po-modal.window="showModal = true; selectedPO = $event.detail.id; loadPODetails($event.detail.id)"
+         class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm mb-6 -mx-8 -mt-8">
         <div
             class="px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800">
             <div class="flex items-center gap-4">
@@ -100,9 +101,11 @@
                                 @endif
                             </td>
                             <td class="px-6 py-4 text-right">
-                                <a href="{{ route('admin.orders.show', $order->purchase_order_id) }}" class="text-slate-400 hover:text-indigo-600 transition-colors p-2 hover:bg-indigo-50 rounded-lg inline-flex" title="Xem chi tiết">
+                                <button @click="$dispatch('open-po-modal', { id: {{ $order->purchase_order_id }} })" 
+                                    class="text-slate-400 hover:text-indigo-600 transition-colors p-2 hover:bg-indigo-50 rounded-lg inline-flex" 
+                                    title="Xem chi tiết">
                                     <span class="material-symbols-outlined text-[20px]">visibility</span>
-                                </a>
+                                </button>
                             </td>
                         </tr>
                     @empty
@@ -124,5 +127,80 @@
                 {{ $orders->links() }}
             </div>
         @endif
+
+        <!-- PO Detail Modal -->
+        <div x-show="showModal" 
+             x-cloak
+             @keydown.escape.window="showModal = false"
+             class="fixed inset-0 z-50 overflow-hidden"
+             style="display: none;">
+            <!-- Backdrop -->
+            <div class="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity"
+                 @click="showModal = false"></div>
+            
+            <!-- Modal Panel -->
+            <div class="absolute inset-y-0 right-0 max-w-4xl w-full bg-white dark:bg-slate-900 shadow-2xl transform transition-transform"
+                 x-show="showModal"
+                 x-transition:enter="transition ease-out duration-300"
+                 x-transition:enter-start="translate-x-full"
+                 x-transition:enter-end="translate-x-0"
+                 x-transition:leave="transition ease-in duration-200"
+                 x-transition:leave-start="translate-x-0"
+                 x-transition:leave-end="translate-x-full">
+                
+                <div class="h-full flex flex-col" x-data="{ poData: null, loading: true }">
+                    <!-- Modal Header -->
+                    <div class="px-8 py-6 border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50 flex items-center justify-between">
+                        <h2 class="text-2xl font-extrabold text-slate-800 dark:text-white">Chi tiết Đơn hàng</h2>
+                        <button @click="showModal = false" class="text-slate-400 hover:text-slate-600 transition-colors">
+                            <span class="material-symbols-outlined text-2xl">close</span>
+                        </button>
+                    </div>
+
+                    <!-- Modal Body -->
+                    <div class="flex-1 overflow-y-auto p-8" id="po-detail-content">
+                        <div class="flex items-center justify-center h-full">
+                            <div class="text-center">
+                                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+                                <p class="text-slate-500">Đang tải dữ liệu...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
+
+@push('scripts')
+<script>
+    function loadPODetails(poId) {
+        const contentDiv = document.getElementById('po-detail-content');
+        
+        fetch(`/admin/orders/${poId}`)
+            .then(response => response.text())
+            .then(html => {
+                // Parse the HTML and extract the content section
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                const content = doc.querySelector('.max-w-5xl');
+                
+                if (content) {
+                    // Remove the back button
+                    const backButton = content.querySelector('a[href*="orders.index"]');
+                    if (backButton) {
+                        backButton.parentElement.remove();
+                    }
+                    
+                    contentDiv.innerHTML = content.innerHTML;
+                } else {
+                    contentDiv.innerHTML = '<p class="text-center text-red-500">Không thể tải dữ liệu</p>';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                contentDiv.innerHTML = '<p class="text-center text-red-500">Đã xảy ra lỗi khi tải dữ liệu</p>';
+            });
+    }
+</script>
+@endpush
 @endsection

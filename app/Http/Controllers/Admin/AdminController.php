@@ -28,7 +28,59 @@ class AdminController extends Controller
         $totalDepartments = \App\Models\Department::count();
         $totalOrders = PurchaseOrder::count();
 
-        return view('admin.dashboard', compact('pendingRequests', 'totalDepartments', 'totalOrders'));
+        // Top requested products (by quantity)
+        $topProducts = \App\Models\PurchaseRequestItem::select(
+            'product_id',
+            \DB::raw('SUM(quantity_approved) as total_quantity')
+        )
+            ->with(['product.category'])
+            ->whereHas('request', function($q) {
+                $q->where('status', 'APPROVED');
+            })
+            ->groupBy('product_id')
+            ->orderByDesc('total_quantity')
+            ->limit(4)
+            ->get()
+            ->map(function($item) {
+                $totalRequests = \App\Models\PurchaseRequestItem::where('product_id', $item->product_id)->count();
+                $percentage = min(100, ($item->total_quantity / 100) * 100); // Simplified percentage
+                return [
+                    'name' => $item->product->product_name ?? 'N/A',
+                    'department' => $item->product->category->category_name ?? 'N/A',
+                    'percentage' => round($percentage),
+                    'total_quantity' => $item->total_quantity,
+                    'trend' => $item->total_quantity > 50 ? 'up' : 'down'
+                ];
+            });
+
+        // Recent activities (last 10 purchase requests)
+        $recentActivities = PurchaseRequest::with(['department', 'items'])
+            ->orderByDesc('created_at')
+            ->limit(10)
+            ->get()
+            ->map(function($request) {
+                $statusConfig = [
+                    'APPROVED' => ['icon' => 'check_circle', 'color' => 'green', 'text' => 'Đã duyệt'],
+                    'SUBMITTED' => ['icon' => 'add_shopping_cart', 'color' => 'primary', 'text' => 'Chờ duyệt'],
+                    'REJECTED' => ['icon' => 'cancel', 'color' => 'red', 'text' => 'Từ chối'],
+                    'DELIVERED' => ['icon' => 'local_shipping', 'color' => 'blue', 'text' => 'Đã giao'],
+                ];
+                
+                $config = $statusConfig[$request->status] ?? ['icon' => 'info', 'color' => 'gray', 'text' => $request->status];
+                
+                return [
+                    'id' => $request->id,
+                    'title' => ($request->items->first()->product->product_name ?? 'Vật tư y tế') . ' (' . $request->items->count() . ' mặt hàng)',
+                    'department' => $request->department->department_name ?? 'N/A',
+                    'time' => $request->created_at->diffForHumans(),
+                    'status' => $config['text'],
+                    'icon' => $config['icon'],
+                    'color' => $config['color'],
+                    'reference' => '#REQ-' . str_pad($request->id, 4, '0', STR_PAD_LEFT)
+                ];
+            });
+
+        return view('admin.dashboard', compact('pendingRequests', 'totalDepartments', 'totalOrders', 'topProducts', 'recentActivities'));
     }
 
     public function indexRequests()
@@ -86,12 +138,28 @@ class AdminController extends Controller
                 ]);
 
                 $total = 0;
-                foreach ($items as $item) {
-                    $lineTotal = $item->quantity_requested * $item->product->unit_price;
+                // Group items by product to aggregate quantities
+                $byProduct = $items->groupBy('product_id');
+                
+                foreach ($byProduct as $prodId => $prodItems) {
+                    $qty = $prodItems->sum('quantity_requested');
+                    $product = $prodItems->first()->product;
+                    $lineTotal = $qty * $product->unit_price;
                     $total += $lineTotal;
 
-                    // Update item status
-                    $item->update(['decision_status' => 'APPROVED']);
+                    // Create PO Item
+                    PurchaseOrderItem::create([
+                        'purchase_order_id' => $po->purchase_order_id,
+                        'product_id' => $prodId,
+                        'quantity_ordered' => $qty,
+                        'unit_price' => $product->unit_price,
+                        'total_price' => $lineTotal,
+                    ]);
+
+                    // Update items status
+                    foreach ($prodItems as $item) {
+                        $item->update(['decision_status' => 'APPROVED']);
+                    }
                 }
                 $po->update(['total_amount' => $total]);
             }
@@ -635,13 +703,15 @@ class AdminController extends Controller
             return $item->product->supplier->supplier_name ?? 'Chưa gán NCC';
         });
 
-        // 4. Pivot Data for "BẢNG TỔNG"
+        // 4. Pivot Data for "BẢNG TỔNG" - Show data from Purchase Requests
         $issuedPOsExist = PurchaseOrder::where('status', 'ISSUED')->exists();
         $pivotData = collect();
         $allDepartments = \App\Models\Department::orderBy('department_code')->get();
 
         if ($currentBatch) {
-            $productIds = $aggregationItems->pluck('product_id')->unique()->toArray();
+            // Get all valid (non-rejected) items from Purchase Requests
+            $validItems = $items->where('decision_status', '!=', 'REJECTED');
+            $productIds = $validItems->pluck('product_id')->unique()->toArray();
 
             // User Request: Only show items that have been created as PO and PO status is ISSUED
             $issuedPOs = PurchaseOrder::where('status', 'ISSUED')
@@ -664,18 +734,14 @@ class AdminController extends Controller
             $deptTotalRequested = collect();
             $deptQtyTotals = collect();
 
-            // Calculate Totals per Department
-            // Header: From Valid Requests (excluding REJECTED)
-            $validRequestItems = $items->where('decision_status', '!=', 'REJECTED');
-
+            // Calculate Totals per Department from Purchase Request Items
             foreach ($allDepartments as $dept) {
-                // Header (Total Requested - Valid)
-                $reqQty = $validRequestItems->where('request.department_id', $dept->department_id)->sum('quantity_requested');
+                // Total Requested (all valid items from this department)
+                $reqQty = $validItems->where('request.department_id', $dept->department_id)->sum('quantity_requested');
                 $deptTotalRequested[$dept->department_id] = $reqQty;
-
-                // Footer (Total Approved/Issued)
-                $issuedQty = $issuedPOItems->where('purchaseOrder.department_id', $dept->department_id)->sum('quantity_ordered');
-                $deptQtyTotals[$dept->department_id] = $issuedQty;
+                
+                // Total Approved (same as requested for now)
+                $deptQtyTotals[$dept->department_id] = $reqQty;
             }
 
             // Paginate product IDs manually
@@ -683,8 +749,8 @@ class AdminController extends Controller
             $perPage = 15;
             $paginatedProductIds = collect($productIds)->forPage($page, $perPage);
 
-            // Build pivot: products × departments from issued items
-            $pivotData = $issuedPOItems->whereIn('product_id', $paginatedProductIds)
+            // Build pivot: products × departments from Purchase Request Items
+            $pivotData = $validItems->whereIn('product_id', $paginatedProductIds)
                 ->groupBy('product_id')
                 ->map(function ($items) use ($allDepartments) {
                     $row = [
@@ -693,11 +759,11 @@ class AdminController extends Controller
                     ];
 
                     foreach ($allDepartments as $dept) {
-                        $deptQty = $items->where('purchaseOrder.department_id', $dept->department_id)->sum('quantity_ordered');
+                        $deptQty = $items->where('request.department_id', $dept->department_id)->sum('quantity_requested');
                         $row['departments'][$dept->department_id] = $deptQty > 0 ? $deptQty : null;
                     }
 
-                    $row['total'] = $items->sum('quantity_ordered');
+                    $row['total'] = $items->sum('quantity_requested');
                     return $row;
                 });
 
@@ -1102,6 +1168,9 @@ class AdminController extends Controller
         $spreadsheet = new Spreadsheet();
         $spreadsheet->removeSheetByIndex(0); // Remove default sheet
 
+        // Array to store department summaries for the summary sheet
+        $departmentSummaries = [];
+
         $sheetIndex = 0;
         foreach ($groupedByDepartment as $departmentName => $departmentItems) {
             // Create new sheet for each department
@@ -1185,6 +1254,8 @@ class AdminController extends Controller
             });
 
             $departmentTotal = 0;
+            $departmentItemCount = 0;
+            $departmentQuantity = 0;
             $globalStt = 1;
 
             foreach ($groupedBySupplier as $supplierName => $supplierItems) {
@@ -1216,6 +1287,8 @@ class AdminController extends Controller
                     $lineTotal = $totalQty * $prod->unit_price;
                     $supplierTotal += $lineTotal;
                     $departmentTotal += $lineTotal;
+                    $departmentItemCount++;
+                    $departmentQuantity += $totalQty;
 
                     $sheet->setCellValue("A{$currentRow}", $globalStt++);
                     $sheet->setCellValue("B{$currentRow}", $prod->product_name);
@@ -1295,28 +1368,30 @@ class AdminController extends Controller
             $currentRow += 3;
 
             // Signature section
+            $sheet->mergeCells("A{$currentRow}:B{$currentRow}");
             $sheet->setCellValue("A{$currentRow}", 'NGƯỜI LẬP PHIẾU');
+            $sheet->mergeCells("C{$currentRow}:D{$currentRow}");
             $sheet->setCellValue("C{$currentRow}", 'THỦ KHO / KẾ TOÁN');
+            $sheet->mergeCells("E{$currentRow}:F{$currentRow}");
             $sheet->setCellValue("E{$currentRow}", 'GIÁM ĐỐC');
 
             $sheet->getStyle("A{$currentRow}:F{$currentRow}")->getFont()->setBold(true)->setSize(11);
             $sheet->getStyle("A{$currentRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
             $sheet->getStyle("C{$currentRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
             $sheet->getStyle("E{$currentRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-            $sheet->mergeCells("C{$currentRow}:D{$currentRow}");
-            $sheet->mergeCells("E{$currentRow}:F{$currentRow}");
 
             $currentRow++;
+            $sheet->mergeCells("A{$currentRow}:B{$currentRow}");
             $sheet->setCellValue("A{$currentRow}", '(Ký, họ tên)');
+            $sheet->mergeCells("C{$currentRow}:D{$currentRow}");
             $sheet->setCellValue("C{$currentRow}", '(Ký, họ tên)');
+            $sheet->mergeCells("E{$currentRow}:F{$currentRow}");
             $sheet->setCellValue("E{$currentRow}", '(Ký, họ tên)');
 
             $sheet->getStyle("A{$currentRow}:F{$currentRow}")->getFont()->setItalic(true)->setSize(10);
             $sheet->getStyle("A{$currentRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
             $sheet->getStyle("C{$currentRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
             $sheet->getStyle("E{$currentRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-            $sheet->mergeCells("C{$currentRow}:D{$currentRow}");
-            $sheet->mergeCells("E{$currentRow}:F{$currentRow}");
 
             $currentRow += 4;
             $userName = Auth::user()->full_name ?? '';
@@ -1335,11 +1410,357 @@ class AdminController extends Controller
             // Set row heights for better spacing
             $sheet->getRowDimension(10)->setRowHeight(25);
 
+
+
+            // Store department summary
+            $departmentSummaries[] = [
+                'name' => $departmentName,
+                'items' => $departmentItemCount,
+                'quantity' => $departmentQuantity,
+                'total' => $departmentTotal
+            ];
+
             $sheetIndex++;
         }
 
-        // Set first sheet as active
+        // ============================================
+        // CREATE "BẢNG TỔNG" SHEET (Product x Department Matrix)
+        // ============================================
+        
+        // Collect all unique products grouped by supplier and departments
+        $allDepartments = array_keys($groupedByDepartment);
+        
+        // Create supplier-product-department structure
+        $supplierProductMatrix = [];
+        
+        foreach ($groupedByDepartment as $deptName => $deptItems) {
+            $groupedBySupplier = $deptItems->groupBy(function ($item) {
+                return $item->product->category->supplier->supplier_name ?? 'Chưa phân loại';
+            });
+            
+            foreach ($groupedBySupplier as $supplierName => $supplierItems) {
+                if (!isset($supplierProductMatrix[$supplierName])) {
+                    $supplierProductMatrix[$supplierName] = [];
+                }
+                
+                $groupedByProduct = $supplierItems->groupBy('product_id');
+                foreach ($groupedByProduct as $prodId => $prods) {
+                    $firstItem = $prods->first();
+                    $prod = $firstItem->product;
+                    $qty = $prods->sum('total_approved');
+                    
+                    // Store product info if not exists
+                    if (!isset($supplierProductMatrix[$supplierName][$prodId])) {
+                        $supplierProductMatrix[$supplierName][$prodId] = [
+                            'name' => $prod->product_name,
+                            'unit' => $prod->unit,
+                            'price' => $prod->unit_price,
+                            'departments' => []
+                        ];
+                    }
+                    
+                    // Store quantity for this product-department combination
+                    $supplierProductMatrix[$supplierName][$prodId]['departments'][$deptName] = $qty;
+                }
+            }
+        }
+        
+        // Create BẢNG TỔNG sheet
+        $bangTongSheet = new \PhpOffice\PhpSpreadsheet\Worksheet\Worksheet($spreadsheet, 'BẢNG TỔNG');
+        $spreadsheet->addSheet($bangTongSheet, 0); // Add as first sheet
+        
+        // Header - Row 1
+        $bangTongSheet->setCellValue('A1', 'CTY CP BV ĐA KHOA TÂM TRÍ CAO LÃNH');
+        $bangTongSheet->getStyle('A1')->getFont()->setBold(true)->setSize(12);
+        
+        // Title - Row 3
+        $bangTongSheet->mergeCells('A3:' . \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(3 + count($allDepartments)) . '3');
+        $bangTongSheet->setCellValue('A3', 'BẢNG TỔNG HỢP THÁNG ' . $currentMonth . '/' . $currentYear);
+        $bangTongSheet->getStyle('A3')->getFont()->setBold(true)->setSize(16);
+        $bangTongSheet->getStyle('A3')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        
+        // Status - Row 4
+        $bangTongSheet->mergeCells('A4:' . \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(3 + count($allDepartments)) . '4');
+        $bangTongSheet->setCellValue('A4', 'TRẠNG THÁI: ISSUED');
+        $bangTongSheet->getStyle('A4')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $bangTongSheet->getStyle('A4')->getFont()->setItalic(true);
+        
+        // Table header - Row 6
+        $headerRow = 6;
+        $bangTongSheet->setCellValue("A{$headerRow}", 'STT');
+        $bangTongSheet->setCellValue("B{$headerRow}", 'TÊN HÀNG HÓA');
+        $bangTongSheet->setCellValue("C{$headerRow}", 'ĐVT');
+        
+        // Add department columns
+        $col = 4; // Column D
+        foreach ($allDepartments as $deptName) {
+            $colLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($col);
+            $bangTongSheet->setCellValue("{$colLetter}{$headerRow}", $deptName);
+            $bangTongSheet->getColumnDimension($colLetter)->setWidth(12);
+            $col++;
+        }
+        
+        // Add TỔNG CỘNG column
+        $totalColLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($col);
+        $bangTongSheet->setCellValue("{$totalColLetter}{$headerRow}", 'TỔNG CỘNG');
+        
+        // Style header row
+        $lastCol = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($col);
+        $bangTongSheet->getStyle("A{$headerRow}:{$lastCol}{$headerRow}")->applyFromArray([
+            'font' => ['bold' => true, 'size' => 11],
+            'fill' => [
+                'fillType' => Fill::FILL_SOLID,
+                'startColor' => ['rgb' => 'D9E1F2']
+            ],
+            'borders' => [
+                'allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => '000000']]
+            ],
+            'alignment' => [
+                'horizontal' => Alignment::HORIZONTAL_CENTER,
+                'vertical' => Alignment::VERTICAL_CENTER,
+                'wrapText' => true
+            ]
+        ]);
+        
+        // Fill data grouped by supplier
+        $currentRow = $headerRow + 1;
+        $stt = 1;
+        $deptTotals = array_fill_keys($allDepartments, 0);
+        
+        // Define colors for supplier headers (cycling through colors)
+        $supplierColors = ['FFD966', 'B4C7E7', 'C6E0B4', 'F4B084', 'D5A6BD'];
+        $colorIndex = 0;
+        
+        foreach ($supplierProductMatrix as $supplierName => $products) {
+            // Supplier header row
+            $bangTongSheet->mergeCells("A{$currentRow}:" . $lastCol . "{$currentRow}");
+            $bangTongSheet->setCellValue("A{$currentRow}", strtoupper($supplierName));
+            $bangTongSheet->getStyle("A{$currentRow}:{$lastCol}{$currentRow}")->applyFromArray([
+                'font' => ['bold' => true, 'size' => 12],
+                'fill' => [
+                    'fillType' => Fill::FILL_SOLID,
+                    'startColor' => ['rgb' => $supplierColors[$colorIndex % count($supplierColors)]]
+                ],
+                'borders' => [
+                    'allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => '000000']]
+                ],
+                'alignment' => [
+                    'horizontal' => Alignment::HORIZONTAL_CENTER,
+                    'vertical' => Alignment::VERTICAL_CENTER
+                ]
+            ]);
+            $currentRow++;
+            $colorIndex++;
+            
+            // Products under this supplier
+            foreach ($products as $prodId => $prodInfo) {
+                $bangTongSheet->setCellValue("A{$currentRow}", $stt++);
+                $bangTongSheet->setCellValue("B{$currentRow}", $prodInfo['name']);
+                $bangTongSheet->setCellValue("C{$currentRow}", $prodInfo['unit']);
+                
+                $rowTotal = 0;
+                $col = 4;
+                
+                foreach ($allDepartments as $deptName) {
+                    $colLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($col);
+                    $qty = $prodInfo['departments'][$deptName] ?? 0;
+                    
+                    if ($qty > 0) {
+                        $bangTongSheet->setCellValue("{$colLetter}{$currentRow}", $qty);
+                        $deptTotals[$deptName] += $qty;
+                        $rowTotal += $qty;
+                    }
+                    
+                    $bangTongSheet->getStyle("{$colLetter}{$currentRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                    $col++;
+                }
+                
+                // Row total
+                $totalColLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($col);
+                $bangTongSheet->setCellValue("{$totalColLetter}{$currentRow}", $rowTotal);
+                $bangTongSheet->getStyle("{$totalColLetter}{$currentRow}")->getFont()->setBold(true);
+                $bangTongSheet->getStyle("{$totalColLetter}{$currentRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                
+                // Style data row
+                $bangTongSheet->getStyle("A{$currentRow}:{$lastCol}{$currentRow}")->applyFromArray([
+                    'borders' => [
+                        'allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => '000000']]
+                    ],
+                    'alignment' => ['vertical' => Alignment::VERTICAL_CENTER]
+                ]);
+                
+                $bangTongSheet->getStyle("A{$currentRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                
+                $currentRow++;
+            }
+        }
+        
+        // Department totals row
+        $bangTongSheet->mergeCells("A{$currentRow}:C{$currentRow}");
+        $bangTongSheet->setCellValue("A{$currentRow}", 'TỔNG SỐ LƯỢNG CẦU:');
+        
+        $grandTotal = 0;
+        $col = 4;
+        foreach ($allDepartments as $deptName) {
+            $colLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($col);
+            $bangTongSheet->setCellValue("{$colLetter}{$currentRow}", $deptTotals[$deptName]);
+            $grandTotal += $deptTotals[$deptName];
+            $col++;
+        }
+        
+        // Grand total
+        $totalColLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($col);
+        $bangTongSheet->setCellValue("{$totalColLetter}{$currentRow}", $grandTotal);
+        
+        // Style totals row
+        $bangTongSheet->getStyle("A{$currentRow}:{$lastCol}{$currentRow}")->applyFromArray([
+            'font' => ['bold' => true, 'size' => 11],
+            'fill' => [
+                'fillType' => Fill::FILL_SOLID,
+                'startColor' => ['rgb' => 'FFD966']
+            ],
+            'borders' => [
+                'allBorders' => ['borderStyle' => Border::BORDER_MEDIUM, 'color' => ['rgb' => '000000']]
+            ],
+            'alignment' => [
+                'horizontal' => Alignment::HORIZONTAL_CENTER,
+                'vertical' => Alignment::VERTICAL_CENTER
+            ]
+        ]);
+        
+        // Set column widths
+        $bangTongSheet->getColumnDimension('A')->setWidth(6);
+        $bangTongSheet->getColumnDimension('B')->setWidth(40);
+        $bangTongSheet->getColumnDimension('C')->setWidth(10);
+        $bangTongSheet->getColumnDimension($totalColLetter)->setWidth(12);
+        
+
+        // ============================================
+        // CREATE SUMMARY SHEET
+        // ============================================
+        $summarySheet = new \PhpOffice\PhpSpreadsheet\Worksheet\Worksheet($spreadsheet, 'TỔNG HỢP');
+        $spreadsheet->addSheet($summarySheet, 0); // Add as first sheet
+
+        // Header - Row 1
+        $summarySheet->setCellValue('A1', 'CTY CP BV ĐA KHOA TÂM TRÍ CAO LÃNH');
+        $summarySheet->setCellValue('E1', 'Mẫu số 02-VT');
+        $summarySheet->getStyle('A1')->getFont()->setBold(true)->setSize(12);
+        $summarySheet->getStyle('E1')->getFont()->setBold(true);
+        $summarySheet->getStyle('E1')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+
+        // Row 2
+        $summarySheet->mergeCells('A2:E2');
+        $summarySheet->setCellValue('A2', 'P. HỖ TRỢ DỊCH VỤ');
+        $summarySheet->getStyle('A2')->getFont()->setBold(true);
+
+        // Title - Row 4
+        $summarySheet->mergeCells('A4:E4');
+        $summarySheet->setCellValue('A4', 'BẢNG TỔNG HỢP XUẤT KHO THEO KHOA');
+        $summarySheet->getStyle('A4')->getFont()->setBold(true)->setSize(16);
+        $summarySheet->getStyle('A4')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+        // Date - Row 5
+        $summarySheet->mergeCells('A5:E5');
+        $summarySheet->setCellValue('A5', 'Ngày ' . now()->format('d/m/Y'));
+        $summarySheet->getStyle('A5')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $summarySheet->getStyle('A5')->getFont()->setItalic(true);
+
+        // Table header - Row 7
+        $headerRow = 7;
+        $summarySheet->setCellValue("A{$headerRow}", 'STT');
+        $summarySheet->setCellValue("B{$headerRow}", 'Khoa phòng');
+        $summarySheet->setCellValue("C{$headerRow}", 'Số mặt hàng');
+        $summarySheet->setCellValue("D{$headerRow}", 'Số lượng');
+        $summarySheet->setCellValue("E{$headerRow}", 'Tổng tiền');
+
+        $summarySheet->getStyle("A{$headerRow}:E{$headerRow}")->applyFromArray([
+            'font' => ['bold' => true, 'size' => 11],
+            'fill' => [
+                'fillType' => Fill::FILL_SOLID,
+                'startColor' => ['rgb' => 'D9E1F2']
+            ],
+            'borders' => [
+                'allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => '000000']]
+            ],
+            'alignment' => [
+                'horizontal' => Alignment::HORIZONTAL_CENTER,
+                'vertical' => Alignment::VERTICAL_CENTER
+            ]
+        ]);
+
+        // Calculate grand totals
+        $grandTotal = 0;
+        $grandItemCount = 0;
+        $grandQuantity = 0;
+
+        foreach ($departmentSummaries as $dept) {
+            $grandTotal += $dept['total'];
+            $grandItemCount += $dept['items'];
+            $grandQuantity += $dept['quantity'];
+        }
+
+        // Fill summary data
+        $currentRow = $headerRow + 1;
+        $stt = 1;
+        foreach ($departmentSummaries as $dept) {
+            $summarySheet->setCellValue("A{$currentRow}", $stt++);
+            $summarySheet->setCellValue("B{$currentRow}", $dept['name']);
+            $summarySheet->setCellValue("C{$currentRow}", $dept['items']);
+            $summarySheet->setCellValue("D{$currentRow}", $dept['quantity']);
+            $summarySheet->setCellValue("E{$currentRow}", $dept['total']);
+
+            $summarySheet->getStyle("A{$currentRow}:E{$currentRow}")->applyFromArray([
+                'borders' => [
+                    'allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => '000000']]
+                ],
+                'alignment' => ['vertical' => Alignment::VERTICAL_CENTER]
+            ]);
+
+            $summarySheet->getStyle("A{$currentRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $summarySheet->getStyle("C{$currentRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $summarySheet->getStyle("D{$currentRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $summarySheet->getStyle("E{$currentRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+            $summarySheet->getStyle("E{$currentRow}")->getNumberFormat()->setFormatCode('#,##0');
+
+            $currentRow++;
+        }
+
+        // Grand total row
+        $summarySheet->mergeCells("A{$currentRow}:B{$currentRow}");
+        $summarySheet->setCellValue("A{$currentRow}", 'TỔNG CỘNG:');
+        $summarySheet->setCellValue("C{$currentRow}", $grandItemCount);
+        $summarySheet->setCellValue("D{$currentRow}", $grandQuantity);
+        $summarySheet->setCellValue("E{$currentRow}", $grandTotal);
+
+        $summarySheet->getStyle("A{$currentRow}:E{$currentRow}")->applyFromArray([
+            'font' => ['bold' => true, 'size' => 12],
+            'fill' => [
+                'fillType' => Fill::FILL_SOLID,
+                'startColor' => ['rgb' => 'FFD966']
+            ],
+            'borders' => [
+                'allBorders' => ['borderStyle' => Border::BORDER_MEDIUM, 'color' => ['rgb' => '000000']]
+            ],
+            'alignment' => ['vertical' => Alignment::VERTICAL_CENTER]
+        ]);
+
+        $summarySheet->getStyle("A{$currentRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+        $summarySheet->getStyle("C{$currentRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $summarySheet->getStyle("D{$currentRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $summarySheet->getStyle("E{$currentRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+        $summarySheet->getStyle("E{$currentRow}")->getNumberFormat()->setFormatCode('#,##0');
+        $summarySheet->getStyle("E{$currentRow}")->getFont()->getColor()->setRGB('0000FF');
+
+        // Set column widths
+        $summarySheet->getColumnDimension('A')->setWidth(6);
+        $summarySheet->getColumnDimension('B')->setWidth(30);
+        $summarySheet->getColumnDimension('C')->setWidth(15);
+        $summarySheet->getColumnDimension('D')->setWidth(15);
+        $summarySheet->getColumnDimension('E')->setWidth(18);
+
+        // Set first sheet (Summary) as active and position view
         $spreadsheet->setActiveSheetIndex(0);
+        $summarySheet->setSelectedCells('A7'); // Position at table header
 
         // Create Excel file
         $writer = new Xlsx($spreadsheet);

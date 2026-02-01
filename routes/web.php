@@ -37,6 +37,7 @@ Route::group(['prefix' => 'department', 'as' => 'department.', 'middleware' => [
         return view('department.request_detail', ['id' => $id]);
     })->name('request.show');
     Route::get('/request/{id}/detail', [DepartmentController::class, 'getRequestDetail'])->name('request.detail');
+    Route::get('/request/{id}/print', [DepartmentController::class, 'printRequest'])->name('request.print');
 });
 
 // Admin Code

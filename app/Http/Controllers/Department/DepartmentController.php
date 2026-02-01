@@ -257,4 +257,25 @@ class DepartmentController extends Controller
             ], 404);
         }
     }
+
+    public function printRequest($id)
+    {
+        $request = PurchaseRequest::with([
+            'items.product',
+            'requester',
+            'department'
+        ])->findOrFail($id);
+        
+        // Check if user owns this request or is from same department
+        if ($request->requester_id !== auth()->id() && 
+            $request->department_id !== auth()->user()->department_id) {
+            abort(403, 'Bạn không có quyền in phiếu này.');
+        }
+        
+        $totalAmount = $request->items->sum(function ($item) {
+            return $item->quantity_requested * $item->product->unit_price;
+        });
+        
+        return view('department.print_request', compact('request', 'totalAmount'));
+    }
 }

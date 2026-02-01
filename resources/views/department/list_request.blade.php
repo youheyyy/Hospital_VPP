@@ -190,14 +190,15 @@
                                                 <span
                                                     class="material-symbols-outlined text-blue-600 dark:text-blue-400">visibility</span>
                                             </button>
-                                            @if(in_array($request->status, ['approved', 'completed']))
-                                                <button onclick="printRequest({{ $request->purchase_request_id }})"
-                                                    class="p-2 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors"
-                                                    title="In phiếu">
-                                                    <span
-                                                        class="material-symbols-outlined text-green-600 dark:text-green-400">print</span>
-                                                </button>
-                                            @endif
+                                            
+                                            <!-- Print button for all non-draft requests -->
+                                            <button onclick="printRequest({{ $request->purchase_request_id }})"
+                                                class="p-2 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors"
+                                                title="In phiếu">
+                                                <span
+                                                    class="material-symbols-outlined text-green-600 dark:text-green-400">print</span>
+                                            </button>
+                                            
                                             @if($request->status === 'rejected')
                                                 <button onclick="recreateRequest({{ $request->purchase_request_id }})"
                                                     class="p-2 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-lg transition-colors"
@@ -402,9 +403,41 @@
             }
         }
 
-        // Print request
+        // Print request - Direct print without opening new tab
         function printRequest(id) {
-            window.open(`/department/request/${id}/print`, '_blank');
+            // Create hidden iframe for printing
+            const iframe = document.createElement('iframe');
+            iframe.style.display = 'none';
+            document.body.appendChild(iframe);
+            
+            // Fetch print content
+            fetch(`/department/request/${id}/print`)
+                .then(response => response.text())
+                .then(html => {
+                    // Write content to iframe
+                    const iframeDoc = iframe.contentWindow.document;
+                    iframeDoc.open();
+                    iframeDoc.write(html);
+                    iframeDoc.close();
+                    
+                    // Wait for content to load, then print
+                    iframe.onload = function() {
+                        setTimeout(() => {
+                            iframe.contentWindow.focus();
+                            iframe.contentWindow.print();
+                            
+                            // Remove iframe after printing
+                            setTimeout(() => {
+                                document.body.removeChild(iframe);
+                            }, 1000);
+                        }, 500);
+                    };
+                })
+                .catch(error => {
+                    console.error('Error loading print content:', error);
+                    alert('Không thể tải nội dung in. Vui lòng thử lại.');
+                    document.body.removeChild(iframe);
+                });
         }
 
         // Recreate request

@@ -1,363 +1,233 @@
 @extends('layouts.admin')
 
-@section('title', 'Admin - Tổng Quan | Hệ Thống Vật Tư Y Tế')
+@section('title', 'Admin - Trung Tâm Điều Khiển | Hệ Thống Vật Tư Y Tế')
 
-@section('page-title', 'Bảng Điều Khiển')
+@section('page-title', 'Trung Tâm Điều Khiển')
 
 @section('content')
-    <div class="mb-8">
-        <h1 class="text-2xl font-bold text-slate-900 dark:text-white mb-1">Chào buổi sáng, Admin</h1>
-        <p class="text-sm text-slate-500 dark:text-slate-400">Hệ thống đang hoạt động ổn định. Bạn có <span
-                class="text-primary font-semibold">12 thông báo</span> cần xử lý trong hôm nay.</p>
-    </div>
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div
-            class="bg-gradient-to-br from-white to-slate-50 dark:from-slate-800 dark:to-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-all duration-300 flex items-center justify-between group cursor-pointer">
-            <div>
-                <p class="text-[13px] font-semibold text-slate-500 dark:text-slate-400 mb-2">Phiếu chờ duyệt</p>
-                <div class="flex items-baseline gap-2">
-                    <span class="text-3xl font-bold text-slate-900 dark:text-white">{{ $pendingRequests }}</span>
-                    <span
-                        class="text-xs font-medium text-amber-500 bg-amber-50 dark:bg-amber-900/20 px-2 py-1 rounded-md">Cần
-                        xử lý</span>
+<style>
+    .glass-card {
+        background: rgba(255, 255, 255, 0.7);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.4);
+        box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+    }
+    .dark .glass-card {
+        background: rgba(16, 25, 34, 0.7);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .asymmetric-grid {
+        display: grid;
+        grid-template-columns: 280px 1fr 320px;
+        gap: 1.5rem;
+    }
+    @media (max-width: 1280px) {
+        .asymmetric-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<div class="mb-8">
+    <h1 class="text-3xl font-bold tracking-tight">Trung Tâm Điều Khiển</h1>
+    <p class="text-[#617589] mt-1">Giám sát tồn kho vật tư y tế và hoạt động các khoa phòng theo thời gian thực.</p>
+</div>
+
+<div class="asymmetric-grid">
+    <!-- Left Sidebar: Status Cards -->
+    <div class="flex flex-col gap-6">
+        <div class="glass-card rounded-xl p-6 relative overflow-hidden group hover:translate-y-[-4px] transition-all">
+            <div class="flex justify-between items-start mb-4">
+                <div class="p-2 bg-primary/10 text-primary rounded-lg">
+                    <span class="material-symbols-outlined">assignment_late</span>
                 </div>
+                <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-1 bg-primary text-white rounded">Khẩn cấp</span>
             </div>
-            <div
-                class="bg-primary/10 p-4 rounded-xl text-primary group-hover:bg-primary group-hover:text-white transition-all duration-300">
-                <span class="material-symbols-outlined text-3xl">pending_actions</span>
+            <p class="text-sm font-medium text-[#617589]">Phiếu chờ duyệt</p>
+            <div class="flex items-end gap-2 mt-1">
+                <h3 class="text-4xl font-bold">{{ $pendingRequests }}</h3>
+                <span class="text-xs font-bold text-green-500 mb-1">+12% ↑</span>
             </div>
-        </div>
-        <div
-            class="bg-gradient-to-br from-white to-slate-50 dark:from-slate-800 dark:to-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-all duration-300 flex items-center justify-between group cursor-pointer">
-            <div>
-                <p class="text-[13px] font-semibold text-slate-500 dark:text-slate-400 mb-2">Tổng sản phẩm trong
-                    kho</p>
-                <div class="flex items-baseline gap-2">
-                    <span class="text-3xl font-bold text-slate-900 dark:text-white">{{ number_format($totalOrders) }}</span>
-                    <span class="text-xs font-medium text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 px-2 py-1 rounded-md">Toàn hệ thống</span>
-                </div>
-            </div>
-            <div
-                class="bg-emerald-50 dark:bg-emerald-900/10 p-4 rounded-xl text-emerald-600 group-hover:bg-emerald-500 group-hover:text-white transition-all duration-300">
-                <span class="material-symbols-outlined text-3xl">inventory</span>
-            </div>
-        </div>
-        <div
-            class="bg-gradient-to-br from-white to-slate-50 dark:from-slate-800 dark:to-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-all duration-300 flex items-center justify-between group cursor-pointer">
-            <div>
-                <p class="text-[13px] font-semibold text-slate-500 dark:text-slate-400 mb-2">Khoa/Phòng hoạt
-                    động</p>
-                <div class="flex items-baseline gap-2">
-                    <span class="text-3xl font-bold text-slate-900 dark:text-white">{{ $totalDepartments }}</span>
-                    <span class="text-xs font-medium text-blue-600 bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded-md">Đơn vị</span>
-                </div>
-            </div>
-            <div
-                class="bg-blue-50 dark:bg-blue-900/10 p-4 rounded-xl text-blue-600 group-hover:bg-blue-500 group-hover:text-white transition-all duration-300">
-                <span class="material-symbols-outlined text-3xl">local_hospital</span>
+            <div class="mt-4 h-12 w-full opacity-50">
+                <svg class="w-full h-full text-primary" preserveAspectRatio="none" viewBox="0 0 100 40">
+                    <path d="M0,35 Q10,10 20,25 T40,15 T60,30 T80,10 T100,20" fill="none" stroke="currentColor" stroke-width="2" vector-effect="non-scaling-stroke"/>
+                </svg>
             </div>
         </div>
-    </div>
-    <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        <div
-            class="lg:col-span-4 bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
-            <div class="flex items-center justify-between mb-8">
-                <div>
-                    <h3 class="text-lg font-bold text-slate-900 dark:text-white">Biểu đồ yêu cầu hàng tháng</h3>
-                    <p class="text-xs text-slate-500 mt-1">Dữ liệu thống kê năm 2024 (Đơn vị: Phiếu)</p>
-                </div>
-                <div class="flex p-1 bg-slate-100 dark:bg-slate-700 rounded-md">
-                    <button class="px-3 py-1 text-xs font-semibold text-slate-600 dark:text-slate-300">Tháng</button>
-                    <button
-                        class="px-3 py-1 text-xs font-semibold bg-white dark:bg-slate-600 shadow-sm rounded text-primary">Năm</button>
+
+        <div class="glass-card rounded-xl p-6 group hover:translate-y-[-4px] transition-all">
+            <div class="flex justify-between items-start mb-4">
+                <div class="p-2 bg-purple-500/10 text-purple-500 rounded-lg">
+                    <span class="material-symbols-outlined">vitals</span>
                 </div>
             </div>
-            <div
-                class="h-64 flex items-end justify-between gap-6 px-4 border-b border-slate-100 dark:border-slate-700 pb-2">
-                <div class="flex-1 flex flex-col items-center gap-3">
-                    <div class="w-full bg-primary/20 hover:bg-primary/40 rounded-t-sm chart-bar" style="height: 40%;"></div>
-                    <span class="text-[11px] font-medium text-slate-400 uppercase">T4</span>
-                </div>
-                <div class="flex-1 flex flex-col items-center gap-3">
-                    <div class="w-full bg-primary/20 hover:bg-primary/40 rounded-t-sm chart-bar" style="height: 60%;"></div>
-                    <span class="text-[11px] font-medium text-slate-400 uppercase">T5</span>
-                </div>
-                <div class="flex-1 flex flex-col items-center gap-3">
-                    <div class="w-full bg-primary/20 hover:bg-primary/40 rounded-t-sm chart-bar" style="height: 50%;"></div>
-                    <span class="text-[11px] font-medium text-slate-400 uppercase">T6</span>
-                </div>
-                <div class="flex-1 flex flex-col items-center gap-3">
-                    <div class="w-full bg-primary/40 hover:bg-primary/60 rounded-t-sm chart-bar border-x-2 border-t-2 border-primary/20"
-                        style="height: 80%;"></div>
-                    <span class="text-[11px] font-bold text-primary uppercase">T7</span>
-                </div>
-                <div class="flex-1 flex flex-col items-center gap-3">
-                    <div class="w-full bg-primary/20 hover:bg-primary/40 rounded-t-sm chart-bar" style="height: 70%;"></div>
-                    <span class="text-[11px] font-medium text-slate-400 uppercase">T8</span>
-                </div>
-                <div class="flex-1 flex flex-col items-center gap-3">
-                    <div class="w-full bg-primary/60 rounded-t-sm chart-bar" style="height: 95%;"></div>
-                    <span class="text-[11px] font-medium text-slate-400 uppercase">T9</span>
-                </div>
-                <div class="flex-1 flex flex-col items-center gap-3">
-                    <div class="w-full bg-primary/20 rounded-t-sm chart-bar" style="height: 55%;"></div>
-                    <span class="text-[11px] font-medium text-slate-400 uppercase">T10</span>
-                </div>
-                <div class="flex-1 flex flex-col items-center gap-3">
-                    <div class="w-full bg-primary/20 rounded-t-sm chart-bar" style="height: 45%;"></div>
-                    <span class="text-[11px] font-medium text-slate-400 uppercase">T11</span>
+            <p class="text-sm font-medium text-[#617589]">Khoa/Phòng hoạt động</p>
+            <div class="flex items-end gap-2 mt-1">
+                <h3 class="text-4xl font-bold">{{ $totalDepartments }}</h3>
+                <span class="text-xs font-bold text-green-500 mb-1">Hoạt động</span>
+            </div>
+            <div class="mt-6 flex gap-1 items-center">
+                <div class="h-1 flex-1 bg-purple-500 rounded-full"></div>
+                <div class="h-1 flex-1 bg-purple-500 rounded-full"></div>
+                <div class="h-1 flex-1 bg-purple-500 rounded-full opacity-30"></div>
+                <div class="h-1 flex-1 bg-purple-500 rounded-full opacity-30"></div>
+                <span class="text-[10px] font-bold text-[#617589] ml-2">Tải cao</span>
+            </div>
+        </div>
+
+        <div class="glass-card rounded-xl p-6 group hover:translate-y-[-4px] transition-all">
+            <div class="flex justify-between items-start mb-4">
+                <div class="p-2 bg-orange-500/10 text-orange-500 rounded-lg">
+                    <span class="material-symbols-outlined">local_shipping</span>
                 </div>
             </div>
+            <p class="text-sm font-medium text-[#617589]">Tổng đơn hàng</p>
+            <div class="flex items-end gap-2 mt-1">
+                <h3 class="text-4xl font-bold">{{ number_format($totalOrders) }}</h3>
+                <span class="text-xs font-bold text-green-500 mb-1">+5% ↑</span>
+            </div>
+            <p class="text-[10px] text-[#617589] mt-4 flex items-center gap-1">
+                <span class="material-symbols-outlined text-xs">schedule</span> Trung bình: 14 phút
+            </p>
         </div>
     </div>
 
-    <hr class="my-10 border-slate-200 dark:border-slate-800">
-
-    <div class="mb-8">
-        <h3 class="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Chi tiết báo cáo thống kê
-        </h3>
-        <p class="text-xs text-slate-500 font-medium mt-1">Dữ liệu chi phí và phân bổ vật tư y tế</p>
-    </div>
-
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div
-            class="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col gap-4">
-            <h3 class="font-semibold text-slate-800 dark:text-slate-100">Bộ lọc thời gian</h3>
-            <div class="grid grid-cols-2 gap-2">
-                <div>
-                    <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Tháng</label>
-                    <select
-                        class="w-full bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold">
-                        @for($m = 1; $m <= 12; $m++)
-                            <option {{ date('m') == $m ? 'selected' : '' }}>Tháng {{ $m }}</option>
-                        @endfor
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Năm</label>
-                    <select
-                        class="w-full bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold">
-                        <option selected>2024</option>
-                        <option>2025</option>
-                    </select>
-                </div>
-            </div>
-            <button
-                class="w-full bg-primary text-white py-2 rounded-lg text-xs font-bold hover:bg-primary/90 transition-colors">
-                CẬP NHẬT BÁO CÁO
-            </button>
-        </div>
-
-        <div class="bg-primary p-6 rounded-xl shadow-lg flex flex-col justify-between text-white relative overflow-hidden">
-            <span class="material-symbols-outlined absolute -right-4 -bottom-4 text-white/10 text-9xl">payments</span>
+    <!-- Center: Main Trends Chart -->
+    <div class="glass-card rounded-xl p-8 flex flex-col">
+        <div class="flex justify-between items-start mb-8">
             <div>
-                <p class="text-white/80 text-[10px] font-bold uppercase tracking-widest">Tổng chi phí tháng</p>
-                <h2 class="text-2xl font-black mt-1">1.245.000 VNĐ</h2>
+                <h2 class="text-xl font-bold">Xu hướng yêu cầu theo khoa</h2>
+                <p class="text-sm text-[#617589]">Phân tích cho tất cả các khoa hoạt động</p>
             </div>
-            <div class="mt-4 flex items-center gap-1 text-[10px] font-bold bg-white/20 w-fit px-2 py-1 rounded">
-                <span class="material-symbols-outlined text-xs">trending_up</span>
-                <span>+4.2% so với tháng trước</span>
+            <div class="flex gap-2">
+                <button class="px-3 py-1.5 text-xs font-semibold bg-[#f0f2f4] dark:bg-white/10 rounded-lg">Tuần</button>
+                <button class="px-3 py-1.5 text-xs font-semibold bg-primary text-white rounded-lg">Tháng</button>
             </div>
         </div>
 
-        <div
-            class="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between">
+        <div class="flex items-center gap-10 mb-8">
             <div>
-                <p class="text-slate-400 text-[10px] font-bold uppercase tracking-widest">Phiếu đã duyệt</p>
-                <h2 class="text-2xl font-black text-slate-900 dark:text-white mt-1">42</h2>
+                <p class="text-xs text-[#617589] font-medium uppercase tracking-wider">Tổng khối lượng</p>
+                <p class="text-3xl font-bold mt-1">{{ number_format($totalOrders) }} <span class="text-sm font-normal text-green-500">+8.4%</span></p>
             </div>
-            <div class="mt-4 flex items-center gap-2">
-                <div class="flex -space-x-2">
-                    <div
-                        class="w-7 h-7 rounded-full border-2 border-white dark:border-slate-900 bg-blue-100 flex items-center justify-center text-[9px] font-black text-blue-600">
-                        BS</div>
-                    <div
-                        class="w-7 h-7 rounded-full border-2 border-white dark:border-slate-900 bg-green-100 flex items-center justify-center text-[9px] font-black text-green-600">
-                        YT</div>
-                    <div
-                        class="w-7 h-7 rounded-full border-2 border-white dark:border-slate-900 bg-amber-100 flex items-center justify-center text-[9px] font-black text-amber-600">
-                        KT</div>
-                </div>
-                <span class="text-[9px] font-bold text-slate-400">12 khoa/phòng</span>
+            <div class="h-10 w-[1px] bg-[#f0f2f4] dark:bg-white/10"></div>
+            <div>
+                <p class="text-xs text-[#617589] font-medium uppercase tracking-wider">Thời gian xử lý TB</p>
+                <p class="text-3xl font-bold mt-1">4.2h <span class="text-sm font-normal text-green-500">-12%</span></p>
             </div>
         </div>
 
-        <div
-            class="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between">
-            <div>
-                <p class="text-slate-400 text-[10px] font-bold uppercase tracking-widest">Hạng mục chi nhiều nhất</p>
-                <h2 class="text-lg font-black text-slate-900 dark:text-white mt-1">Văn phòng phẩm</h2>
+        <div class="flex-1 relative min-h-[300px]">
+            <svg class="w-full h-full" preserveAspectRatio="none" viewBox="0 0 800 300">
+                <defs>
+                    <linearGradient id="chartGradient" x1="0" x2="0" y1="0" y2="1">
+                        <stop offset="0%" stop-color="#2b8cee" stop-opacity="0.2"/>
+                        <stop offset="100%" stop-color="#2b8cee" stop-opacity="0"/>
+                    </linearGradient>
+                </defs>
+                <!-- Grid lines -->
+                <line class="text-[#f0f2f4] dark:text-white/5" stroke="currentColor" stroke-width="0.5" x1="0" x2="800" y1="0" y2="0"/>
+                <line class="text-[#f0f2f4] dark:text-white/5" stroke="currentColor" stroke-width="0.5" x1="0" x2="800" y1="100" y2="100"/>
+                <line class="text-[#f0f2f4] dark:text-white/5" stroke="currentColor" stroke-width="0.5" x1="0" x2="800" y1="200" y2="200"/>
+                <line class="text-[#f0f2f4] dark:text-white/5" stroke="currentColor" stroke-width="0.5" x1="0" x2="800" y1="300" y2="300"/>
+                <!-- Area -->
+                <path d="M0,250 C100,230 150,150 200,160 S300,240 400,180 S550,50 650,80 S800,40 800,40 V300 H0 Z" fill="url(#chartGradient)"/>
+                <!-- Line -->
+                <path d="M0,250 C100,230 150,150 200,160 S300,240 400,180 S550,50 650,80 S800,40 800,40" fill="none" stroke="#2b8cee" stroke-linecap="round" stroke-width="3"/>
+                <!-- Custom Tooltip Node -->
+                <circle cx="580" cy="62" fill="#2b8cee" r="6" stroke="white" stroke-width="2"/>
+            </svg>
+            <!-- Floating Tooltip Card -->
+            <div class="absolute left-[560px] top-[10px] glass-card p-3 rounded-lg shadow-xl border-primary/20 scale-90">
+                <p class="text-[10px] text-[#617589] font-bold">T10 24</p>
+                <p class="text-sm font-bold">Khoa Phẫu Thuật</p>
+                <p class="text-primary font-bold">242 Yêu cầu</p>
             </div>
-            <div class="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full mt-4 overflow-hidden">
-                <div class="bg-primary h-full w-[75%] rounded-full"></div>
-            </div>
-            <span class="text-[9px] font-bold text-slate-400 mt-2">Chiếm 75% ngân sách</span>
+        </div>
+
+        <div class="flex justify-between mt-4 px-2">
+            <span class="text-xs font-bold text-[#617589]">T2</span>
+            <span class="text-xs font-bold text-[#617589]">T3</span>
+            <span class="text-xs font-bold text-[#617589]">T4</span>
+            <span class="text-xs font-bold text-[#617589]">T5</span>
+            <span class="text-xs font-bold text-[#617589]">T6</span>
+            <span class="text-xs font-bold text-[#617589]">T7</span>
+            <span class="text-xs font-bold text-[#617589]">CN</span>
         </div>
     </div>
 
-    <div class="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-8">
-        <div
-            class="xl:col-span-2 bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
-            <div class="flex items-center justify-between mb-8">
-                <h3
-                    class="font-black text-slate-900 dark:text-white uppercase tracking-tight text-sm flex items-center gap-2">
-                    <span class="material-symbols-outlined text-primary">bar_chart</span>
-                    Chi phí theo bộ phận (Khoa)
-                </h3>
-            </div>
-            <div class="flex items-end justify-between h-48 gap-4 pt-4">
-                <div class="flex-1 flex flex-col items-center gap-2 group">
-                    <div class="w-full bg-primary/20 hover:bg-primary/40 rounded-t-lg transition-all h-[40%]"
-                        title="Cấp cứu: 450.000đ"></div>
-                    <span class="text-[9px] font-bold text-slate-400 mt-4 rotate-[-45deg]">Cấp cứu</span>
-                </div>
-                <div class="flex-1 flex flex-col items-center gap-2 group">
-                    <div class="w-full bg-primary/20 hover:bg-primary/40 rounded-t-lg transition-all h-[65%]"
-                        title="Phòng mổ: 780.000đ"></div>
-                    <span class="text-[9px] font-bold text-slate-400 mt-4 rotate-[-45deg]">P. Mổ</span>
-                </div>
-                <div class="flex-1 flex flex-col items-center gap-2 group">
-                    <div class="w-full bg-primary rounded-t-lg transition-all h-[95%]" title="Khoa Dược: 1.120.000đ"></div>
-                    <span class="text-[9px] font-black text-primary mt-4 rotate-[-45deg]">K. Dược</span>
-                </div>
-                <div class="flex-1 flex flex-col items-center gap-2 group">
-                    <div class="w-full bg-primary/20 hover:bg-primary/40 rounded-t-lg transition-all h-[30%]"
-                        title="Khám bệnh: 310.000đ"></div>
-                    <span class="text-[9px] font-bold text-slate-400 mt-4 rotate-[-45deg]">P. Khám</span>
-                </div>
-                <div class="flex-1 flex flex-col items-center gap-2 group">
-                    <div class="w-full bg-primary/20 hover:bg-primary/40 rounded-t-lg transition-all h-[50%]"
-                        title="Nội soi: 520.000đ"></div>
-                    <span class="text-[9px] font-bold text-slate-400 mt-4 rotate-[-45deg]">Nội soi</span>
-                </div>
-                <div class="flex-1 flex flex-col items-center gap-2 group">
-                    <div class="w-full bg-primary/20 hover:bg-primary/40 rounded-t-lg transition-all h-[45%]"
-                        title="Xét nghiệm: 490.000đ"></div>
-                    <span class="text-[9px] font-bold text-slate-400 mt-4 rotate-[-45deg]">X. Nghiệm</span>
-                </div>
-                <div class="flex-1 flex flex-col items-center gap-2 group">
-                    <div class="w-full bg-primary/20 hover:bg-primary/40 rounded-t-lg transition-all h-[20%]"
-                        title="Hành chính: 150.000đ"></div>
-                    <span class="text-[9px] font-bold text-slate-400 mt-4 rotate-[-45deg]">H. Chính</span>
-                </div>
-            </div>
-        </div>
-
-        <div class="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
-            <h3
-                class="font-black text-slate-900 dark:text-white uppercase tracking-tight text-sm mb-6 flex items-center gap-2">
-                <span class="material-symbols-outlined text-amber-500">warning</span>
-                Cảnh báo tồn kho
-            </h3>
-            <div class="space-y-4">
-                <div class="flex items-center justify-between p-2 rounded-lg hover:bg-slate-50 transition-colors">
-                    <div class="flex items-center gap-3">
-                        <div class="w-2 h-2 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]"></div>
-                        <span class="text-xs font-bold text-slate-700">Bìa sơ mi lá lỗ</span>
+    <!-- Right: Top Products Donut Feed -->
+    <div class="flex flex-col gap-4">
+        <div class="glass-card rounded-xl p-6 flex-1">
+            <h2 class="text-lg font-bold mb-6">Được yêu cầu nhiều nhất</h2>
+            <div class="space-y-6">
+                @php
+                    $colors = ['primary', 'purple-500', 'orange-500', 'green-500'];
+                @endphp
+                @forelse($topProducts as $index => $product)
+                    <div class="flex items-center gap-4">
+                        <div class="relative size-12 flex-shrink-0">
+                            <svg class="size-full" viewBox="0 0 36 36">
+                                <path class="text-[#f0f2f4] dark:text-white/5" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-width="3"/>
+                                <path class="text-{{ $colors[$index % 4] }}" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-dasharray="{{ $product['percentage'] }}, 100" stroke-linecap="round" stroke-width="3"/>
+                            </svg>
+                            <div class="absolute inset-0 flex items-center justify-center text-[10px] font-bold">{{ $product['percentage'] }}%</div>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm font-bold truncate">{{ $product['name'] }}</p>
+                            <p class="text-xs text-[#617589]">{{ $product['department'] }}</p>
+                        </div>
+                        <span class="material-symbols-outlined text-{{ $colors[$index % 4] }} text-sm">trending_{{ $product['trend'] }}</span>
                     </div>
-                    <span class="text-[10px] font-black text-red-500 bg-red-50 px-2 py-0.5 rounded">3 XẤP</span>
-                </div>
-                <div class="flex items-center justify-between p-2 rounded-lg hover:bg-slate-50 transition-colors">
-                    <div class="flex items-center gap-3">
-                        <div class="w-2 h-2 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]"></div>
-                        <span class="text-xs font-bold text-slate-700">Pin AA tốt</span>
-                    </div>
-                    <span class="text-[10px] font-black text-amber-500 bg-amber-50 px-2 py-0.5 rounded">12 CẶP</span>
-                </div>
-                <div class="flex items-center justify-between p-2 rounded-lg hover:bg-slate-50 transition-colors">
-                    <div class="flex items-center gap-3">
-                        <div class="w-2 h-2 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]"></div>
-                        <span class="text-xs font-bold text-slate-700">Giấy A4 80gsm</span>
-                    </div>
-                    <span class="text-[10px] font-black text-red-500 bg-red-50 px-2 py-0.5 rounded">5 GRAM</span>
-                </div>
-                <button
-                    class="w-full mt-2 py-2 border-2 border-dashed border-slate-100 text-slate-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-slate-50 hover:border-primary/20 hover:text-primary transition-all">
-                    TÔI MUỐN XEM TẤT CẢ
-                </button>
+                @empty
+                    <p class="text-sm text-[#617589] text-center py-8">Chưa có dữ liệu</p>
+                @endforelse
             </div>
-        </div>
-    </div>
 
-    <div
-        class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
-        <div class="p-6 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-                <h3 class="font-black text-slate-900 dark:text-white uppercase tracking-tight text-sm">Chi tiết sử dụng hàng
-                    hóa</h3>
-                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Khoa Cấp Cứu • Tháng
-                    {{ date('m/Y') }}</p>
-            </div>
-            <div class="flex items-center gap-3">
-                <button
-                    class="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-lg text-xs font-bold hover:bg-emerald-100 transition-all">
-                    <span class="material-symbols-outlined !text-sm">download</span>
-                    XUẤT EXCEL
+            <div class="mt-8 pt-6 border-t border-[#f0f2f4] dark:border-white/10">
+                <button class="w-full py-3 bg-primary/10 text-primary font-bold text-sm rounded-xl hover:bg-primary hover:text-white transition-all">
+                    Xem báo cáo tồn kho
                 </button>
             </div>
         </div>
 
-        <div class="overflow-x-auto">
-            <table class="w-full text-left border-collapse">
-                <thead class="bg-slate-50/50">
-                    <tr class="text-[10px] font-black text-slate-400 uppercase tracking-[0.12em]">
-                        <th class="px-6 py-4">Stt</th>
-                        <th class="px-6 py-4">Tên hàng hóa</th>
-                        <th class="px-6 py-4 text-center">ĐVT</th>
-                        <th class="px-6 py-4 text-center">Số Lượng</th>
-                        <th class="px-6 py-4 text-right">Đơn giá</th>
-                        <th class="px-6 py-4 text-right">Thành Tiền</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-slate-100">
-                    <tr class="bg-blue-50/30">
-                        <td class="px-6 py-2 text-[10px] font-black text-primary uppercase tracking-widest" colspan="6">VĂN
-                            PHÒNG PHẨM - NHÀ SÁCH THANH VÂN</td>
-                    </tr>
-                    <tr class="hover:bg-slate-50 transition-colors">
-                        <td class="px-6 py-3 text-xs font-bold text-slate-400">01</td>
-                        <td class="px-6 py-3">
-                            <div class="text-xs font-bold text-slate-800">Bìa sơ mi lá lỗ cung tròn</div>
-                            <div class="text-[9px] text-slate-400 font-mono">VPP-0012</div>
-                        </td>
-                        <td class="px-6 py-3 text-center text-[10px] font-bold text-slate-500">xấp</td>
-                        <td class="px-6 py-3 text-center text-xs font-black text-red-600">1</td>
-                        <td class="px-6 py-3 text-right text-xs font-bold text-slate-600">25.000 VNĐ</td>
-                        <td class="px-6 py-3 text-right text-xs font-black text-slate-900">25.000 VNĐ</td>
-                    </tr>
-                    <tr class="hover:bg-slate-50 transition-colors">
-                        <td class="px-6 py-3 text-xs font-bold text-slate-400">17</td>
-                        <td class="px-6 py-3">
-                            <div class="text-xs font-bold text-slate-800">Kim bấm No.10</div>
-                            <div class="text-[9px] text-slate-400 font-mono">VPP-0045</div>
-                        </td>
-                        <td class="px-6 py-3 text-center text-[10px] font-bold text-slate-500">hộp</td>
-                        <td class="px-6 py-3 text-center text-xs font-black text-red-600">2</td>
-                        <td class="px-6 py-3 text-right text-xs font-bold text-slate-600">2.800 VNĐ</td>
-                        <td class="px-6 py-3 text-right text-xs font-black text-slate-900">5.600 VNĐ</td>
-                    </tr>
-                    <tr class="bg-primary/5 font-bold">
-                        <td class="px-6 py-4 text-right text-[10px] text-slate-500 uppercase font-black" colspan="5">Tổng
-                            cộng bộ phận:</td>
-                        <td class="px-6 py-4 text-right text-sm text-primary font-black">194,000 VNĐ</td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
-    <div class="mt-8 grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div
-            class="md:col-span-3 bg-white dark:bg-slate-800 rounded-xl p-5 border border-slate-200 dark:border-slate-700 flex items-center justify-between">
-            <div class="flex items-center gap-4">
-                <div class="p-2 bg-slate-100 dark:bg-slate-700 rounded-full">
-                    <span class="material-symbols-outlined text-slate-500">info</span>
-                </div>
-                <p class="text-sm text-slate-600 dark:text-slate-300">Cần hỗ trợ về hệ thống? Liên hệ phòng
-                    CNTT: <span class="font-bold">Ext 112</span></p>
+        <!-- Micro Performance Card -->
+        <div class="bg-primary p-6 rounded-xl text-white shadow-xl shadow-primary/20">
+            <div class="flex justify-between items-center mb-4">
+                <h4 class="text-sm font-bold opacity-80 uppercase tracking-tighter">Hiệu suất hệ thống</h4>
+                <span class="material-symbols-outlined text-sm">bolt</span>
             </div>
-            <button
-                class="px-4 py-1.5 text-xs font-bold border border-slate-200 dark:border-slate-600 rounded-lg hover:bg-slate-50">Hướng
-                dẫn sử dụng</button>
+            <p class="text-2xl font-bold">99.2%</p>
+            <p class="text-[10px] opacity-70 mt-1">Thời gian hoạt động trên tất cả các khoa</p>
         </div>
     </div>
+</div>
+
+<!-- Bottom Section: Detailed Feed -->
+<div class="mt-8">
+    <div class="glass-card rounded-xl p-6">
+        <div class="flex justify-between items-center mb-6">
+            <h3 class="text-lg font-bold">Hoạt động gần đây</h3>
+            <button class="text-sm text-primary font-semibold">Xem tất cả</button>
+        </div>
+        <div class="space-y-4">
+            @forelse($recentActivities as $activity)
+                <div class="flex items-center justify-between py-3 border-b border-[#f0f2f4] dark:border-white/5 last:border-0">
+                    <div class="flex items-center gap-4">
+                        <div class="size-8 rounded-full bg-{{ $activity['color'] }}-500/20 text-{{ $activity['color'] }}-500 flex items-center justify-center">
+                            <span class="material-symbols-outlined text-sm">{{ $activity['icon'] }}</span>
+                        </div>
+                        <div>
+                            <p class="text-sm font-bold">{{ $activity['title'] }}</p>
+                            <p class="text-xs text-[#617589]">{{ $activity['department'] }} • {{ $activity['time'] }}</p>
+                        </div>
+                    </div>
+                    <span class="text-xs font-bold text-[#617589]">{{ $activity['reference'] }}</span>
+                </div>
+            @empty
+                <p class="text-sm text-[#617589] text-center py-8">Chưa có hoạt động nào</p>
+            @endforelse
+        </div>
+    </div>
+</div>
 @endsection

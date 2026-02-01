@@ -140,7 +140,7 @@
 @endsection
 
 @section('content')
-    <div class="max-w-7xl mx-auto px-4 space-y-3">
+    <div class="max-w-7xl mx-auto px-4 space-y-3" x-data="{ showCatalog: false }">
 
         <!-- SECTION 1: DANH MỤC VẬT TƯ -->
         <div class="glass-card rounded-xl p-4">
@@ -171,40 +171,41 @@
                 </div>
             </div>
 
-            <div class="flex items-center justify-between mb-2">
-                <h3 class="flex items-center gap-2 font-bold text-slate-700 text-sm">
+            <button @click="showCatalog = !showCatalog" 
+                class="flex items-center justify-between w-full p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg hover:from-blue-100 hover:to-indigo-100 transition-all mb-3">
+                <div class="flex items-center gap-2">
                     <span class="material-symbols-outlined text-blue-600 !text-lg">inventory</span>
-                    DANH MỤC VẬT TƯ
-                </h3>
-                <span class="text-[9px] italic text-slate-400">Nhấp '+ Thêm' để chọn</span>
-            </div>
+                    <h3 class="font-bold text-slate-700 text-sm">DANH MỤC VẬT TƯ</h3>
+                    <span class="text-xs text-slate-500" x-text="showCatalog ? '(Click để ẩn)' : '(Click để hiện)'"></span>
+                </div>
+                <span class="material-symbols-outlined text-blue-600 transition-transform duration-200"
+                      :class="showCatalog ? 'rotate-180' : ''">expand_more</span>
+            </button>
 
-            <div class="table-container">
-                <table class="w-full custom-table text-left">
-                    <thead>
-                        <tr>
-                            <th class="w-24">Mã VT</th>
-                            <th>Tên hàng</th>
-                            <th class="w-20 text-center">ĐVT</th>
-                            <th class="w-32 text-right">Đơn giá</th>
-                            <th class="w-24 text-center">Thêm</th>
-                        </tr>
-                    </thead>
-                    <tbody id="catalogTableBody">
-                        {{-- JS injects rows here --}}
-                    </tbody>
-                </table>
-            </div>
 
-            <!-- Pagination -->
-            <div class="flex items-center justify-end gap-2 mt-2" id="paginationControls">
-                <button onclick="changePage(-1)" id="prevBtn" class="pagination-btn flex items-center gap-1">
-                    <span class="material-symbols-outlined !text-sm">chevron_left</span> Trước
-                </button>
-                <span id="pageInfo" class="text-[10px] text-slate-500 font-bold">Trang 1/1</span>
-                <button onclick="changePage(1)" id="nextBtn" class="pagination-btn flex items-center gap-1">
-                    Sau <span class="material-symbols-outlined !text-sm">chevron_right</span>
-                </button>
+            <div x-show="showCatalog"
+                 x-transition:enter="transition ease-out duration-200"
+                 x-transition:enter-start="opacity-0 -translate-y-2"
+                 x-transition:enter-end="opacity-100 translate-y-0"
+                 x-transition:leave="transition ease-in duration-150"
+                 x-transition:leave-start="opacity-100 translate-y-0"
+                 x-transition:leave-end="opacity-0 -translate-y-2">
+
+                <!-- Grid Layout for Products -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-3" id="catalogGrid">
+                    <!-- Product cards injected by JavaScript -->
+                </div>
+
+                <!-- Pagination -->
+                <div class="flex items-center justify-end gap-2" id="paginationControls">
+                    <button onclick="changePage(-1)" id="prevBtn" class="pagination-btn flex items-center gap-1">
+                        <span class="material-symbols-outlined !text-sm">chevron_left</span> Trước
+                    </button>
+                    <span id="pageInfo" class="text-[10px] text-slate-500 font-bold">Trang 1/1</span>
+                    <button onclick="changePage(1)" id="nextBtn" class="pagination-btn flex items-center gap-1">
+                        Sau <span class="material-symbols-outlined !text-sm">chevron_right</span>
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -372,29 +373,43 @@
         // Initial fetch
         fetchProducts();
 
+
         function renderCatalog() {
-            const tbody = document.getElementById('catalogTableBody');
-            tbody.innerHTML = '';
+            const grid = document.getElementById('catalogGrid');
+            grid.innerHTML = '';
 
             const startIndex = (currentPage - 1) * itemsPerPage;
             const endIndex = startIndex + itemsPerPage;
             const pageItems = filteredProducts.slice(startIndex, endIndex);
 
             if (pageItems.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" class="py-4 text-center text-slate-400 text-xs">Không tìm thấy sản phẩm</td></tr>';
+                grid.innerHTML = '<div class="col-span-full text-center text-slate-400 py-12"><div class="flex flex-col items-center"><span class="material-symbols-outlined text-4xl mb-2 opacity-50">inventory_2</span><p class="text-sm">Không tìm thấy sản phẩm</p></div></div>';
             } else {
                 pageItems.forEach(p => {
-                    const tr = document.createElement('tr');
-                    tr.innerHTML = `
-                                                <td class="text-[10px] text-slate-500 font-mono">${p.product_code || ''}</td>
-                                                <td class="font-bold text-slate-800">${p.product_name}</td>
-                                                <td class="text-center text-xs text-slate-600">${p.unit}</td>
-                                                <td class="text-right price-text text-sm">${parseInt(p.unit_price).toLocaleString('vi-VN')}</td>
-                                                <td class="text-center">
-                                                    <button onclick='addProduct(${JSON.stringify(p)})' class="btn-add">+ THÊM</button>
-                                                </td>
-                                            `;
-                    tbody.appendChild(tr);
+                    const card = document.createElement('div');
+                    card.className = "bg-white border border-slate-200 rounded-lg p-4 hover:shadow-lg hover:border-blue-300 transition-all cursor-pointer group";
+                    card.innerHTML = `
+                        <div class="flex items-start justify-between mb-3">
+                            <div class="flex-1">
+                                <h4 class="font-bold text-slate-800 text-sm mb-1 line-clamp-2">${p.product_name}</h4>
+                                <p class="text-xs text-slate-400 font-mono">${p.product_code || 'N/A'}</p>
+                            </div>
+                            <span class="material-symbols-outlined text-slate-300 group-hover:text-blue-500 transition-colors !text-2xl">inventory_2</span>
+                        </div>
+                        <div class="flex items-end justify-between mt-3 pt-3 border-t border-slate-100">
+                            <div>
+                                <p class="text-xs text-slate-500 mb-1">ĐVT: <span class="font-bold text-slate-700">${p.unit}</span></p>
+                                <p class="text-lg font-black text-blue-600 font-mono">${parseInt(p.unit_price).toLocaleString('vi-VN')}</p>
+                                <p class="text-[9px] text-slate-400 font-bold">VNĐ</p>
+                            </div>
+                            <button onclick='addProduct(${JSON.stringify(p).replace(/'/g, "\\'")})'
+                                class="px-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 transition-all flex items-center gap-1 shadow-md hover:shadow-lg">
+                                <span class="material-symbols-outlined !text-sm">add</span>
+                                THÊM
+                            </button>
+                        </div>
+                    `;
+                    grid.appendChild(card);
                 });
             }
 
@@ -421,6 +436,14 @@
                 selectedProducts.push({ ...product, quantity: 1 });
             }
             renderSelectedTable();
+            
+            // Auto-collapse catalog after adding product
+            Alpine.store('catalog', { showCatalog: false });
+            // Alternative approach using direct DOM manipulation
+            const container = document.querySelector('[x-data]');
+            if (container && container._x_dataStack) {
+                container._x_dataStack[0].showCatalog = false;
+            }
         }
 
         function renderSelectedTable() {
