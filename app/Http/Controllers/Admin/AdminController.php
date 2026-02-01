@@ -404,33 +404,42 @@ class AdminController extends Controller
     {
         $request->validate(['department_name' => 'required']);
 
-        // 1. Generate Department Code
+        // 1. Check if Department already exists (including deleted)
         // "Khoa kỹ thuật" -> "KHOA_KY_THUAT"
         $deptCode = strtoupper(str_replace('-', '_', \Str::slug($request->department_name)));
 
-        // Ensure unique
-        if (\App\Models\Department::where('department_code', $deptCode)->exists()) {
-            $deptCode .= '_' . rand(1, 99);
+        $existingDept = \App\Models\Department::withTrashed()
+            ->where('department_code', $deptCode)
+            ->orWhere('department_name', $request->department_name)
+            ->first();
+
+        if ($existingDept) {
+            // Restore validation
+            if ($existingDept->trashed()) {
+                $existingDept->restore();
+                $existingDept->update($request->all());
+                $dept = $existingDept;
+                $msgPrefix = "Đã khôi phục khoa phòng cũ (Mã: $deptCode). ";
+            } else {
+                // It exists and is active? Rename/Code collision handled?
+                // For now, let's assume we use this dept. 
+                // Or we can error out saying "Department exists". 
+                // Given user context "restore", we reuse it.
+                $dept = $existingDept;
+                $msgPrefix = "Khoa phòng đã tồn tại (Mã: $deptCode). ";
+            }
+        } else {
+            // Create New
+            $dept = \App\Models\Department::create(array_merge($request->all(), ['department_code' => $deptCode]));
+            $msgPrefix = "Thêm khoa phòng thành công (Mã: $deptCode). ";
         }
 
-        $data = $request->all();
-        $data['department_code'] = $deptCode;
-
-        $dept = \App\Models\Department::create($data);
-
         // 2. Auto-create User Account
-        // Username: TMMC-<Tên khoa viết tắt hoặc slug>
-        // Use the same slug logic but remove "KHOA" prefix if preferred, OR just use full slug for safety.
-        // User example: "TMMC-KYTHUAT".
-        // Let's strip "KHOA" or "PHONG" from the slug for the username to keep it short if possible.
+        // Username: TMMC-KYTHUAT
         $slug = strtoupper(\Str::slug($request->department_name));
         $userSuffix = str_replace(['KHOA-', 'PHONG-'], '', $slug);
-        $userSuffix = str_replace('-', '', $userSuffix); // Remove hyphens for username: TMMC-KYTHUAT
-
+        $userSuffix = str_replace('-', '', $userSuffix);
         $username = 'TMMC-' . $userSuffix;
-
-        // Ensure unique username (if active user exists with different ID - rare case but safety check)
-        // Note: We want to find *trashed* users too.
 
         $existingUser = \App\Models\User::withTrashed()->where('username', $username)->first();
 
@@ -440,10 +449,10 @@ class AdminController extends Controller
             $existingUser->update([
                 'active' => true,
                 'department_id' => $dept->department_id,
-                'full_name' => $request->department_name, // Update name just in case
-                'password' => \Hash::make('123456') // Reset password to default
+                'full_name' => $request->department_name,
+                'password' => \Hash::make('123456')
             ]);
-            $msg = "Thêm khoa phòng thành công (Mã: $deptCode). Đã khôi phục tài khoản: $username (Mật khẩu: 123456)";
+            $msg = $msgPrefix . "Đã khôi phục tài khoản: $username (Mật khẩu: 123456)";
         } else {
             // Create New
             if (\App\Models\User::where('username', $username)->exists()) {
@@ -452,14 +461,14 @@ class AdminController extends Controller
 
             \App\Models\User::create([
                 'username' => $username,
-                'email' => strtolower($username) . '@tmmc.local', // Dummy email to satisfy DB constraint
+                'email' => strtolower($username) . '@tmmc.local',
                 'full_name' => $request->department_name,
                 'role_code' => 'DEPARTMENT',
                 'password' => \Hash::make('123456'),
                 'department_id' => $dept->department_id,
                 'active' => true
             ]);
-            $msg = "Thêm khoa phòng thành công (Mã: $deptCode). Đã tạo tài khoản: $username / 123456";
+            $msg = $msgPrefix . "Đã tạo tài khoản: $username / 123456";
         }
 
         return redirect()->route('admin.management', ['tab' => 'departments'])->with('success', $msg);
