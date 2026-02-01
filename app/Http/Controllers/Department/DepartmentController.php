@@ -189,6 +189,7 @@ class DepartmentController extends Controller
         $user = Auth::user();
         $requests = PurchaseRequest::where('department_id', $user->department_id)
             ->with(['requester', 'items', 'department'])
+            ->withCount('items')
             ->orderBy('created_at', 'desc')
             ->paginate(10);
 

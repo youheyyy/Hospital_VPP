@@ -180,7 +180,7 @@ class AdminController extends Controller
                     $lastPO = PurchaseOrder::where('department_id', $deptId)
                         ->whereYear('created_at', $year)
                         ->whereMonth('created_at', $month)
-                        ->orderBy('created_at', 'desc')
+                        ->orderBy('purchase_order_id', 'desc') // Fix: Order by ID
                         ->first();
 
                     $seq = 1;
@@ -331,62 +331,159 @@ class AdminController extends Controller
     // Category CRUD
     public function storeCategory(Request $request)
     {
-        $request->validate(['category_name' => 'required', 'category_code' => 'required|unique:product_categories']);
-        \App\Models\Category::create($request->all());
-        return redirect()->back()->with('success', 'Thêm danh mục thành công.');
+        $request->validate(['category_name' => 'required']);
+
+        // Auto-generate code: First letters of each word
+        $name = $request->category_name;
+        $words = explode(' ', \Str::slug($name, ' '));
+        $code = '';
+        foreach ($words as $w) {
+            $code .= mb_substr($w, 0, 1);
+        }
+        $code = strtoupper($code);
+
+        // Ensure unique
+        if (\App\Models\Category::where('category_code', $code)->exists()) {
+            $code .= '_' . rand(1, 99);
+        }
+
+        $data = $request->all();
+        $data['category_code'] = $code;
+
+        \App\Models\Category::create($data);
+        return redirect()->route('admin.management', ['tab' => 'categories'])->with('success', 'Thêm danh mục thành công (Mã: ' . $code . ').');
     }
 
     public function updateCategory(Request $request, $id)
     {
         $item = \App\Models\Category::findOrFail($id);
         $item->update($request->all());
-        return redirect()->back()->with('success', 'Cập nhật danh mục thành công.');
+        return redirect()->route('admin.management', ['tab' => 'categories'])->with('success', 'Cập nhật danh mục thành công.');
     }
 
     public function destroyCategory($id)
     {
         \App\Models\Category::findOrFail($id)->delete();
-        return redirect()->back()->with('success', 'Xóa danh mục thành công.');
+        return redirect()->route('admin.management', ['tab' => 'categories'])->with('success', 'Xóa danh mục thành công.');
     }
 
     // Supplier CRUD
     public function storeSupplier(Request $request)
     {
-        $request->validate(['supplier_name' => 'required', 'supplier_code' => 'required|unique:suppliers']);
-        Supplier::create($request->all());
-        return redirect()->back()->with('success', 'Thêm nhà cung cấp thành công.');
+        $request->validate(['supplier_name' => 'required']);
+
+        // Auto-generate code: SUP + increment
+        $lastSup = Supplier::orderBy('supplier_id', 'desc')->first();
+        $seq = 1;
+        if ($lastSup && preg_match('/SUP(\d+)/', $lastSup->supplier_code, $matches)) {
+            $seq = intval($matches[1]) + 1;
+        }
+        $code = 'SUP' . str_pad($seq, 3, '0', STR_PAD_LEFT); // SUP001
+
+        $data = $request->all();
+        $data['supplier_code'] = $code;
+
+        Supplier::create($data);
+        return redirect()->route('admin.management', ['tab' => 'suppliers'])->with('success', 'Thêm nhà cung cấp thành công (Mã: ' . $code . ').');
     }
 
     public function updateSupplier(Request $request, $id)
     {
         Supplier::findOrFail($id)->update($request->all());
-        return redirect()->back()->with('success', 'Cập nhật nhà cung cấp thành công.');
+        return redirect()->route('admin.management', ['tab' => 'suppliers'])->with('success', 'Cập nhật nhà cung cấp thành công.');
     }
 
     public function destroySupplier($id)
     {
         Supplier::findOrFail($id)->delete();
-        return redirect()->back()->with('success', 'Xóa nhà cung cấp thành công.');
+        return redirect()->route('admin.management', ['tab' => 'suppliers'])->with('success', 'Xóa nhà cung cấp thành công.');
     }
 
     // Department CRUD
     public function storeDepartment(Request $request)
     {
-        $request->validate(['department_name' => 'required', 'department_code' => 'required|unique:departments']);
-        \App\Models\Department::create($request->all());
-        return redirect()->back()->with('success', 'Thêm khoa phòng thành công.');
+        $request->validate(['department_name' => 'required']);
+
+        // 1. Generate Department Code
+        // "Khoa kỹ thuật" -> "KHOA_KY_THUAT"
+        $deptCode = strtoupper(str_replace('-', '_', \Str::slug($request->department_name)));
+
+        // Ensure unique
+        if (\App\Models\Department::where('department_code', $deptCode)->exists()) {
+            $deptCode .= '_' . rand(1, 99);
+        }
+
+        $data = $request->all();
+        $data['department_code'] = $deptCode;
+
+        $dept = \App\Models\Department::create($data);
+
+        // 2. Auto-create User Account
+        // Username: TMMC-<Tên khoa viết tắt hoặc slug>
+        // Use the same slug logic but remove "KHOA" prefix if preferred, OR just use full slug for safety.
+        // User example: "TMMC-KYTHUAT".
+        // Let's strip "KHOA" or "PHONG" from the slug for the username to keep it short if possible.
+        $slug = strtoupper(\Str::slug($request->department_name));
+        $userSuffix = str_replace(['KHOA-', 'PHONG-'], '', $slug);
+        $userSuffix = str_replace('-', '', $userSuffix); // Remove hyphens for username: TMMC-KYTHUAT
+
+        $username = 'TMMC-' . $userSuffix;
+
+        // Ensure unique username (if active user exists with different ID - rare case but safety check)
+        // Note: We want to find *trashed* users too.
+
+        $existingUser = \App\Models\User::withTrashed()->where('username', $username)->first();
+
+        if ($existingUser) {
+            // Restore and Update
+            $existingUser->restore();
+            $existingUser->update([
+                'active' => true,
+                'department_id' => $dept->department_id,
+                'full_name' => $request->department_name, // Update name just in case
+                'password' => \Hash::make('123456') // Reset password to default
+            ]);
+            $msg = "Thêm khoa phòng thành công (Mã: $deptCode). Đã khôi phục tài khoản: $username (Mật khẩu: 123456)";
+        } else {
+            // Create New
+            if (\App\Models\User::where('username', $username)->exists()) {
+                $username .= rand(1, 9);
+            }
+
+            \App\Models\User::create([
+                'username' => $username,
+                'email' => strtolower($username) . '@tmmc.local', // Dummy email to satisfy DB constraint
+                'full_name' => $request->department_name,
+                'role_code' => 'DEPARTMENT',
+                'password' => \Hash::make('123456'),
+                'department_id' => $dept->department_id,
+                'active' => true
+            ]);
+            $msg = "Thêm khoa phòng thành công (Mã: $deptCode). Đã tạo tài khoản: $username / 123456";
+        }
+
+        return redirect()->route('admin.management', ['tab' => 'departments'])->with('success', $msg);
     }
 
     public function updateDepartment(Request $request, $id)
     {
         \App\Models\Department::findOrFail($id)->update($request->all());
-        return redirect()->back()->with('success', 'Cập nhật khoa phòng thành công.');
+        return redirect()->route('admin.management', ['tab' => 'departments'])->with('success', 'Cập nhật khoa phòng thành công.');
     }
 
     public function destroyDepartment($id)
     {
-        \App\Models\Department::findOrFail($id)->delete();
-        return redirect()->back()->with('success', 'Xóa khoa phòng thành công.');
+        $dept = \App\Models\Department::findOrFail($id);
+
+        // Disable and Soft Delete associated users
+        $users = \App\Models\User::where('department_id', $id)->get();
+        foreach ($users as $user) {
+            $user->update(['active' => false]);
+            $user->delete(); // Soft delete
+        }
+
+        $dept->delete();
+        return redirect()->route('admin.management', ['tab' => 'departments'])->with('success', 'Xóa khoa phòng và vô hiệu hóa tài khoản quản lý thành công.');
     }
 
     // User CRUD
@@ -401,22 +498,46 @@ class AdminController extends Controller
         $data = $request->all();
         $data['password'] = \Hash::make($request->password);
         \App\Models\User::create($data);
-        return redirect()->back()->with('success', 'Thêm tài khoản thành công.');
+        return redirect()->route('admin.management', ['tab' => 'users'])->with('success', 'Thêm tài khoản thành công.');
     }
 
     public function updateUser(Request $request, $id)
     {
         $user = \App\Models\User::findOrFail($id);
+
+        // Prevent changing Role if user belongs to a Department (must remove from Department first)
+        if ($user->department_id && $request->role_code !== $user->role_code) {
+            return redirect()->back()->with('error', 'Không thể thay đổi vai trò của tài khoản đang quản lý Khoa/Phòng. Vui lòng chuyển tài khoản khỏi Khoa trước.');
+        }
+
         $data = $request->only(['full_name', 'department_id', 'role_code', 'active']);
         if ($request->filled('password')) {
             $data['password'] = \Hash::make($request->password);
         }
         $user->update($data);
-        return redirect()->back()->with('success', 'Cập nhật tài khoản thành công.');
+        return redirect()->route('admin.management', ['tab' => 'users'])->with('success', 'Cập nhật tài khoản thành công.');
+    }
+
+    public function toggleUserStatus($id)
+    {
+        $user = \App\Models\User::findOrFail($id);
+
+        if ($user->user_id == \Auth::id()) {
+            return redirect()->back()->with('error', 'Không thể tự khóa tài khoản của chính mình.');
+        }
+
+        $user->active = !$user->active;
+        $user->save();
+
+        $status = $user->active ? 'Mở khóa' : 'Khóa';
+        return redirect()->route('admin.management', ['tab' => 'users'])->with('success', "Đã $status tài khoản {$user->username}.");
     }
 
     public function destroyUser($id)
     {
+        if ($id == \Auth::id()) {
+            return redirect()->back()->with('error', 'Không thể xóa tài khoản của chính bạn!');
+        }
         \App\Models\User::findOrFail($id)->delete();
         return redirect()->back()->with('success', 'Xóa tài khoản thành công.');
     }
@@ -451,8 +572,6 @@ class AdminController extends Controller
         });
 
         // 2. Sync with Aggregation Logic (DB)
-        // Find or Create Batch for selected month
-
         $currentBatch = AggregationBatch::firstOrCreate(
             [
                 'batch_month' => $currentMonth,
@@ -465,20 +584,19 @@ class AdminController extends Controller
             ]
         );
 
-        // Only sync aggregation data if viewing the CURRENT month
-        // For historical months, we just read the existing data without modifying it
-        $isCurrentMonth = ($currentMonth == now()->month && $currentYear == now()->year);
-
-        // if ($isCurrentMonth) {
-        // Group valid items by Product to sync quantities
         $aggregatedData = $items->groupBy('product_id');
+        $validProductIds = []; // Track actual valid products
 
-        // Sync Logic: Update/Create Items
         foreach ($aggregatedData as $productId => $prodItems) {
             $totalQty = $prodItems->where('decision_status', '!=', 'REJECTED')->sum('quantity_requested');
 
-            if ($totalQty == 0)
-                continue; // Skip if all rejected
+            if ($totalQty == 0) {
+                // If quantity is 0, do NOT add to valid list (so it gets deleted below)
+                continue;
+            }
+
+            $validProductIds[] = $productId; // Add to valid list
+
             $product = $prodItems->first()->product;
 
             AggregationItem::updateOrCreate(
@@ -488,15 +606,14 @@ class AdminController extends Controller
                 ],
                 [
                     'supplier_id' => $product->supplier_id,
-                    'total_approved' => $totalQty, // Default to requested
+                    'total_approved' => $totalQty,
                 ]
             );
         }
 
-        // Cleanup: Remove AggregationItems that are NO LONGER in the pending list
-        $activeProductIds = $aggregatedData->keys()->toArray();
+        // Cleanup: Remove AggregationItems that are NO LONGER in the pending list OR have 0 quantity
         AggregationItem::where('aggregation_batch_id', $currentBatch->aggregation_batch_id)
-            ->whereNotIn('product_id', $activeProductIds)
+            ->whereNotIn('product_id', $validProductIds)
             ->delete();
         // }
 
@@ -526,20 +643,30 @@ class AdminController extends Controller
             $issuedPOsExist = $issuedPOs->isNotEmpty();
             $issuedPOIds = $issuedPOs->pluck('purchase_order_id');
 
-            // Calculate Totals per Department
-            $deptTotalRequested = collect(); // For top red row (Only ISSUED quantities)
-            $deptQtyTotals = collect();      // For bottom total row (Only ISSUED quantities)
-
-            // Get all PurchaseOrderItems from ISSUED POs for these products
+            // Get items first to extract product IDs
             $issuedPOItems = PurchaseOrderItem::whereIn('purchase_order_id', $issuedPOIds)
-                ->whereIn('product_id', $productIds)
                 ->with(['purchaseOrder', 'product'])
                 ->get();
 
+            // Merge IDs: Attributes from Aggregation AND actual Issued Items
+            $issuedProductIds = $issuedPOItems->pluck('product_id')->unique()->toArray();
+            $productIds = array_unique(array_merge($productIds, $issuedProductIds));
+
+            $deptTotalRequested = collect();
+            $deptQtyTotals = collect();
+
+            // Calculate Totals per Department
+            // Header: From Valid Requests (excluding REJECTED)
+            $validRequestItems = $items->where('decision_status', '!=', 'REJECTED');
+
             foreach ($allDepartments as $dept) {
-                $deptTotal = $issuedPOItems->where('purchaseOrder.department_id', $dept->department_id)->sum('quantity_ordered');
-                $deptTotalRequested[$dept->department_id] = $deptTotal;
-                $deptQtyTotals[$dept->department_id] = $deptTotal;
+                // Header (Total Requested - Valid)
+                $reqQty = $validRequestItems->where('request.department_id', $dept->department_id)->sum('quantity_requested');
+                $deptTotalRequested[$dept->department_id] = $reqQty;
+
+                // Footer (Total Approved/Issued)
+                $issuedQty = $issuedPOItems->where('purchaseOrder.department_id', $dept->department_id)->sum('quantity_ordered');
+                $deptQtyTotals[$dept->department_id] = $issuedQty;
             }
 
             // Paginate product IDs manually
@@ -634,7 +761,7 @@ class AdminController extends Controller
                 $lastPO = PurchaseOrder::where('department_id', $deptId)
                     ->whereYear('created_at', $year)
                     ->whereMonth('created_at', $month)
-                    ->orderBy('created_at', 'desc')
+                    ->orderBy('purchase_order_id', 'desc') // Fix: Order by ID
                     ->first();
 
                 $seq = 1;
@@ -665,6 +792,15 @@ class AdminController extends Controller
                     foreach ($prodItems as $item) {
                         $item->update(['decision_status' => 'APPROVED']);
                     }
+
+                    // Create PO Item
+                    PurchaseOrderItem::create([
+                        'purchase_order_id' => $po->purchase_order_id,
+                        'product_id' => $prodId,
+                        'quantity_ordered' => $qty,
+                        'unit_price' => $product->unit_price,
+                        'total_price' => $lineTotal,
+                    ]);
                 }
                 $po->update(['total_amount' => $poTotal]);
             }
@@ -708,17 +844,20 @@ class AdminController extends Controller
             $totalCount = $allItems->count();
 
             // Update parent request status based on items
-            if ($approvedCount > 0 && $request->status === 'SUBMITTED') {
-                // At least one approved → Request becomes APPROVED
-                $request->update(['status' => 'APPROVED']);
-                \Log::info("Request {$request->purchase_request_id} updated to APPROVED");
+            // Update parent request status ONLY if ALL items are handled
+            if ($approvedCount + $rejectedCount === $totalCount) {
+                if ($approvedCount > 0) {
+                    // At least one approved → Request becomes APPROVED
+                    $request->update(['status' => 'APPROVED']);
+                    \Log::info("Request {$request->purchase_request_id} updated to APPROVED");
 
-                // Create PO for approved items only
-                $this->createPOForRequest($request);
-            } elseif ($rejectedCount === $totalCount) {
-                // All rejected → Request becomes REJECTED
-                $request->update(['status' => 'REJECTED']);
-                \Log::info("Request {$request->purchase_request_id} updated to REJECTED");
+                    // Create PO for approved items only
+                    $this->createPOForRequest($request);
+                } else {
+                    // All rejected → Request becomes REJECTED
+                    $request->update(['status' => 'REJECTED']);
+                    \Log::info("Request {$request->purchase_request_id} updated to REJECTED");
+                }
             }
 
             DB::commit();
@@ -790,7 +929,7 @@ class AdminController extends Controller
             $lastPO = PurchaseOrder::where('department_id', $request->department_id)
                 ->whereYear('created_at', $year)
                 ->whereMonth('created_at', $month)
-                ->orderBy('created_at', 'desc')
+                ->orderBy('purchase_order_id', 'desc') // Fix: Order by ID to get the latest one including current batch
                 ->first();
 
             $seq = 1;
@@ -817,18 +956,22 @@ class AdminController extends Controller
                 $total += $lineTotal;
 
                 // Create PO item
-                PurchaseOrderItem::create([
-                    'purchase_order_id' => $po->purchase_order_id,
-                    'product_id' => $item->product_id,
-                    'quantity_ordered' => $item->quantity_requested,
-                    'unit_price' => $unitPrice,
-                    'total_price' => $lineTotal,
-                    'aggregation_item_id' => null, // Linking to null as it's from request directly
-                ]);
+                try {
+                    PurchaseOrderItem::create([
+                        'purchase_order_id' => $po->purchase_order_id,
+                        'product_id' => $item->product_id,
+                        'quantity_ordered' => $item->quantity_requested,
+                        'unit_price' => $unitPrice,
+                        'total_price' => $lineTotal,
+                        'aggregation_item_id' => null,
+                    ]);
+                } catch (\Exception $e) {
+                    \Log::error("Failed to create PO Item for PO $poCode: " . $e->getMessage());
+                }
             }
 
             $po->update(['total_amount' => $total]);
-            \Log::info("Created PO {$poCode} for request {$request->request_code}");
+            \Log::info("Created PO {$poCode} for request {$request->request_code} with items.");
         }
     }
 

@@ -47,7 +47,15 @@ class AuthController extends Controller
             'password' => $request->password,
         ];
 
-        // Add active check
+        // Check if user exists first to provide specific error for disabled accounts
+        $user = User::where('username', $request->username)->first();
+        if ($user && !$user->active && \Hash::check($request->password, $user->password)) {
+            return redirect()->back()
+                ->withErrors(['username' => 'Tài khoản của bạn đã bị vô hiệu hóa. Vui lòng liên hệ Admin.'])
+                ->withInput($request->only('username'));
+        }
+
+        // Add active check for Auth::attempt
         $credentials['active'] = true;
 
         // Attempt to log the user in
@@ -87,13 +95,13 @@ class AuthController extends Controller
         switch ($user->role_code) {
             case User::ROLE_ADMIN:
                 return redirect()->route('admin.dashboard');
-            
+
             case User::ROLE_DEPARTMENT:
                 return redirect()->route('department.dashboard');
-            
+
             case User::ROLE_BUYER:
                 return redirect()->route('buyer.dashboard');
-            
+
             default:
                 // Fallback to department dashboard
                 return redirect()->route('department.dashboard');

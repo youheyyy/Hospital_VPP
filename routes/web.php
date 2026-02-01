@@ -80,6 +80,7 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['auth', 'r
     Route::post('/management/users', [AdminController::class, 'storeUser'])->name('management.users.store');
     Route::put('/management/users/{id}', [AdminController::class, 'updateUser'])->name('management.users.update');
     Route::delete('/management/users/{id}', [AdminController::class, 'destroyUser'])->name('management.users.destroy');
+    Route::put('/management/users/{id}/toggle', [AdminController::class, 'toggleUserStatus'])->name('management.users.toggle');
 
     Route::get('/report', function () {
         return view('admin.report');

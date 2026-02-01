@@ -6,7 +6,7 @@
 
 @section('content')
     <div x-data="{ 
-        activeTab: 'categories',
+        activeTab: new URLSearchParams(window.location.search).get('tab') || 'categories',
         showModal: false,
         modalTitle: '',
         modalAction: '',
@@ -51,7 +51,6 @@
 
         getUpdateUrl(tab, item) {
             const id = item.category_id || item.supplier_id || item.department_id || item.user_id;
-            // Fix for 500 error: manually build URL to avoid route missing parameter during Blade compilation if id is empty
             const baseUrls = {
                 categories: '/admin/management/categories/',
                 suppliers: '/admin/management/suppliers/',
@@ -59,6 +58,25 @@
                 users: '/admin/management/users/'
             };
             return baseUrls[tab] + id;
+        },
+
+        autoGenCategoryCode() {
+            // if (this.modalMethod === 'PUT') return; // Enabled for Edit
+            const name = this.formData.category_name || '';
+            const code = name.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                             .replace(/đ/g, 'd').replace(/Đ/g, 'D')
+                             .split(' ').map(w => w ? w.charAt(0) : '').join('').toUpperCase();
+            this.formData.category_code = code;
+        },
+
+        autoGenDepartmentCode() {
+            // if (this.modalMethod === 'PUT') return; // Enabled for Edit
+            const name = this.formData.department_name || '';
+            const code = name.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                             .replace(/đ/g, 'd').replace(/Đ/g, 'D')
+                             .replace(/[^a-zA-Z0-9 ]/g, ' ')
+                             .trim().replace(/\s+/g, '_').toUpperCase();
+            this.formData.department_code = code;
         }
     }">
         <!-- Tabs Header -->
@@ -240,16 +258,30 @@
                                         {{ $user->role_code }}
                                     </span>
                                 </td>
-                                <td class="px-6 py-4 text-right">
+                                <td class="px-6 py-4 text-right flex justify-end gap-1">
+                                    <!-- Lock/Unlock -->
+                                    @if($user->user_id !== Auth::id())
+                                    <form action="{{ route('admin.management.users.toggle', $user->user_id) }}" method="POST" class="inline">
+                                        @csrf @method('PUT')
+                                        <button class="p-1.5 transition-colors {{ $user->active ? 'text-amber-400 hover:text-amber-600' : 'text-slate-400 hover:text-green-600' }}"
+                                            title="{{ $user->active ? 'Khóa tài khoản' : 'Mở khóa tài khoản' }}">
+                                            <span class="material-symbols-outlined">{{ $user->active ? 'lock_open' : 'lock' }}</span>
+                                        </button>
+                                    </form>
+                                    @endif
+
                                     <button @click="openEditModal('users', {{ json_encode($user) }})"
                                         class="p-1.5 text-slate-400 hover:text-primary transition-colors"><span
                                             class="material-symbols-outlined">edit</span></button>
+                                    
+                                    @if($user->user_id !== Auth::id())
                                     <form action="{{ route('admin.management.users.destroy', $user->user_id) }}" method="POST"
-                                        class="inline" onsubmit="return confirm('Xác nhận xóa?')">
+                                        class="inline" onsubmit="return confirm('Xác nhận xóa tài khoản này?')">
                                         @csrf @method('DELETE')
                                         <button class="p-1.5 text-slate-400 hover:text-red-500 transition-colors"><span
                                                 class="material-symbols-outlined">delete</span></button>
                                     </form>
+                                    @endif
                                 </td>
                             </tr>
                         @endforeach
@@ -279,14 +311,14 @@
                         <div class="space-y-4">
                             <div>
                                 <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Mã danh
-                                    mục</label>
-                                <input type="text" name="category_code" x-model="formData.category_code" required
-                                    class="w-full px-4 py-2 bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 rounded-lg">
+                                    mục (Tự động)</label>
+                                <input type="text" name="category_code" x-model="formData.category_code" 
+                                    class="w-full px-4 py-2 bg-slate-100 dark:bg-slate-700 border-slate-200 dark:border-slate-700 rounded-lg text-slate-500 font-bold" readonly>
                             </div>
                             <div>
                                 <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Tên danh
                                     mục</label>
-                                <input type="text" name="category_name" x-model="formData.category_name" required
+                                <input type="text" name="category_name" x-model="formData.category_name" @input="autoGenCategoryCode()" required
                                     class="w-full px-4 py-2 bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 rounded-lg">
                             </div>
                             <div>
@@ -306,11 +338,15 @@
                     <!-- Supplier Fields -->
                     <template x-if="activeTab === 'suppliers'">
                         <div class="space-y-4">
-                            <div>
+                            <div x-show="modalMethod === 'PUT'">
                                 <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Mã
                                     NCC</label>
-                                <input type="text" name="supplier_code" x-model="formData.supplier_code" required
-                                    class="w-full px-4 py-2 bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 rounded-lg">
+                                <input type="text" name="supplier_code" x-model="formData.supplier_code" 
+                                    :required="modalMethod === 'PUT'"
+                                    class="w-full px-4 py-2 bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 rounded-lg" readonly>
+                            </div>
+                            <div x-show="modalMethod === 'POST'">
+                                <p class="text-sm text-slate-500 italic mb-2">* Mã NCC sẽ được đánh số tự động (ví dụ: SUP00X).</p>
                             </div>
                             <div>
                                 <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Tên
@@ -326,14 +362,14 @@
                         <div class="space-y-4">
                             <div>
                                 <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Mã
-                                    Khoa</label>
-                                <input type="text" name="department_code" x-model="formData.department_code" required
-                                    class="w-full px-4 py-2 bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 rounded-lg">
+                                    Khoa (Tự động)</label>
+                                <input type="text" name="department_code" x-model="formData.department_code" 
+                                    class="w-full px-4 py-2 bg-slate-100 dark:bg-slate-700 border-slate-200 dark:border-slate-700 rounded-lg text-slate-500 font-bold" readonly>
                             </div>
                             <div>
                                 <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Tên
                                     Khoa</label>
-                                <input type="text" name="department_name" x-model="formData.department_name" required
+                                <input type="text" name="department_name" x-model="formData.department_name" @input="autoGenDepartmentCode()" required
                                     class="w-full px-4 py-2 bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 rounded-lg">
                             </div>
                         </div>
@@ -362,19 +398,32 @@
                                     class="w-full px-4 py-2 bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 rounded-lg">
                             </div>
                             <div>
+                            <div>
                                 <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Vai
                                     trò</label>
-                                <select name="role_code" x-model="formData.role_code" required
-                                    class="w-full px-4 py-2 bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 rounded-lg">
-                                    <option value="ADMIN">ADMIN</option>
-                                    <option value="DEPARTMENT">DEPARTMENT (Trưởng khoa)</option>
-                                    <option value="BUYER">BUYER (Nhà thầu/Thu mua)</option>
-                                </select>
+                                <div class="relative">
+                                    <select name="role_code" x-model="formData.role_code" required
+                                        :class="{'opacity-50 bg-slate-100': formData.department_id}"
+                                        :disabled="!!formData.department_id"
+                                        class="w-full px-4 py-2 bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 rounded-lg">
+                                        <option value="ADMIN">ADMIN</option>
+                                        <option value="DEPARTMENT">DEPARTMENT (Trưởng khoa)</option>
+                                        {{-- <option value="BUYER">BUYER (Nhà thầu/Thu mua)</option> --}}
+                                    </select>
+                                    <!-- Hidden input to submit value when disabled -->
+                                    <template x-if="!!formData.department_id">
+                                        <input type="hidden" name="role_code" :value="formData.role_code">
+                                    </template>
+                                </div>
+                                <template x-if="!!formData.department_id">
+                                    <p class="text-[11px] text-amber-600 mt-1 italic">* Không thể đổi vai trò khi đang thuộc Khoa phòng. Hãy bỏ chọn Khoa phòng trước.</p>
+                                </template>
                             </div>
                             <div>
                                 <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Khoa
                                     phòng</label>
                                 <select name="department_id" x-model="formData.department_id"
+                                    @change="if($el.value) formData.role_code = 'DEPARTMENT'"
                                     class="w-full px-4 py-2 bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 rounded-lg">
                                     <option value="">Không có/Tất cả (Admin)</option>
                                     @foreach($departments as $dept)
