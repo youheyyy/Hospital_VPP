@@ -4,33 +4,43 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Category extends Model
 {
-    use HasFactory, SoftDeletes;
-
-    protected $table = 'product_categories';
-    protected $primaryKey = 'category_id';
+    use HasFactory;
 
     protected $fillable = [
-        'category_code',
-        'category_name',
-        'supplier_id',
-        'description',
-        'status',
-        'created_by',
-        'updated_by',
-        'deleted_by',
+        'name',
+        'parent_id',
+        'display_order',
+        'is_active',
     ];
 
-    public function products()
+    protected $casts = [
+        'is_active' => 'boolean',
+    ];
+
+    /**
+     * Get the parent category.
+     */
+    public function parent()
     {
-        return $this->hasMany(Product::class, 'category_id', 'category_id');
+        return $this->belongsTo(Category::class, 'parent_id');
     }
 
-    public function supplier()
+    /**
+     * Get the child categories.
+     */
+    public function children()
     {
-        return $this->belongsTo(Supplier::class, 'supplier_id', 'supplier_id');
+        return $this->hasMany(Category::class, 'parent_id');
+    }
+
+    /**
+     * Get the products for the category.
+     */
+    public function products()
+    {
+        return $this->hasMany(Product::class);
     }
 }

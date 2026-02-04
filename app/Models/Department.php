@@ -4,19 +4,19 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Department extends Model
 {
-    use HasFactory, SoftDeletes;
-
-    protected $primaryKey = 'department_id';
+    use HasFactory;
 
     protected $fillable = [
-        'department_code',
-        'department_name',
-        'created_by',
-        'updated_by',
+        'code',
+        'name',
+        'is_active',
+    ];
+
+    protected $casts = [
+        'is_active' => 'boolean',
     ];
 
     /**
@@ -24,6 +24,14 @@ class Department extends Model
      */
     public function users()
     {
-        return $this->hasMany(User::class, 'department_id', 'department_id');
+        return $this->hasMany(User::class);
+    }
+
+    /**
+     * Get the monthly orders for the department.
+     */
+    public function monthlyOrders()
+    {
+        return $this->hasMany(MonthlyOrder::class);
     }
 }

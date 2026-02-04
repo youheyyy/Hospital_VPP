@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html class="light" lang="vi">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>{{ $department->name }} - Yêu cầu tháng {{ $selectedMonth }}</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .excel-table { border-collapse: collapse; width: 100%; }
+        .excel-table th, .excel-table td { border: 1px solid #d1d5db; padding: 8px 12px; }
+        .excel-table th { background: #f3f4f6; font-weight: 600; text-align: center; }
+        .category-header { background: #3b82f6 !important; color: white; font-weight: bold; text-align: left; }
+        .product-row.hidden { display: none; }
+        .total-row { background: #fef3c7; font-weight: bold; }
+    </style>
+</head>
+
+<body class="bg-gray-50">
+    <div class="flex h-screen">
+        <!-- Sidebar -->
+        <aside class="w-64 bg-white border-r border-gray-200 flex flex-col">
+            <div class="p-6 border-b">
+                <div class="flex items-center gap-3">
+                    <div class="bg-blue-600 p-2 rounded-lg text-white">
+                        <span class="material-symbols-outlined">local_hospital</span>
+                    </div>
+                    <h2 class="font-bold text-lg">VPP Hospital</h2>
+                </div>
+            </div>
+            <nav class="flex-1 p-4 space-y-2">
+                <a href="{{ route('department.index') }}" class="flex items-center gap-3 px-4 py-3 bg-blue-600 text-white rounded-lg">
+                    <span class="material-symbols-outlined">assignment</span>
+                    <span>Yêu cầu VPP</span>
+                </a>
+                <a href="{{ route('department.history') }}" class="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-gray-100 rounded-lg">
+                    <span class="material-symbols-outlined">history</span>
+                    <span>Lịch sử yêu cầu</span>
+                </a>
+            </nav>
+            <div class="p-4 border-t">
+                <div class="bg-gray-50 rounded-xl p-3">
+                    <div class="flex items-center gap-3">
+                        <div class="size-10 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-sm">
+                            {{ strtoupper(substr($department->name, 0, 2)) }}
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm font-bold truncate">{{ $department->name }}</p>
+                            <p class="text-xs text-gray-500 truncate">{{ auth()->user()->name }}</p>
+                        </div>
+                    </div>
+                    <form action="{{ route('logout') }}" method="POST" class="mt-3">
+                        @csrf
+                        <button type="submit" class="w-full text-xs text-gray-500 hover:text-blue-600 text-left px-2 py-1">
+                            Đăng xuất
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 flex flex-col overflow-hidden">
+            <!-- Header -->
+            <header class="bg-white border-b px-8 py-4 flex justify-between items-center">
+                <div>
+                    <h1 class="text-xl font-bold text-gray-800">{{ $department->name }}</h1>
+                    <p class="text-sm text-gray-500">Yêu cầu văn phòng phẩm tháng {{ $selectedMonth }}</p>
+                    @php
+                        $currentDay = now()->day;
+                        $canEdit = $currentDay < 5;
+                    @endphp
+                    @if(!$canEdit)
+                        <p class="text-xs text-red-600 mt-1">⚠️ Chỉ có thể chỉnh sửa trước ngày 5 hàng tháng. Hiện tại chỉ có thể tạo yêu cầu mới.</p>
+                    @endif
+                </div>
+                <div class="flex items-center gap-4">
+                    <form method="GET" action="{{ route('department.index') }}">
+                        <select name="month" onchange="this.form.submit()" class="border-gray-300 rounded-lg text-sm px-4 py-2">
+                            @for($i = 0; $i < 12; $i++)
+                                @php
+                                    $date = now()->subMonths($i);
+                                    $monthValue = $date->format('m/Y');
+                                @endphp
+                                <option value="{{ $monthValue }}" {{ $selectedMonth == $monthValue ? 'selected' : '' }}>
+                                    Tháng {{ $date->format('m/Y') }}
+                                </option>
+                            @endfor
+                        </select>
+                    </form>
+                </div>
+            </header>
+
+            <!-- Content -->
+            <div class="flex-1 overflow-y-auto p-8">
+                <form method="POST" action="{{ route('department.store') }}" id="requestForm">
+                    @csrf
+                    <input type="hidden" name="month" value="{{ $selectedMonth }}">
+
+                    @if(session('success'))
+                        <div class="mb-6 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg">
+                            {{ session('success') }}
+                        </div>
+                    @endif
+
+                    <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                        <table class="excel-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 50px;">Chọn</th>
+                                    <th style="width: 50px;">STT</th>
+                                    <th>Tên hàng</th>
+                                    <th style="width: 100px;">ĐVT</th>
+                                    <th style="width: 120px;">Số lượng</th>
+                                    <th style="width: 130px;">Đơn giá</th>
+                                    <th style="width: 150px;">Thành tiền</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @php $stt = 0; @endphp
+                                @foreach($categories as $category)
+                                    @php
+                                        $categoryProducts = $products->where('category_id', $category->id);
+                                        if($categoryProducts->isEmpty()) continue;
+                                    @endphp
+                                    
+                                    <!-- Category Header -->
+                                    <tr class="category-header">
+                                        <td colspan="7">{{ strtoupper($category->name) }}</td>
+                                    </tr>
+
+                                    <!-- Products -->
+                                    @foreach($categoryProducts as $product)
+                                        @php
+                                            $stt++;
+                                            $existingOrder = $monthlyOrders[$product->id] ?? null;
+                                            $quantity = $existingOrder ? $existingOrder->quantity : 0;
+                                            $isChecked = $quantity > 0;
+                                        @endphp
+                                        <tr class="product-row" data-product-id="{{ $product->id }}">
+                                            <td class="text-center">
+                                                <input type="checkbox" 
+                                                    class="product-checkbox w-4 h-4 text-blue-600 rounded"
+                                                    data-product-id="{{ $product->id }}"
+                                                    {{ $isChecked ? 'checked' : '' }}
+                                                    {{ (!$canEdit && $isChecked) ? 'disabled' : '' }}
+                                                    onchange="toggleProductRow(this)">
+                                            </td>
+                                            <td class="text-center text-sm text-gray-600">{{ $stt }}</td>
+                                            <td class="text-sm font-medium">{{ $product->name }}</td>
+                                            <td class="text-center text-sm">{{ $product->unit }}</td>
+                                            <td>
+                                                <input type="hidden" name="orders[{{ $product->id }}][product_id]" value="{{ $product->id }}">
+                                                <input type="number" 
+                                                    name="orders[{{ $product->id }}][quantity]"
+                                                    class="quantity-input w-full border-gray-300 rounded text-sm px-2 py-1 text-right {{ (!$canEdit && $isChecked) ? 'bg-gray-100' : '' }}"
+                                                    data-price="{{ $product->price }}"
+                                                    data-product-id="{{ $product->id }}"
+                                                    value="{{ (int)$quantity }}"
+                                                    min="0"
+                                                    step="1"
+                                                    {{ (!$canEdit && $isChecked) ? 'readonly' : '' }}
+                                                    oninput="calculateTotal(this)">
+                                            </td>
+                                            <td class="text-right text-sm price-cell">{{ number_format($product->price, 0, ',', '.') }}</td>
+                                            <td class="text-right text-sm font-semibold total-cell">{{ number_format($product->price * $quantity, 0, ',', '.') }}</td>
+                                        </tr>
+                                    @endforeach
+                                @endforeach
+
+                                <!-- Total Row -->
+                                <tr class="total-row">
+                                    <td colspan="6" class="text-right font-bold">TỔNG CỘNG:</td>
+                                    <td class="text-right font-bold" id="grandTotal">0</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="mt-6 flex justify-end gap-4">
+                        <button type="submit" class="px-8 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow-lg">
+                            <span class="material-symbols-outlined text-sm inline-block align-middle">save</span>
+                            Lưu yêu cầu
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        function toggleProductRow(checkbox) {
+            const productId = checkbox.dataset.productId;
+            const row = checkbox.closest('tr');
+            const quantityInput = row.querySelector('.quantity-input');
+            
+            if (checkbox.checked) {
+                if (parseFloat(quantityInput.value) === 0) {
+                    quantityInput.value = 1;
+                    calculateTotal(quantityInput);
+                }
+            } else {
+                quantityInput.value = 0;
+                calculateTotal(quantityInput);
+            }
+        }
+
+        function calculateTotal(input) {
+            const row = input.closest('tr');
+            const price = parseFloat(input.dataset.price);
+            const quantity = parseFloat(input.value) || 0;
+            const total = price * quantity;
+            
+            const totalCell = row.querySelector('.total-cell');
+            totalCell.textContent = total.toLocaleString('vi-VN');
+            
+            // Auto-check checkbox if quantity > 0
+            const checkbox = row.querySelector('.product-checkbox');
+            if (quantity > 0 && !checkbox.checked) {
+                checkbox.checked = true;
+            } else if (quantity === 0 && checkbox.checked) {
+                checkbox.checked = false;
+            }
+            
+            updateGrandTotal();
+        }
+
+        function updateGrandTotal() {
+            let grandTotal = 0;
+            document.querySelectorAll('.quantity-input').forEach(input => {
+                const price = parseFloat(input.dataset.price);
+                const quantity = parseFloat(input.value) || 0;
+                grandTotal += price * quantity;
+            });
+            
+            document.getElementById('grandTotal').textContent = grandTotal.toLocaleString('vi-VN');
+        }
+
+        // Calculate initial total on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            updateGrandTotal();
+        });
+    </script>
+</body>
+
+</html>

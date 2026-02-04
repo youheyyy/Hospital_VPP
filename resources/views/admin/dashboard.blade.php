@@ -1,233 +1,208 @@
-@extends('layouts.admin')
+<!DOCTYPE html>
+<html class="light" lang="vi">
 
-@section('title', 'Admin - Trung Tâm Điều Khiển | Hệ Thống Vật Tư Y Tế')
-
-@section('page-title', 'Trung Tâm Điều Khiển')
-
-@section('content')
-<style>
-    .glass-card {
-        background: rgba(255, 255, 255, 0.7);
-        backdrop-filter: blur(10px);
-        border: 1px solid rgba(255, 255, 255, 0.4);
-        box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
-    }
-    .dark .glass-card {
-        background: rgba(16, 25, 34, 0.7);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-    }
-    .asymmetric-grid {
-        display: grid;
-        grid-template-columns: 280px 1fr 320px;
-        gap: 1.5rem;
-    }
-    @media (max-width: 1280px) {
-        .asymmetric-grid {
-            grid-template-columns: 1fr;
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>Tổng quan Quản lý Văn phòng phẩm</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,typography,container-queries"></script>
+    <link href="https://fonts.googleapis.com" rel="preconnect" />
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap"
+        rel="stylesheet" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+        rel="stylesheet" />
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#1e40af",
+                        secondary: "#3b82f6",
+                        "background-light": "#f1f5f9",
+                    },
+                    fontFamily: {
+                        sans: ["Inter", "sans-serif"],
+                    },
+                },
+            },
+        };
+    </script>
+    <style type="text/tailwindcss">
+        @layer base {
+            body { @apply bg-background-light text-slate-900; font-family: 'Inter', sans-serif; }
         }
-    }
-</style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .chart-bar {
+            transition: height 0.3s ease;
+        }
+    </style>
+</head>
 
-<div class="mb-8">
-    <h1 class="text-3xl font-bold tracking-tight">Trung Tâm Điều Khiển</h1>
-    <p class="text-[#617589] mt-1">Giám sát tồn kho vật tư y tế và hoạt động các khoa phòng theo thời gian thực.</p>
-</div>
-
-<div class="asymmetric-grid">
-    <!-- Left Sidebar: Status Cards -->
-    <div class="flex flex-col gap-6">
-        <div class="glass-card rounded-xl p-6 relative overflow-hidden group hover:translate-y-[-4px] transition-all">
-            <div class="flex justify-between items-start mb-4">
-                <div class="p-2 bg-primary/10 text-primary rounded-lg">
-                    <span class="material-symbols-outlined">assignment_late</span>
-                </div>
-                <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-1 bg-primary text-white rounded">Khẩn cấp</span>
-            </div>
-            <p class="text-sm font-medium text-[#617589]">Phiếu chờ duyệt</p>
-            <div class="flex items-end gap-2 mt-1">
-                <h3 class="text-4xl font-bold">{{ $pendingRequests }}</h3>
-                <span class="text-xs font-bold text-green-500 mb-1">+12% ↑</span>
-            </div>
-            <div class="mt-4 h-12 w-full opacity-50">
-                <svg class="w-full h-full text-primary" preserveAspectRatio="none" viewBox="0 0 100 40">
-                    <path d="M0,35 Q10,10 20,25 T40,15 T60,30 T80,10 T100,20" fill="none" stroke="currentColor" stroke-width="2" vector-effect="non-scaling-stroke"/>
-                </svg>
-            </div>
-        </div>
-
-        <div class="glass-card rounded-xl p-6 group hover:translate-y-[-4px] transition-all">
-            <div class="flex justify-between items-start mb-4">
-                <div class="p-2 bg-purple-500/10 text-purple-500 rounded-lg">
-                    <span class="material-symbols-outlined">vitals</span>
+<body class="bg-slate-50">
+    <div class="flex h-screen overflow-hidden">
+        <aside class="w-72 flex-shrink-0 bg-white border-r border-slate-200 flex flex-col">
+            <div class="p-8">
+                <div class="flex items-center gap-3 text-primary font-bold text-2xl tracking-tight">
+                    <span class="material-symbols-outlined text-3xl">inventory_2</span>
+                    <span>Admin VPP</span>
                 </div>
             </div>
-            <p class="text-sm font-medium text-[#617589]">Khoa/Phòng hoạt động</p>
-            <div class="flex items-end gap-2 mt-1">
-                <h3 class="text-4xl font-bold">{{ $totalDepartments }}</h3>
-                <span class="text-xs font-bold text-green-500 mb-1">Hoạt động</span>
-            </div>
-            <div class="mt-6 flex gap-1 items-center">
-                <div class="h-1 flex-1 bg-purple-500 rounded-full"></div>
-                <div class="h-1 flex-1 bg-purple-500 rounded-full"></div>
-                <div class="h-1 flex-1 bg-purple-500 rounded-full opacity-30"></div>
-                <div class="h-1 flex-1 bg-purple-500 rounded-full opacity-30"></div>
-                <span class="text-[10px] font-bold text-[#617589] ml-2">Tải cao</span>
-            </div>
-        </div>
-
-        <div class="glass-card rounded-xl p-6 group hover:translate-y-[-4px] transition-all">
-            <div class="flex justify-between items-start mb-4">
-                <div class="p-2 bg-orange-500/10 text-orange-500 rounded-lg">
-                    <span class="material-symbols-outlined">local_shipping</span>
-                </div>
-            </div>
-            <p class="text-sm font-medium text-[#617589]">Tổng đơn hàng</p>
-            <div class="flex items-end gap-2 mt-1">
-                <h3 class="text-4xl font-bold">{{ number_format($totalOrders) }}</h3>
-                <span class="text-xs font-bold text-green-500 mb-1">+5% ↑</span>
-            </div>
-            <p class="text-[10px] text-[#617589] mt-4 flex items-center gap-1">
-                <span class="material-symbols-outlined text-xs">schedule</span> Trung bình: 14 phút
-            </p>
-        </div>
-    </div>
-
-    <!-- Center: Main Trends Chart -->
-    <div class="glass-card rounded-xl p-8 flex flex-col">
-        <div class="flex justify-between items-start mb-8">
-            <div>
-                <h2 class="text-xl font-bold">Xu hướng yêu cầu theo khoa</h2>
-                <p class="text-sm text-[#617589]">Phân tích cho tất cả các khoa hoạt động</p>
-            </div>
-            <div class="flex gap-2">
-                <button class="px-3 py-1.5 text-xs font-semibold bg-[#f0f2f4] dark:bg-white/10 rounded-lg">Tuần</button>
-                <button class="px-3 py-1.5 text-xs font-semibold bg-primary text-white rounded-lg">Tháng</button>
-            </div>
-        </div>
-
-        <div class="flex items-center gap-10 mb-8">
-            <div>
-                <p class="text-xs text-[#617589] font-medium uppercase tracking-wider">Tổng khối lượng</p>
-                <p class="text-3xl font-bold mt-1">{{ number_format($totalOrders) }} <span class="text-sm font-normal text-green-500">+8.4%</span></p>
-            </div>
-            <div class="h-10 w-[1px] bg-[#f0f2f4] dark:bg-white/10"></div>
-            <div>
-                <p class="text-xs text-[#617589] font-medium uppercase tracking-wider">Thời gian xử lý TB</p>
-                <p class="text-3xl font-bold mt-1">4.2h <span class="text-sm font-normal text-green-500">-12%</span></p>
-            </div>
-        </div>
-
-        <div class="flex-1 relative min-h-[300px]">
-            <svg class="w-full h-full" preserveAspectRatio="none" viewBox="0 0 800 300">
-                <defs>
-                    <linearGradient id="chartGradient" x1="0" x2="0" y1="0" y2="1">
-                        <stop offset="0%" stop-color="#2b8cee" stop-opacity="0.2"/>
-                        <stop offset="100%" stop-color="#2b8cee" stop-opacity="0"/>
-                    </linearGradient>
-                </defs>
-                <!-- Grid lines -->
-                <line class="text-[#f0f2f4] dark:text-white/5" stroke="currentColor" stroke-width="0.5" x1="0" x2="800" y1="0" y2="0"/>
-                <line class="text-[#f0f2f4] dark:text-white/5" stroke="currentColor" stroke-width="0.5" x1="0" x2="800" y1="100" y2="100"/>
-                <line class="text-[#f0f2f4] dark:text-white/5" stroke="currentColor" stroke-width="0.5" x1="0" x2="800" y1="200" y2="200"/>
-                <line class="text-[#f0f2f4] dark:text-white/5" stroke="currentColor" stroke-width="0.5" x1="0" x2="800" y1="300" y2="300"/>
-                <!-- Area -->
-                <path d="M0,250 C100,230 150,150 200,160 S300,240 400,180 S550,50 650,80 S800,40 800,40 V300 H0 Z" fill="url(#chartGradient)"/>
-                <!-- Line -->
-                <path d="M0,250 C100,230 150,150 200,160 S300,240 400,180 S550,50 650,80 S800,40 800,40" fill="none" stroke="#2b8cee" stroke-linecap="round" stroke-width="3"/>
-                <!-- Custom Tooltip Node -->
-                <circle cx="580" cy="62" fill="#2b8cee" r="6" stroke="white" stroke-width="2"/>
-            </svg>
-            <!-- Floating Tooltip Card -->
-            <div class="absolute left-[560px] top-[10px] glass-card p-3 rounded-lg shadow-xl border-primary/20 scale-90">
-                <p class="text-[10px] text-[#617589] font-bold">T10 24</p>
-                <p class="text-sm font-bold">Khoa Phẫu Thuật</p>
-                <p class="text-primary font-bold">242 Yêu cầu</p>
-            </div>
-        </div>
-
-        <div class="flex justify-between mt-4 px-2">
-            <span class="text-xs font-bold text-[#617589]">T2</span>
-            <span class="text-xs font-bold text-[#617589]">T3</span>
-            <span class="text-xs font-bold text-[#617589]">T4</span>
-            <span class="text-xs font-bold text-[#617589]">T5</span>
-            <span class="text-xs font-bold text-[#617589]">T6</span>
-            <span class="text-xs font-bold text-[#617589]">T7</span>
-            <span class="text-xs font-bold text-[#617589]">CN</span>
-        </div>
-    </div>
-
-    <!-- Right: Top Products Donut Feed -->
-    <div class="flex flex-col gap-4">
-        <div class="glass-card rounded-xl p-6 flex-1">
-            <h2 class="text-lg font-bold mb-6">Được yêu cầu nhiều nhất</h2>
-            <div class="space-y-6">
-                @php
-                    $colors = ['primary', 'purple-500', 'orange-500', 'green-500'];
-                @endphp
-                @forelse($topProducts as $index => $product)
-                    <div class="flex items-center gap-4">
-                        <div class="relative size-12 flex-shrink-0">
-                            <svg class="size-full" viewBox="0 0 36 36">
-                                <path class="text-[#f0f2f4] dark:text-white/5" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-width="3"/>
-                                <path class="text-{{ $colors[$index % 4] }}" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-dasharray="{{ $product['percentage'] }}, 100" stroke-linecap="round" stroke-width="3"/>
-                            </svg>
-                            <div class="absolute inset-0 flex items-center justify-center text-[10px] font-bold">{{ $product['percentage'] }}%</div>
-                        </div>
-                        <div class="flex-1 min-w-0">
-                            <p class="text-sm font-bold truncate">{{ $product['name'] }}</p>
-                            <p class="text-xs text-[#617589]">{{ $product['department'] }}</p>
-                        </div>
-                        <span class="material-symbols-outlined text-{{ $colors[$index % 4] }} text-sm">trending_{{ $product['trend'] }}</span>
-                    </div>
-                @empty
-                    <p class="text-sm text-[#617589] text-center py-8">Chưa có dữ liệu</p>
-                @endforelse
-            </div>
-
-            <div class="mt-8 pt-6 border-t border-[#f0f2f4] dark:border-white/10">
-                <button class="w-full py-3 bg-primary/10 text-primary font-bold text-sm rounded-xl hover:bg-primary hover:text-white transition-all">
-                    Xem báo cáo tồn kho
-                </button>
-            </div>
-        </div>
-
-        <!-- Micro Performance Card -->
-        <div class="bg-primary p-6 rounded-xl text-white shadow-xl shadow-primary/20">
-            <div class="flex justify-between items-center mb-4">
-                <h4 class="text-sm font-bold opacity-80 uppercase tracking-tighter">Hiệu suất hệ thống</h4>
-                <span class="material-symbols-outlined text-sm">bolt</span>
-            </div>
-            <p class="text-2xl font-bold">99.2%</p>
-            <p class="text-[10px] opacity-70 mt-1">Thời gian hoạt động trên tất cả các khoa</p>
-        </div>
-    </div>
-</div>
-
-<!-- Bottom Section: Detailed Feed -->
-<div class="mt-8">
-    <div class="glass-card rounded-xl p-6">
-        <div class="flex justify-between items-center mb-6">
-            <h3 class="text-lg font-bold">Hoạt động gần đây</h3>
-            <button class="text-sm text-primary font-semibold">Xem tất cả</button>
-        </div>
-        <div class="space-y-4">
-            @forelse($recentActivities as $activity)
-                <div class="flex items-center justify-between py-3 border-b border-[#f0f2f4] dark:border-white/5 last:border-0">
-                    <div class="flex items-center gap-4">
-                        <div class="size-8 rounded-full bg-{{ $activity['color'] }}-500/20 text-{{ $activity['color'] }}-500 flex items-center justify-center">
-                            <span class="material-symbols-outlined text-sm">{{ $activity['icon'] }}</span>
-                        </div>
+            <nav class="flex-1 px-6 space-y-2">
+                <a class="flex items-center gap-4 px-4 py-3 text-sm font-semibold rounded-xl bg-blue-50 text-primary border border-blue-100"
+                    href="{{ route('admin.dashboard') }}">
+                    <span class="material-symbols-outlined">dashboard</span>
+                    Tổng quan
+                </a>
+                <a class="flex items-center gap-4 px-4 py-3 text-sm font-medium rounded-xl text-slate-600 hover:bg-slate-50 transition-all"
+                    href="{{ route('admin.consolidated') }}">
+                    <span class="material-symbols-outlined">summarize</span>
+                    Tổng hợp yêu cầu
+                </a>
+            </nav>
+            <div class="p-6 mt-auto">
+                <div class="bg-slate-900 rounded-2xl p-5 text-white">
+                    <p class="text-xs text-slate-400 font-medium mb-1">Phiên bản Admin</p>
+                    <p class="text-sm font-bold">Hệ thống VPP v2.0</p>
+                    <div class="mt-4 flex items-center gap-3">
+                        <div
+                            class="h-10 w-10 rounded-full bg-blue-600 flex items-center justify-center text-sm font-bold">
+                            {{ strtoupper(substr(auth()->user()->name, 0, 2)) }}</div>
                         <div>
-                            <p class="text-sm font-bold">{{ $activity['title'] }}</p>
-                            <p class="text-xs text-[#617589]">{{ $activity['department'] }} • {{ $activity['time'] }}</p>
+                            <p class="text-xs font-bold leading-none">{{ auth()->user()->name }}</p>
+                            <p class="text-[10px] text-slate-400">{{ auth()->user()->email }}</p>
                         </div>
                     </div>
-                    <span class="text-xs font-bold text-[#617589]">{{ $activity['reference'] }}</span>
+                    <form action="{{ route('logout') }}" method="POST" class="mt-4">
+                        @csrf
+                        <button type="submit" class="w-full text-xs text-slate-400 hover:text-white transition-colors text-left">
+                            Đăng xuất
+                        </button>
+                    </form>
                 </div>
-            @empty
-                <p class="text-sm text-[#617589] text-center py-8">Chưa có hoạt động nào</p>
-            @endforelse
-        </div>
+            </div>
+        </aside>
+        <main class="flex-1 overflow-y-auto">
+            <header
+                class="bg-white/80 backdrop-blur-md sticky top-0 z-20 border-b border-slate-200 p-6 px-10 flex justify-between items-center">
+                <div>
+                    <h1 class="text-2xl font-bold text-slate-800">Tổng quan Quản lý Văn phòng phẩm</h1>
+                    <p class="text-sm text-slate-500">Chào mừng trở lại, hôm nay là {{ now()->format('d/m/Y') }}</p>
+                </div>
+                <div class="flex items-center gap-4">
+                    <div class="relative group">
+                        <span
+                            class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">search</span>
+                        <input
+                            class="pl-10 pr-4 py-2 bg-slate-100 border-none rounded-full text-sm w-64 focus:ring-2 focus:ring-primary/20 transition-all"
+                            placeholder="Tìm kiếm dữ liệu..." type="text" />
+                    </div>
+                    <button
+                        class="p-2.5 rounded-full bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 relative">
+                        <span class="material-symbols-outlined text-xl">notifications</span>
+                        <span
+                            class="absolute top-2.5 right-2.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
+                    </button>
+                </div>
+            </header>
+            <div class="p-10 space-y-8 max-w-7xl mx-auto">
+                <section class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    <div
+                        class="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
+                        <div class="flex justify-between items-start mb-6">
+                            <div class="p-3 bg-blue-50 text-blue-600 rounded-2xl">
+                                <span class="material-symbols-outlined text-2xl">assignment_late</span>
+                            </div>
+                            <span
+                                class="text-xs font-bold text-green-500 bg-green-50 px-2.5 py-1 rounded-full">+12%</span>
+                        </div>
+                        <p class="text-slate-500 text-sm font-semibold uppercase tracking-wider">Số lượng yêu cầu</p>
+                        <h3 class="text-4xl font-black mt-2 text-slate-800">{{ $totalRequests }}</h3>
+                        <p class="text-slate-400 text-xs mt-4 italic">Trong tháng hiện tại</p>
+                    </div>
+                    <div
+                        class="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
+                        <div class="flex justify-between items-start mb-6">
+                            <div class="p-3 bg-indigo-50 text-indigo-600 rounded-2xl">
+                                <span class="material-symbols-outlined text-2xl">payments</span>
+                            </div>
+                            <span class="text-xs font-bold text-red-500 bg-red-50 px-2.5 py-1 rounded-full">+5.4%</span>
+                        </div>
+                        <p class="text-slate-500 text-sm font-semibold uppercase tracking-wider">Tổng chi phí</p>
+                        <h3 class="text-4xl font-black mt-2 text-slate-800">{{ number_format($totalCost) }} <span
+                                class="text-lg font-bold">₫</span></h3>
+                        <p class="text-slate-400 text-xs mt-4 italic">Dự kiến chi tháng này</p>
+                    </div>
+                    <div
+                        class="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
+                        <div class="flex justify-between items-start mb-6">
+                            <div class="p-3 bg-amber-50 text-amber-600 rounded-2xl">
+                                <span class="material-symbols-outlined text-2xl">inventory</span>
+                            </div>
+                            <span class="text-xs font-bold text-blue-500 bg-blue-50 px-2.5 py-1 rounded-full">Ổn
+                                định</span>
+                        </div>
+                        <p class="text-slate-500 text-sm font-semibold uppercase tracking-wider">Vật phẩm yêu cầu nhất
+                        </p>
+                        <h3 class="text-2xl font-black mt-2 text-slate-800">{{ $topProductName }}</h3>
+                        <p class="text-slate-400 text-xs mt-4 italic">Đã yêu cầu {{ $topProductQuantity }} đơn vị</p>
+                    </div>
+                </section>
+
+                <div class="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+                    <div class="p-8 flex justify-between items-center border-b border-slate-50">
+                        <h3 class="text-lg font-bold text-slate-800">Yêu cầu gần đây</h3>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left">
+                            <thead>
+                                <tr class="bg-slate-50/50">
+                                    <th
+                                        class="px-8 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                                        Khoa phòng</th>
+                                    <th
+                                        class="px-8 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                                        Sản phẩm</th>
+                                    <th
+                                        class="px-8 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                                        Tháng</th>
+                                    <th
+                                        class="px-8 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">
+                                        Số lượng</th>
+                                    <th
+                                        class="px-8 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                                        Ngày tạo</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-50">
+                                @forelse($recentRequests as $request)
+                                <tr class="hover:bg-slate-50/50 transition-colors">
+                                    <td class="px-8 py-4">
+                                        <div class="text-sm font-medium text-slate-600">{{ $request->department->name }}</div>
+                                    </td>
+                                    <td class="px-8 py-4 font-bold text-sm text-slate-700">{{ $request->product->name }}</td>
+                                    <td class="px-8 py-4 text-sm text-slate-500">{{ $request->month }}</td>
+                                    <td class="px-8 py-4 text-sm font-bold text-slate-700 text-right">{{ $request->quantity }} {{ $request->product->unit }}</td>
+                                    <td class="px-8 py-4 text-sm text-slate-500">{{ $request->created_at->format('d/m/Y H:i') }}</td>
+                                </tr>
+                                @empty
+                                <tr>
+                                    <td colspan="5" class="px-8 py-8 text-center text-slate-400">Chưa có yêu cầu nào</td>
+                                </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
     </div>
-</div>
-@endsection
+
+</body>
+
+</html>

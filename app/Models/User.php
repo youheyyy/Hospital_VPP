@@ -5,41 +5,29 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Illuminate\Database\Eloquent\SoftDeletes;
 
 class User extends Authenticatable
 {
-    use HasFactory, Notifiable, SoftDeletes;
-
-    // Custom primary key
-    protected $primaryKey = 'user_id';
-
-    // Role constants
-    const ROLE_ADMIN = 'ADMIN';
-    const ROLE_DEPARTMENT = 'DEPARTMENT';
-    const ROLE_BUYER = 'BUYER';
+    use HasFactory, Notifiable;
 
     /**
      * The attributes that are mass assignable.
      *
-     * @var list<string>
+     * @var array<int, string>
      */
     protected $fillable = [
-        'username',
+        'name',
         'email',
-        'full_name',
         'password',
+        'role',
         'department_id',
-        'role_code',
-        'active',
-        'created_by',
-        'updated_by',
+        'is_active',
     ];
 
     /**
      * The attributes that should be hidden for serialization.
      *
-     * @var list<string>
+     * @var array<int, string>
      */
     protected $hidden = [
         'password',
@@ -54,48 +42,25 @@ class User extends Authenticatable
     protected function casts(): array
     {
         return [
-            'active' => 'boolean',
+            'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'is_active' => 'boolean',
         ];
     }
 
     /**
-     * Get the department that the user belongs to.
+     * Get the department that owns the user.
      */
     public function department()
     {
-        return $this->belongsTo(Department::class, 'department_id', 'department_id');
+        return $this->belongsTo(Department::class);
     }
 
     /**
-     * Check if user has a specific role
+     * Get the activity logs for the user.
      */
-    public function hasRole(string $role): bool
+    public function activityLogs()
     {
-        return $this->role_code === $role;
-    }
-
-    /**
-     * Check if user is admin
-     */
-    public function isAdmin(): bool
-    {
-        return $this->hasRole(self::ROLE_ADMIN);
-    }
-
-    /**
-     * Check if user is department
-     */
-    public function isDepartment(): bool
-    {
-        return $this->hasRole(self::ROLE_DEPARTMENT);
-    }
-
-    /**
-     * Check if user is buyer
-     */
-    public function isBuyer(): bool
-    {
-        return $this->hasRole(self::ROLE_BUYER);
+        return $this->hasMany(ActivityLog::class);
     }
 }

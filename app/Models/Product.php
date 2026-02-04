@@ -4,40 +4,36 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Product extends Model
 {
-    use HasFactory, SoftDeletes;
-
-    protected $primaryKey = 'product_id';
+    use HasFactory;
 
     protected $fillable = [
-        'product_code',
-        'product_name',
         'category_id',
+        'name',
         'unit',
-        'unit_price',
-        'description',
-        'status',
-        'created_by',
-        'updated_by',
-        'deleted_by',
+        'display_order',
+        'is_active',
     ];
 
+    protected $casts = [
+        'is_active' => 'boolean',
+    ];
+
+    /**
+     * Get the category that owns the product.
+     */
     public function category()
     {
-        return $this->belongsTo(Category::class, 'category_id', 'category_id');
+        return $this->belongsTo(Category::class);
     }
 
-    // Accessor for backward compatibility / logic relying on direct relationship
-    public function getSupplierAttribute()
+    /**
+     * Get the monthly orders for the product.
+     */
+    public function monthlyOrders()
     {
-        return $this->category ? $this->category->supplier : null;
-    }
-
-    public function getSupplierIdAttribute()
-    {
-        return $this->category ? $this->category->supplier_id : null;
+        return $this->hasMany(MonthlyOrder::class);
     }
 }

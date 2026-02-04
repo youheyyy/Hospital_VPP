@@ -1,328 +1,333 @@
 <!DOCTYPE html>
+<html class="light" lang="vi">
 
-<html class="light" lang="en"><head>
-<meta charset="utf-8"/>
-<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>Asymmetric Premium Admin Dashboard Variant 1</title>
-<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@100..700,0..1&amp;display=swap" rel="stylesheet"/>
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
-<script id="tailwind-config">
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Tổng quan Quản lý Văn phòng phẩm</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,typography,container-queries"></script>
+    <link href="https://fonts.googleapis.com" rel="preconnect" />
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap"
+        rel="stylesheet" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+        rel="stylesheet" />
+    <script>
         tailwind.config = {
             darkMode: "class",
             theme: {
                 extend: {
                     colors: {
-                        "primary": "#2b8cee",
-                        "background-light": "#f6f7f8",
-                        "background-dark": "#101922",
+                        primary: "#1e40af",
+                        secondary: "#3b82f6",
+                        "background-light": "#f1f5f9",
                     },
                     fontFamily: {
-                        "display": ["Inter", "sans-serif"]
-                    },
-                    borderRadius: {
-                        "DEFAULT": "0.25rem",
-                        "lg": "0.5rem",
-                        "xl": "0.75rem",
-                        "full": "9999px"
+                        sans: ["Inter", "sans-serif"],
                     },
                 },
             },
-        }
+        };
     </script>
-<style>
-        .glass-card {
-            background: rgba(255, 255, 255, 0.7);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.4);
-            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+    <style type="text/tailwindcss">
+        @layer base {
+            body { @apply bg-background-light text-slate-900; font-family: 'Inter', sans-serif; }
         }
-        .dark .glass-card {
-            background: rgba(16, 25, 34, 0.7);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
         }
-        .asymmetric-grid {
-            display: grid;
-            grid-template-columns: 280px 1fr 320px;
-            gap: 1.5rem;
-        }
-        .donut-ring {
-            stroke-dasharray: 100;
-            stroke-dashoffset: 25;
-            transition: stroke-dashoffset 0.3s ease;
+        .chart-bar {
+            transition: height 0.3s ease;
         }
     </style>
 </head>
-<body class="bg-background-light dark:bg-background-dark font-display text-[#111418] dark:text-white min-h-screen">
-<div class="flex flex-col h-full w-full">
-<!-- Top Navigation -->
-<header class="flex items-center justify-between px-8 py-4 bg-white/50 dark:bg-background-dark/50 backdrop-blur-md border-b border-[#f0f2f4] dark:border-white/10 sticky top-0 z-50">
-<div class="flex items-center gap-8">
-<div class="flex items-center gap-3">
-<div class="size-8 bg-primary rounded-lg flex items-center justify-center text-white">
-<span class="material-symbols-outlined">medical_services</span>
-</div>
-<h2 class="text-lg font-bold tracking-tight">MedEquip <span class="text-primary">Admin</span></h2>
-</div>
-<div class="relative w-72">
-<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#617589] text-sm">search</span>
-<input class="w-full h-10 bg-[#f0f2f4] dark:bg-white/5 border-none rounded-lg pl-10 pr-4 text-sm focus:ring-2 focus:ring-primary/50" placeholder="Search equipment, orders..." type="text"/>
-</div>
-</div>
-<div class="flex items-center gap-6">
-<button class="relative p-2 text-[#617589] hover:bg-[#f0f2f4] dark:hover:bg-white/5 rounded-lg transition-colors">
-<span class="material-symbols-outlined">notifications</span>
-<span class="absolute top-2 right-2 size-2 bg-red-500 rounded-full border-2 border-white dark:border-background-dark"></span>
-</button>
-<button class="p-2 text-[#617589] hover:bg-[#f0f2f4] dark:hover:bg-white/5 rounded-lg transition-colors">
-<span class="material-symbols-outlined">settings</span>
-</button>
-<div class="flex items-center gap-3 pl-4 border-l border-[#f0f2f4] dark:border-white/10">
-<div class="text-right">
-<p class="text-sm font-semibold">Dr. Alex Chen</p>
-<p class="text-xs text-[#617589]">Hospital Director</p>
-</div>
-<div class="size-10 rounded-full bg-cover bg-center ring-2 ring-primary/20" data-alt="User profile picture of a doctor" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuD-VOmqwPAVTrDn1jy9j-LbvBb8a3MSiPeIezSDZTVuW08C4jufCJ3gXWNNZ9pX-F2yLp8aVVkCa_lmGSVSLSOe_ypWFieJB66UWRrFnV7FcUnvaY4UBrh7sL5oAOLnY_PrAWNMSIvgx5PMYQmFcaKhqR2ivnodoHRKG7DR4owPmVHBtnlMZgv8xW7MtyggCI_TGOkA0D_xzjXjjqactxmpyrxZ6kbL_mbs5WH1kXiZY_Uc3zzZ2SHagXSw2FLuQB4xGs6ApMn-bxf8');"></div>
-</div>
-</div>
-</header>
-<main class="px-8 py-8 flex-1">
-<div class="mb-8">
-<h1 class="text-3xl font-bold tracking-tight">Command Center</h1>
-<p class="text-[#617589] mt-1">Real-time medical inventory and departmental oversight.</p>
-</div>
-<div class="asymmetric-grid">
-<!-- Left Sidebar: Status Cards -->
-<div class="flex flex-col gap-6">
-<div class="glass-card rounded-xl p-6 relative overflow-hidden group hover:translate-y-[-4px] transition-all">
-<div class="flex justify-between items-start mb-4">
-<div class="p-2 bg-primary/10 text-primary rounded-lg">
-<span class="material-symbols-outlined">assignment_late</span>
-</div>
-<span class="text-[10px] font-bold uppercase tracking-wider px-2 py-1 bg-primary text-white rounded">Urgent</span>
-</div>
-<p class="text-sm font-medium text-[#617589]">Phiếu chờ duyệt</p>
-<div class="flex items-end gap-2 mt-1">
-<h3 class="text-4xl font-bold">24</h3>
-<span class="text-xs font-bold text-green-500 mb-1">+12% ↑</span>
-</div>
-<div class="mt-4 h-12 w-full opacity-50">
-<svg class="w-full h-full text-primary" preserveaspectratio="none" viewbox="0 0 100 40">
-<path d="M0,35 Q10,10 20,25 T40,15 T60,30 T80,10 T100,20" fill="none" stroke="currentColor" stroke-width="2" vector-effect="non-scaling-stroke"></path>
-</svg>
-</div>
-</div>
-<div class="glass-card rounded-xl p-6 group hover:translate-y-[-4px] transition-all">
-<div class="flex justify-between items-start mb-4">
-<div class="p-2 bg-purple-500/10 text-purple-500 rounded-lg">
-<span class="material-symbols-outlined">vitals</span>
-</div>
-</div>
-<p class="text-sm font-medium text-[#617589]">Khoa/Phòng hoạt động</p>
-<div class="flex items-end gap-2 mt-1">
-<h3 class="text-4xl font-bold">12</h3>
-<span class="text-xs font-bold text-red-500 mb-1">-2% ↓</span>
-</div>
-<div class="mt-6 flex gap-1 items-center">
-<div class="h-1 flex-1 bg-purple-500 rounded-full"></div>
-<div class="h-1 flex-1 bg-purple-500 rounded-full"></div>
-<div class="h-1 flex-1 bg-purple-500 rounded-full opacity-30"></div>
-<div class="h-1 flex-1 bg-purple-500 rounded-full opacity-30"></div>
-<span class="text-[10px] font-bold text-[#617589] ml-2">High Load</span>
-</div>
-</div>
-<div class="glass-card rounded-xl p-6 group hover:translate-y-[-4px] transition-all">
-<div class="flex justify-between items-start mb-4">
-<div class="p-2 bg-orange-500/10 text-orange-500 rounded-lg">
-<span class="material-symbols-outlined">local_shipping</span>
-</div>
-</div>
-<p class="text-sm font-medium text-[#617589]">Chờ xác nhận đã giao</p>
-<div class="flex items-end gap-2 mt-1">
-<h3 class="text-4xl font-bold">48</h3>
-<span class="text-xs font-bold text-green-500 mb-1">+5% ↑</span>
-</div>
-<p class="text-[10px] text-[#617589] mt-4 flex items-center gap-1">
-<span class="material-symbols-outlined text-xs">schedule</span> Average: 14 mins
+
+<body class="bg-slate-50">
+    <div class="flex h-screen overflow-hidden">
+        <aside class="w-72 flex-shrink-0 bg-white border-r border-slate-200 flex flex-col">
+            <div class="p-8">
+                <div class="flex items-center gap-3 text-primary font-bold text-2xl tracking-tight">
+                    <span class="material-symbols-outlined text-3xl">inventory_2</span>
+                    <span>Admin VPP</span>
+                </div>
+            </div>
+            <nav class="flex-1 px-6 space-y-2">
+                <a class="flex items-center gap-4 px-4 py-3 text-sm font-semibold rounded-xl bg-blue-50 text-primary border border-blue-100"
+                    href="#">
+                    <span class="material-symbols-outlined">dashboard</span>
+                    Tổng quan
+                </a>
+                <a class="flex items-center gap-4 px-4 py-3 text-sm font-medium rounded-xl text-slate-600 hover:bg-slate-50 transition-all"
+                    href="#">
+                    <span class="material-symbols-outlined">analytics</span>
+                    Tổng hợp
+                </a>
+            </nav>
+            <div class="p-6 mt-auto">
+                <div class="bg-slate-900 rounded-2xl p-5 text-white">
+                    <p class="text-xs text-slate-400 font-medium mb-1">Phiên bản Admin</p>
+                    <p class="text-sm font-bold">Hệ thống VPP v2.0</p>
+                    <div class="mt-4 flex items-center gap-3">
+                        <div
+                            class="h-10 w-10 rounded-full bg-blue-600 flex items-center justify-center text-sm font-bold">
+                            QT</div>
+                        <div>
+                            <p class="text-xs font-bold leading-none">Quản trị viên</p>
+                            <p class="text-[10px] text-slate-400">admin@company.com</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+        <main class="flex-1 overflow-y-auto">
+            <header
+                class="bg-white/80 backdrop-blur-md sticky top-0 z-20 border-b border-slate-200 p-6 px-10 flex justify-between items-center">
+                <div>
+                    <h1 class="text-2xl font-bold text-slate-800">Tổng quan Quản lý Văn phòng phẩm</h1>
+                    <p class="text-sm text-slate-500">Chào mừng trở lại, hôm nay là ngày 24 tháng 5, 2024</p>
+                </div>
+                <div class="flex items-center gap-4">
+                    <div class="relative group">
+                        <span
+                            class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">search</span>
+                        <input
+                            class="pl-10 pr-4 py-2 bg-slate-100 border-none rounded-full text-sm w-64 focus:ring-2 focus:ring-primary/20 transition-all"
+                            placeholder="Tìm kiếm dữ liệu..." type="text" />
+                    </div>
+                    <button
+                        class="p-2.5 rounded-full bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 relative">
+                        <span class="material-symbols-outlined text-xl">notifications</span>
+                        <span
+                            class="absolute top-2.5 right-2.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
+                    </button>
+                </div>
+            </header>
+            <div class="p-10 space-y-8 max-w-7xl mx-auto">
+                <section class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    <div
+                        class="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
+                        <div class="flex justify-between items-start mb-6">
+                            <div class="p-3 bg-blue-50 text-blue-600 rounded-2xl">
+                                <span class="material-symbols-outlined text-2xl">assignment_late</span>
+                            </div>
+                            <span
+                                class="text-xs font-bold text-green-500 bg-green-50 px-2.5 py-1 rounded-full">+12%</span>
+                        </div>
+                        <p class="text-slate-500 text-sm font-semibold uppercase tracking-wider">Số lượng yêu cầu</p>
+                        <h3 class="text-4xl font-black mt-2 text-slate-800">156</h3>
+                        <p class="text-slate-400 text-xs mt-4 italic">Trong tháng hiện tại</p>
+                    </div>
+                    <div
+                        class="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
+                        <div class="flex justify-between items-start mb-6">
+                            <div class="p-3 bg-indigo-50 text-indigo-600 rounded-2xl">
+                                <span class="material-symbols-outlined text-2xl">payments</span>
+                            </div>
+                            <span class="text-xs font-bold text-red-500 bg-red-50 px-2.5 py-1 rounded-full">+5.4%</span>
+                        </div>
+                        <p class="text-slate-500 text-sm font-semibold uppercase tracking-wider">Tổng chi phí</p>
+                        <h3 class="text-4xl font-black mt-2 text-slate-800">42.850.000 <span
+                                class="text-lg font-bold">₫</span></h3>
+                        <p class="text-slate-400 text-xs mt-4 italic">Dự kiến chi tháng này</p>
+                    </div>
+                    <div
+                        class="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
+                        <div class="flex justify-between items-start mb-6">
+                            <div class="p-3 bg-amber-50 text-amber-600 rounded-2xl">
+                                <span class="material-symbols-outlined text-2xl">inventory</span>
+                            </div>
+                            <span class="text-xs font-bold text-blue-500 bg-blue-50 px-2.5 py-1 rounded-full">Ổn
+                                định</span>
+                        </div>
+                        <p class="text-slate-500 text-sm font-semibold uppercase tracking-wider">Vật phẩm yêu cầu nhất
                         </p>
-</div>
-</div>
-<!-- Center: Main Trends Chart -->
-<div class="glass-card rounded-xl p-8 flex flex-col">
-<div class="flex justify-between items-start mb-8">
-<div>
-<h2 class="text-xl font-bold">Departmental Request Trends</h2>
-<p class="text-sm text-[#617589]">Analytics for all active hospital wings</p>
-</div>
-<div class="flex gap-2">
-<button class="px-3 py-1.5 text-xs font-semibold bg-[#f0f2f4] dark:bg-white/10 rounded-lg">Week</button>
-<button class="px-3 py-1.5 text-xs font-semibold bg-primary text-white rounded-lg">Month</button>
-</div>
-</div>
-<div class="flex items-center gap-10 mb-8">
-<div>
-<p class="text-xs text-[#617589] font-medium uppercase tracking-wider">Total Volume</p>
-<p class="text-3xl font-bold mt-1">1,284 <span class="text-sm font-normal text-green-500">+8.4%</span></p>
-</div>
-<div class="h-10 w-[1px] bg-[#f0f2f4] dark:bg-white/10"></div>
-<div>
-<p class="text-xs text-[#617589] font-medium uppercase tracking-wider">Avg Resolution</p>
-<p class="text-3xl font-bold mt-1">4.2h <span class="text-sm font-normal text-green-500">-12%</span></p>
-</div>
-</div>
-<div class="flex-1 relative min-h-[300px]">
-<svg class="w-full h-full" preserveaspectratio="none" viewbox="0 0 800 300">
-<defs>
-<lineargradient id="chartGradient" x1="0" x2="0" y1="0" y2="1">
-<stop offset="0%" stop-color="#2b8cee" stop-opacity="0.2"></stop>
-<stop offset="100%" stop-color="#2b8cee" stop-opacity="0"></stop>
-</lineargradient>
-</defs>
-<!-- Grid lines -->
-<line class="text-[#f0f2f4] dark:text-white/5" stroke="currentColor" stroke-width="0.5" x1="0" x2="800" y1="0" y2="0"></line>
-<line class="text-[#f0f2f4] dark:text-white/5" stroke="currentColor" stroke-width="0.5" x1="0" x2="800" y1="100" y2="100"></line>
-<line class="text-[#f0f2f4] dark:text-white/5" stroke="currentColor" stroke-width="0.5" x1="0" x2="800" y1="200" y2="200"></line>
-<line class="text-[#f0f2f4] dark:text-white/5" stroke="currentColor" stroke-width="0.5" x1="0" x2="800" y1="300" y2="300"></line>
-<!-- Area -->
-<path d="M0,250 C100,230 150,150 200,160 S300,240 400,180 S550,50 650,80 S800,40 800,40 V300 H0 Z" fill="url(#chartGradient)"></path>
-<!-- Line -->
-<path d="M0,250 C100,230 150,150 200,160 S300,240 400,180 S550,50 650,80 S800,40 800,40" fill="none" stroke="#2b8cee" stroke-linecap="round" stroke-width="3"></path>
-<!-- Custom Tooltip Node -->
-<circle cx="580" cy="62" fill="#2b8cee" r="6" stroke="white" stroke-width="2"></circle>
-</svg>
-<!-- Floating Tooltip Card -->
-<div class="absolute left-[560px] top-[10px] glass-card p-3 rounded-lg shadow-xl border-primary/20 scale-90">
-<p class="text-[10px] text-[#617589] font-bold">OCT 24</p>
-<p class="text-sm font-bold">Surgery Wing</p>
-<p class="text-primary font-bold">242 Requests</p>
-</div>
-</div>
-<div class="flex justify-between mt-4 px-2">
-<span class="text-xs font-bold text-[#617589]">Mon</span>
-<span class="text-xs font-bold text-[#617589]">Tue</span>
-<span class="text-xs font-bold text-[#617589]">Wed</span>
-<span class="text-xs font-bold text-[#617589]">Thu</span>
-<span class="text-xs font-bold text-[#617589]">Fri</span>
-<span class="text-xs font-bold text-[#617589]">Sat</span>
-<span class="text-xs font-bold text-[#617589]">Sun</span>
-</div>
-</div>
-<!-- Right: Top Products Donut Feed -->
-<div class="flex flex-col gap-4">
-<div class="glass-card rounded-xl p-6 flex-1">
-<h2 class="text-lg font-bold mb-6">Top Requested</h2>
-<div class="space-y-6">
-<!-- Product Item -->
-<div class="flex items-center gap-4">
-<div class="relative size-12 flex-shrink-0">
-<svg class="size-full" viewbox="0 0 36 36">
-<path class="text-[#f0f2f4] dark:text-white/5" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-width="3"></path>
-<path class="text-primary" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-dasharray="85, 100" stroke-linecap="round" stroke-width="3"></path>
-</svg>
-<div class="absolute inset-0 flex items-center justify-center text-[10px] font-bold">85%</div>
-</div>
-<div class="flex-1 min-w-0">
-<p class="text-sm font-bold truncate">Ventilator Pro-3</p>
-<p class="text-xs text-[#617589]">ICU Unit</p>
-</div>
-<span class="material-symbols-outlined text-primary text-sm">trending_up</span>
-</div>
-<div class="flex items-center gap-4">
-<div class="relative size-12 flex-shrink-0">
-<svg class="size-full" viewbox="0 0 36 36">
-<path class="text-[#f0f2f4] dark:text-white/5" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-width="3"></path>
-<path class="text-purple-500" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-dasharray="62, 100" stroke-linecap="round" stroke-width="3"></path>
-</svg>
-<div class="absolute inset-0 flex items-center justify-center text-[10px] font-bold">62%</div>
-</div>
-<div class="flex-1 min-w-0">
-<p class="text-sm font-bold truncate">MRI Consumables</p>
-<p class="text-xs text-[#617589]">Radiology</p>
-</div>
-<span class="material-symbols-outlined text-purple-500 text-sm">trending_up</span>
-</div>
-<div class="flex items-center gap-4">
-<div class="relative size-12 flex-shrink-0">
-<svg class="size-full" viewbox="0 0 36 36">
-<path class="text-[#f0f2f4] dark:text-white/5" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-width="3"></path>
-<path class="text-orange-500" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-dasharray="45, 100" stroke-linecap="round" stroke-width="3"></path>
-</svg>
-<div class="absolute inset-0 flex items-center justify-center text-[10px] font-bold">45%</div>
-</div>
-<div class="flex-1 min-w-0">
-<p class="text-sm font-bold truncate">Defibrillator Pads</p>
-<p class="text-xs text-[#617589]">Emergency</p>
-</div>
-<span class="material-symbols-outlined text-orange-500 text-sm">trending_down</span>
-</div>
-<div class="flex items-center gap-4">
-<div class="relative size-12 flex-shrink-0">
-<svg class="size-full" viewbox="0 0 36 36">
-<path class="text-[#f0f2f4] dark:text-white/5" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-width="3"></path>
-<path class="text-green-500" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-dasharray="30, 100" stroke-linecap="round" stroke-width="3"></path>
-</svg>
-<div class="absolute inset-0 flex items-center justify-center text-[10px] font-bold">30%</div>
-</div>
-<div class="flex-1 min-w-0">
-<p class="text-sm font-bold truncate">Oxygen Regulators</p>
-<p class="text-xs text-[#617589]">General Ward</p>
-</div>
-<span class="material-symbols-outlined text-green-500 text-sm">trending_up</span>
-</div>
-</div>
-<div class="mt-8 pt-6 border-t border-[#f0f2f4] dark:border-white/10">
-<button class="w-full py-3 bg-primary/10 text-primary font-bold text-sm rounded-xl hover:bg-primary hover:text-white transition-all">
-                                View Inventory Report
-                            </button>
-</div>
-</div>
-<!-- Micro Performance Card -->
-<div class="bg-primary p-6 rounded-xl text-white shadow-xl shadow-primary/20">
-<div class="flex justify-between items-center mb-4">
-<h4 class="text-sm font-bold opacity-80 uppercase tracking-tighter">System Efficiency</h4>
-<span class="material-symbols-outlined text-sm">bolt</span>
-</div>
-<p class="text-2xl font-bold">99.2%</p>
-<p class="text-[10px] opacity-70 mt-1">Uptime across all medical hubs</p>
-</div>
-</div>
-</div>
-<!-- Bottom Section: Detailed Feed (Small list) -->
-<div class="mt-8">
-<div class="glass-card rounded-xl p-6">
-<div class="flex justify-between items-center mb-6">
-<h3 class="text-lg font-bold">Recent Activities</h3>
-<button class="text-sm text-primary font-semibold">See all</button>
-</div>
-<div class="space-y-4">
-<div class="flex items-center justify-between py-3 border-b border-[#f0f2f4] dark:border-white/5 last:border-0">
-<div class="flex items-center gap-4">
-<div class="size-8 rounded-full bg-green-500/20 text-green-500 flex items-center justify-center">
-<span class="material-symbols-outlined text-sm">check_circle</span>
-</div>
-<div>
-<p class="text-sm font-bold">Oxygen Concentrator Delivered</p>
-<p class="text-xs text-[#617589]">Ward 4C • 12 mins ago</p>
-</div>
-</div>
-<span class="text-xs font-bold text-[#617589]">Ref: #INV-9281</span>
-</div>
-<div class="flex items-center justify-between py-3 border-b border-[#f0f2f4] dark:border-white/5 last:border-0">
-<div class="flex items-center gap-4">
-<div class="size-8 rounded-full bg-primary/20 text-primary flex items-center justify-center">
-<span class="material-symbols-outlined text-sm">add_shopping_cart</span>
-</div>
-<div>
-<p class="text-sm font-bold">New Request: Infusion Pumps (10)</p>
-<p class="text-xs text-[#617589]">Pediatrics • 45 mins ago</p>
-</div>
-</div>
-<span class="text-xs font-bold text-[#617589]">Ref: #REQ-4421</span>
-</div>
-</div>
-</div>
-</div>
-</main>
-</div>
-</body></html>
+                        <h3 class="text-2xl font-black mt-2 text-slate-800">Giấy In A4 70gsm</h3>
+                        <p class="text-slate-400 text-xs mt-4 italic">Đã xuất 45 ram</p>
+                    </div>
+                </section>
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <div class="lg:col-span-2 bg-white p-8 rounded-3xl border border-slate-100 shadow-sm">
+                        <div class="flex justify-between items-center mb-10">
+                            <div>
+                                <h3 class="text-lg font-bold text-slate-800">Phân bổ theo phòng ban</h3>
+                                <p class="text-sm text-slate-400 font-medium">Chi phí sử dụng VPP 30 ngày qua</p>
+                            </div>
+                            <select class="text-sm border-slate-200 rounded-xl focus:ring-primary focus:border-primary">
+                                <option>Tháng này</option>
+                                <option>Quý này</option>
+                            </select>
+                        </div>
+                        <div class="relative h-64 flex items-end justify-between gap-4 px-4">
+                            <div class="flex flex-col items-center gap-3 w-full group">
+                                <div class="w-full bg-blue-100 rounded-t-lg relative flex items-end group-hover:bg-blue-200 transition-colors"
+                                    style="height: 85%;">
+                                    <div
+                                        class="absolute -top-8 left-1/2 -translate-x-1/2 text-xs font-bold text-primary opacity-0 group-hover:opacity-100 transition-opacity">
+                                        12M</div>
+                                </div>
+                                <span
+                                    class="text-[10px] font-bold text-slate-500 uppercase tracking-tighter text-center">Hành
+                                    chính</span>
+                            </div>
+                            <div class="flex flex-col items-center gap-3 w-full group">
+                                <div class="w-full bg-blue-600 rounded-t-lg relative flex items-end group-hover:bg-blue-700 transition-colors"
+                                    style="height: 60%;">
+                                    <div
+                                        class="absolute -top-8 left-1/2 -translate-x-1/2 text-xs font-bold text-primary opacity-0 group-hover:opacity-100 transition-opacity">
+                                        8.5M</div>
+                                </div>
+                                <span
+                                    class="text-[10px] font-bold text-slate-500 uppercase tracking-tighter text-center">Kỹ
+                                    thuật</span>
+                            </div>
+                            <div class="flex flex-col items-center gap-3 w-full group">
+                                <div class="w-full bg-blue-100 rounded-t-lg relative flex items-end group-hover:bg-blue-200 transition-colors"
+                                    style="height: 45%;">
+                                    <div
+                                        class="absolute -top-8 left-1/2 -translate-x-1/2 text-xs font-bold text-primary opacity-0 group-hover:opacity-100 transition-opacity">
+                                        5M</div>
+                                </div>
+                                <span
+                                    class="text-[10px] font-bold text-slate-500 uppercase tracking-tighter text-center">Kế
+                                    toán</span>
+                            </div>
+                            <div class="flex flex-col items-center gap-3 w-full group">
+                                <div class="w-full bg-blue-100 rounded-t-lg relative flex items-end group-hover:bg-blue-200 transition-colors"
+                                    style="height: 70%;">
+                                    <div
+                                        class="absolute -top-8 left-1/2 -translate-x-1/2 text-xs font-bold text-primary opacity-0 group-hover:opacity-100 transition-opacity">
+                                        10M</div>
+                                </div>
+                                <span
+                                    class="text-[10px] font-bold text-slate-500 uppercase tracking-tighter text-center">Marketing</span>
+                            </div>
+                            <div class="flex flex-col items-center gap-3 w-full group">
+                                <div class="w-full bg-blue-100 rounded-t-lg relative flex items-end group-hover:bg-blue-200 transition-colors"
+                                    style="height: 30%;">
+                                    <div
+                                        class="absolute -top-8 left-1/2 -translate-x-1/2 text-xs font-bold text-primary opacity-0 group-hover:opacity-100 transition-opacity">
+                                        3.2M</div>
+                                </div>
+                                <span
+                                    class="text-[10px] font-bold text-slate-500 uppercase tracking-tighter text-center">Nhân
+                                    sự</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm flex flex-col">
+                        <h3 class="text-lg font-bold text-slate-800 mb-6">Hoạt động mới nhất</h3>
+                        <div class="space-y-6 flex-1">
+                            <div class="flex gap-4">
+                                <div
+                                    class="h-10 w-10 rounded-full bg-green-50 text-green-600 flex items-center justify-center flex-shrink-0">
+                                    <span class="material-symbols-outlined text-xl">check_circle</span>
+                                </div>
+                                <div>
+                                    <p class="text-sm font-bold text-slate-700">Đã phê duyệt yêu cầu #1024</p>
+                                    <p class="text-xs text-slate-400">Phòng Hành chính - 2 phút trước</p>
+                                </div>
+                            </div>
+                            <div class="flex gap-4">
+                                <div
+                                    class="h-10 w-10 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center flex-shrink-0">
+                                    <span class="material-symbols-outlined text-xl">warning</span>
+                                </div>
+                                <div>
+                                    <p class="text-sm font-bold text-slate-700">Tồn kho Giấy A4 sắp hết</p>
+                                    <p class="text-xs text-slate-400">Hệ thống cảnh báo - 1 giờ trước</p>
+                                </div>
+                            </div>
+                            <div class="flex gap-4">
+                                <div
+                                    class="h-10 w-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0">
+                                    <span class="material-symbols-outlined text-xl">add_shopping_cart</span>
+                                </div>
+                                <div>
+                                    <p class="text-sm font-bold text-slate-700">Yêu cầu mới từ Kỹ thuật</p>
+                                    <p class="text-xs text-slate-400">8 mặt hàng cần xử lý - 3 giờ trước</p>
+                                </div>
+                            </div>
+                        </div>
+                        <button
+                            class="mt-6 w-full py-3 bg-slate-50 hover:bg-slate-100 text-slate-600 text-sm font-bold rounded-xl transition-colors">Xem
+                            tất cả</button>
+                    </div>
+                </div>
+                <div class="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+                    <div class="p-8 flex justify-between items-center border-b border-slate-50">
+                        <h3 class="text-lg font-bold text-slate-800">Yêu cầu gần đây</h3>
+                        <button class="text-primary text-sm font-bold hover:underline">Quản lý yêu cầu</button>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left">
+                            <thead>
+                                <tr class="bg-slate-50/50">
+                                    <th
+                                        class="px-8 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                                        Mã yêu cầu</th>
+                                    <th
+                                        class="px-8 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                                        Phòng ban</th>
+                                    <th
+                                        class="px-8 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                                        Ngày yêu cầu</th>
+                                    <th
+                                        class="px-8 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">
+                                        Giá trị</th>
+                                    <th
+                                        class="px-8 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                                        Trạng thái</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-50">
+                                <tr class="hover:bg-slate-50/50 transition-colors">
+                                    <td class="px-8 py-4 font-bold text-sm text-slate-700">#REQ-240501</td>
+                                    <td class="px-8 py-4">
+                                        <div class="text-sm font-medium text-slate-600">Phòng Kỹ thuật</div>
+                                    </td>
+                                    <td class="px-8 py-4 text-sm text-slate-500">24/05/2024</td>
+                                    <td class="px-8 py-4 text-sm font-bold text-slate-700 text-right">1.250.000 ₫</td>
+                                    <td class="px-8 py-4">
+                                        <span
+                                            class="px-3 py-1 text-[10px] font-bold rounded-full bg-amber-100 text-amber-700 uppercase">Đang
+                                            chờ</span>
+                                    </td>
+                                </tr>
+                                <tr class="hover:bg-slate-50/50 transition-colors">
+                                    <td class="px-8 py-4 font-bold text-sm text-slate-700">#REQ-240502</td>
+                                    <td class="px-8 py-4">
+                                        <div class="text-sm font-medium text-slate-600">Phòng Marketing</div>
+                                    </td>
+                                    <td class="px-8 py-4 text-sm text-slate-500">23/05/2024</td>
+                                    <td class="px-8 py-4 text-sm font-bold text-slate-700 text-right">450.000 ₫</td>
+                                    <td class="px-8 py-4">
+                                        <span
+                                            class="px-3 py-1 text-[10px] font-bold rounded-full bg-green-100 text-green-700 uppercase">Hoàn
+                                            tất</span>
+                                    </td>
+                                </tr>
+                                <tr class="hover:bg-slate-50/50 transition-colors">
+                                    <td class="px-8 py-4 font-bold text-sm text-slate-700">#REQ-240503</td>
+                                    <td class="px-8 py-4">
+                                        <div class="text-sm font-medium text-slate-600">Phòng Nhân sự</div>
+                                    </td>
+                                    <td class="px-8 py-4 text-sm text-slate-500">23/05/2024</td>
+                                    <td class="px-8 py-4 text-sm font-bold text-slate-700 text-right">2.100.000 ₫</td>
+                                    <td class="px-8 py-4">
+                                        <span
+                                            class="px-3 py-1 text-[10px] font-bold rounded-full bg-blue-100 text-blue-700 uppercase">Đã
+                                            duyệt</span>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+</body>
+
+</html>
