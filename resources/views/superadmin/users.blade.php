@@ -75,9 +75,9 @@
                             <td class="px-6 py-4 text-sm text-gray-600 font-medium">{{ $user->email }}</td>
                             <td class="px-6 py-4">
                                 <span class="px-3 py-1 text-[10px] font-bold rounded-full tracking-wider uppercase
-                                            {{ $user->role === 'SuperAdmin' ? 'bg-purple-100 text-purple-800' : '' }}
-                                            {{ $user->role === 'Admin' ? 'bg-blue-100 text-blue-800' : '' }}
-                                            {{ $user->role === 'Department' ? 'bg-green-100 text-green-800' : '' }}">
+                                                    {{ $user->role === 'SuperAdmin' ? 'bg-purple-100 text-purple-800' : '' }}
+                                                    {{ $user->role === 'Admin' ? 'bg-blue-100 text-blue-800' : '' }}
+                                                    {{ $user->role === 'Department' ? 'bg-green-100 text-green-800' : '' }}">
                                     {{ $user->role }}
                                 </span>
                             </td>
@@ -90,7 +90,7 @@
                                     @csrf
                                     <button type="submit"
                                         class="px-2.5 py-1 text-[10px] font-bold rounded-full tracking-wider uppercase transition-colors
-                                                {{ $user->is_active ? 'bg-green-100 text-green-800 hover:bg-green-200' : 'bg-red-100 text-red-800 hover:bg-red-200' }}">
+                                                        {{ $user->is_active ? 'bg-green-100 text-green-800 hover:bg-green-200' : 'bg-red-100 text-red-800 hover:bg-red-200' }}">
                                         {{ $user->is_active ? 'Hoạt động' : 'Vô hiệu' }}
                                     </button>
                                 </form>
@@ -101,11 +101,7 @@
                                         class="p-2 text-blue-500 hover:bg-blue-50 rounded-xl transition-colors" title="Sửa">
                                         <span class="material-symbols-outlined text-[20px]">edit</span>
                                     </button>
-                                    <button onclick='openChangePasswordModal({{ $user->id }}, "{{ $user->name }}")'
-                                        class="p-2 text-green-500 hover:bg-green-50 rounded-xl transition-colors"
-                                        title="Đổi mật khẩu">
-                                        <span class="material-symbols-outlined text-[20px]">key</span>
-                                    </button>
+
                                     <form action="{{ route('superadmin.users.reset-password', $user) }}" method="POST"
                                         class="inline" onsubmit="return confirm('Reset mật khẩu về mặc định?')">
                                         @csrf
@@ -243,35 +239,7 @@
         </div>
     </div>
 
-    <div id="changePasswordModal"
-        class="modal fixed inset-0 bg-slate-900/40 backdrop-blur-sm items-center justify-center z-50">
-        <div class="bg-white rounded-2xl p-8 w-full max-w-md shadow-2xl">
-            <h3 class="text-xl font-bold text-slate-900 mb-6 font-bold">Đổi mật khẩu</h3>
-            <p class="text-sm text-gray-500 mb-6 font-medium">Người dùng: <span id="password_user_name"
-                    class="text-slate-900 font-bold"></span></p>
-            <form id="changePasswordForm" method="POST">
-                @csrf
-                <div class="space-y-4 text-left">
-                    <div>
-                        <label class="block text-xs font-bold text-gray-400 uppercase mb-1">Mật khẩu mới</label>
-                        <input type="password" name="password" required class="w-full border-gray-200 rounded-xl">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-gray-400 uppercase mb-1">Xác nhận mật khẩu</label>
-                        <input type="password" name="password_confirmation" required
-                            class="w-full border-gray-200 rounded-xl">
-                    </div>
-                </div>
-                <div class="flex gap-3 mt-8">
-                    <button type="button" onclick="closeModal('changePasswordModal')"
-                        class="flex-1 px-4 py-2 font-bold text-gray-400 border border-gray-200 rounded-xl">Hủy</button>
-                    <button type="submit"
-                        class="flex-1 px-4 py-2 bg-green-600 font-bold text-white rounded-xl shadow-lg shadow-green-100">Đổi
-                        mật khẩu</button>
-                </div>
-            </form>
-        </div>
-    </div>
+
 @endsection
 
 @section('scripts')
@@ -294,11 +262,7 @@
             openModal('editUserModal');
         }
 
-        function openChangePasswordModal(userId, userName) {
-            document.getElementById('changePasswordForm').action = `/superadmin/users/${userId}/change-password`;
-            document.getElementById('password_user_name').textContent = userName;
-            openModal('changePasswordModal');
-        }
+
 
         function toggleDepartment(select) {
             const deptField = document.getElementById('departmentField');

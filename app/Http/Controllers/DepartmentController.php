@@ -21,6 +21,24 @@ class DepartmentController extends Controller
         // Lấy tháng hiện tại hoặc tháng được chọn
         $selectedMonth = $request->input('month', date('m/Y'));
 
+        // Kiểm tra tháng được chọn phải là tháng hiện tại
+        try {
+            $selectedDate = \Carbon\Carbon::createFromFormat('m/Y', $selectedMonth)->startOfMonth();
+            $currentDate = now()->startOfMonth();
+
+            if (!$selectedDate->equalTo($currentDate)) {
+                $errorMessage = $selectedDate->greaterThan($currentDate)
+                    ? 'Không thể tạo yêu cầu cho tháng tương lai. Chỉ có thể tạo yêu cầu cho tháng hiện tại.'
+                    : 'Không thể tạo yêu cầu cho tháng quá khứ. Chỉ có thể tạo yêu cầu cho tháng hiện tại.';
+
+                return redirect()->route('department.index', ['month' => date('m/Y')])
+                    ->with('error', $errorMessage);
+            }
+        } catch (\Exception $e) {
+            // Nếu định dạng tháng không hợp lệ, chuyển về tháng hiện tại
+            return redirect()->route('department.index', ['month' => date('m/Y')]);
+        }
+
         // Lấy tất cả categories và products
         $categories = Category::where('is_active', true)
             ->orderBy('display_order')
@@ -60,6 +78,26 @@ class DepartmentController extends Controller
             'orders.*.product_id' => 'required|exists:products,id',
             'orders.*.quantity' => 'required|numeric|min:0',
         ]);
+
+        // Kiểm tra tháng được chọn phải là tháng hiện tại
+        try {
+            $selectedDate = \Carbon\Carbon::createFromFormat('m/Y', $validated['month'])->startOfMonth();
+            $currentDate = now()->startOfMonth();
+
+            if (!$selectedDate->equalTo($currentDate)) {
+                $errorMessage = $selectedDate->greaterThan($currentDate)
+                    ? 'Không thể tạo yêu cầu cho tháng tương lai. Chỉ có thể tạo yêu cầu cho tháng hiện tại.'
+                    : 'Không thể tạo yêu cầu cho tháng quá khứ. Chỉ có thể tạo yêu cầu cho tháng hiện tại.';
+
+                return redirect()->back()->withErrors([
+                    'month' => $errorMessage
+                ])->withInput();
+            }
+        } catch (\Exception $e) {
+            return redirect()->back()->withErrors([
+                'month' => 'Định dạng tháng không hợp lệ.'
+            ])->withInput();
+        }
 
         // Kiểm tra ngày hiện tại
         $currentDay = now()->day;

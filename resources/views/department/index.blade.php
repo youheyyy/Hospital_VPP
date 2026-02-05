@@ -79,19 +79,9 @@
                     @endif
                 </div>
                 <div class="flex items-center gap-4">
-                    <form method="GET" action="{{ route('department.index') }}">
-                        <select name="month" onchange="this.form.submit()" class="border-gray-300 rounded-lg text-sm px-4 py-2">
-                            @for($i = 0; $i < 12; $i++)
-                                @php
-                                    $date = now()->subMonths($i);
-                                    $monthValue = $date->format('m/Y');
-                                @endphp
-                                <option value="{{ $monthValue }}" {{ $selectedMonth == $monthValue ? 'selected' : '' }}>
-                                    Tháng {{ $date->format('m/Y') }}
-                                </option>
-                            @endfor
-                        </select>
-                    </form>
+                    <div class="border-gray-300 rounded-lg text-sm px-4 py-2 bg-gray-50 font-semibold text-gray-700">
+                        Tháng {{ date('m/Y') }}
+                    </div>
                 </div>
             </header>
 
@@ -107,13 +97,66 @@
                         </div>
                     @endif
 
+                    @if(session('error'))
+                        <div class="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+                            {{ session('error') }}
+                        </div>
+                    @endif
+
+                    @if($errors->has('month'))
+                        <div class="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+                            <strong>⚠️ Lỗi:</strong> {{ $errors->first('month') }}
+                        </div>
+                    @endif
+
                     <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
                         <table class="excel-table">
                             <thead>
                                 <tr>
                                     <th style="width: 50px;">Chọn</th>
                                     <th style="width: 50px;">STT</th>
-                                    <th>Tên hàng</th>
+                                    <th style="position: relative;">
+                                        <div class="flex items-center justify-between">
+                                            <span>Tên hàng</span>
+                                            <button type="button" id="filterButton" onclick="toggleFilter(event)" class="ml-2 px-3 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm transition-colors">
+                                                Lọc
+                                            </button>
+                                        </div>
+                                        
+                                        <!-- Filter Dropdown -->
+                                        <div id="filterDropdown" style="display: none; position: absolute; top: 100%; left: 0; z-index: 1000; background: white; border: 1px solid #d1d5db; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); width: 320px; max-height: 400px; overflow: hidden;">
+                                            <!-- Search Box -->
+                                            <div style="padding: 12px; border-bottom: 1px solid #e5e7eb;">
+                                                <input type="text" id="filterSearch" placeholder="Tìm kiếm sản phẩm..." 
+                                                    onkeyup="filterProducts()" 
+                                                    class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                            </div>
+                                            
+                                            <!-- Filter Options -->
+                                            <div style="max-height: 300px; overflow-y: auto; padding: 8px;">
+                                                <!-- Select All -->
+                                                <label class="flex items-center px-3 py-2 hover:bg-gray-50 cursor-pointer rounded">
+                                                    <input type="checkbox" id="selectAllFilter" checked onchange="toggleAllFilters(this)" class="w-4 h-4 text-blue-600 rounded">
+                                                    <span class="ml-2 text-sm font-semibold">(Select All)</span>
+                                                </label>
+                                                
+                                                <!-- Product List -->
+                                                <div id="filterProductList">
+                                                    @foreach($products as $product)
+                                                        <label class="filter-option flex items-center px-3 py-2 hover:bg-gray-50 cursor-pointer rounded" data-product-name="{{ strtolower($product->name) }}">
+                                                            <input type="checkbox" checked class="product-filter-checkbox w-4 h-4 text-blue-600 rounded" data-product-id="{{ $product->id }}" onchange="applyFilter()">
+                                                            <span class="ml-2 text-sm">{{ $product->name }}</span>
+                                                        </label>
+                                                    @endforeach
+                                                </div>
+                                            </div>
+                                            
+                                            <!-- Footer Buttons -->
+                                            <div style="padding: 12px; border-top: 1px solid #e5e7eb; display: flex; justify-content: flex-end; gap: 8px;">
+                                                <button type="button" onclick="closeFilter()" class="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md">Đóng</button>
+                                            </div>
+                                        </div>
+                                    </th>
                                     <th style="width: 100px;">ĐVT</th>
                                     <th style="width: 120px;">Số lượng</th>
                                     <th style="width: 130px;">Đơn giá</th>
@@ -193,6 +236,81 @@
     </div>
 
     <script>
+        // ===== FILTER FUNCTIONS =====
+        function toggleFilter(event) {
+            event.stopPropagation();
+            const dropdown = document.getElementById('filterDropdown');
+            dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+        }
+
+        function closeFilter() {
+            document.getElementById('filterDropdown').style.display = 'none';
+        }
+
+        function filterProducts() {
+            const searchValue = document.getElementById('filterSearch').value.toLowerCase();
+            const filterOptions = document.querySelectorAll('.filter-option');
+            
+            filterOptions.forEach(option => {
+                const productName = option.dataset.productName;
+                if (productName.includes(searchValue)) {
+                    option.style.display = 'flex';
+                } else {
+                    option.style.display = 'none';
+                }
+            });
+        }
+
+        function toggleAllFilters(selectAllCheckbox) {
+            const checkboxes = document.querySelectorAll('.product-filter-checkbox');
+            checkboxes.forEach(cb => {
+                cb.checked = selectAllCheckbox.checked;
+            });
+            applyFilter();
+        }
+
+        function applyFilter() {
+            const checkboxes = document.querySelectorAll('.product-filter-checkbox');
+            const selectedProductIds = new Set();
+            
+            checkboxes.forEach(cb => {
+                if (cb.checked) {
+                    selectedProductIds.add(cb.dataset.productId);
+                }
+            });
+
+            // Show/hide product rows based on filter
+            const productRows = document.querySelectorAll('.product-row');
+            productRows.forEach(row => {
+                const productId = row.dataset.productId;
+                if (selectedProductIds.has(productId)) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+
+            // Update "Select All" checkbox state
+            const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+            const someChecked = Array.from(checkboxes).some(cb => cb.checked);
+            const selectAllCheckbox = document.getElementById('selectAllFilter');
+            selectAllCheckbox.checked = allChecked;
+            selectAllCheckbox.indeterminate = someChecked && !allChecked;
+        }
+
+        // Close filter when clicking outside
+        document.addEventListener('click', function(event) {
+            const dropdown = document.getElementById('filterDropdown');
+            const filterButton = document.getElementById('filterButton');
+            
+            if (dropdown && filterButton && 
+                !dropdown.contains(event.target) && 
+                !filterButton.contains(event.target)) {
+                dropdown.style.display = 'none';
+            }
+        });
+
+        // ===== EXISTING FUNCTIONS =====
         function toggleProductRow(checkbox) {
             const productId = checkbox.dataset.productId;
             const row = checkbox.closest('tr');
