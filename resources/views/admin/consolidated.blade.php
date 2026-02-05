@@ -498,7 +498,7 @@
                     <div class="signature-section justify-between p-12 mt-8 hidden">
                         <div class="text-center">
                             <div class="font-bold text-sm mb-20 uppercase">BP. HTDV</div>
-                            <div class="font-bold text-sm uppercase">Nguyễn Thị Thúy Trang</div>
+                            <div class="font-bold text-sm uppercase">Nguyễn Thị Thùy Trang</div>
                         </div>
                         <div class="text-center">
                             <div class="font-bold text-sm mb-20 uppercase">TRƯỞNG PHÒNG TCKT</div>

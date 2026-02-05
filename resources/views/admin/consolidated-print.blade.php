@@ -257,7 +257,7 @@
     <div class="signatures">
         <div class="signature-block">
             <div class="signature-title">BP.HTDV</div>
-            <div class="signature-name">Nguyễn Thị Thúy Trang</div>
+            <div class="signature-name">Nguyễn Thị Thùy Trang</div>
         </div>
         <div class="signature-block">
             <div class="signature-title">TRƯỞNG PHÒNG TCKT</div>

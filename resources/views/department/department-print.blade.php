@@ -244,7 +244,7 @@
         </div>
         <div class="signature-block">
             <div class="signature-title">Người giao</div>
-            <div class="signature-name">Lê Thúy Huyền</div>
+            <div class="signature-name">Lê Thúy Huỳnh</div>
         </div>
     </div>
 </body>

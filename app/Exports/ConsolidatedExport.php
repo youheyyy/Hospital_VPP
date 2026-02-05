@@ -481,7 +481,7 @@ class ConsolidatedExport
         $currentRow += 6; // Space for signatures
 
         // Names
-        $sheet->setCellValue('A' . $currentRow, 'Nguyễn Thị Thúy Trang');
+        $sheet->setCellValue('A' . $currentRow, 'Nguyễn Thị Thùy Trang');
         $sheet->mergeCells('A' . $currentRow . ':C' . $currentRow);
         $sheet->setCellValue('D' . $currentRow, 'Nguyễn Thị Thúy Huỳnh');
         $sheet->mergeCells('D' . $currentRow . ':E' . $currentRow);
