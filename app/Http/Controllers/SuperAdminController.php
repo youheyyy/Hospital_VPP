@@ -4,12 +4,71 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use App\Models\Department;
+use App\Models\MonthlyOrder;
+use App\Models\ActivityLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
+use Illuminate\Support\Facades\DB;
 
 class SuperAdminController extends Controller
 {
+    /**
+     * Display dashboard with real data
+     */
+    public function dashboard()
+    {
+        $totalDepartments = Department::count();
+        $totalUsers = User::count();
+        $currentMonth = now()->format('m/Y');
+        $monthlyOrdersCount = MonthlyOrder::where('month', $currentMonth)->sum('quantity');
+
+        // Get recent activity (Load enough for the "View All" modal)
+        $recentActivities = ActivityLog::with('user.department')
+            ->orderBy('created_at', 'desc')
+            ->limit(100)
+            ->get();
+
+        // Get monthly order trends (Ensure 6 months are always shown)
+        $monthlyTrendsData = MonthlyOrder::leftJoin('products', 'monthly_orders.product_id', '=', 'products.id')
+            ->select(
+                'monthly_orders.month',
+                DB::raw("CAST(SUM(monthly_orders.quantity) AS UNSIGNED) as total_qty"),
+                DB::raw("SUM(monthly_orders.quantity * IFNULL(products.price, 0)) as total_value")
+            )
+            ->whereIn('monthly_orders.month', collect(range(0, 5))->map(fn($i) => now()->subMonths($i)->format('m/Y')))
+            ->groupBy('monthly_orders.month')
+            ->get()
+            ->keyBy('month');
+
+        $monthlyTrends = collect(range(0, 5))->map(function ($i) use ($monthlyTrendsData) {
+            $monthStr = now()->subMonths($i)->format('m/Y');
+            return (object) [
+                'month' => $monthStr,
+                'total_qty' => $monthlyTrendsData->has($monthStr) ? (float) $monthlyTrendsData[$monthStr]->total_qty : 0,
+                'total_value' => $monthlyTrendsData->has($monthStr) ? (float) $monthlyTrendsData[$monthStr]->total_value : 0
+            ];
+        })->reverse()->values();
+
+        return view('superadmin.dashboard', compact(
+            'totalDepartments',
+            'totalUsers',
+            'monthlyOrdersCount',
+            'recentActivities',
+            'monthlyTrends'
+        ));
+    }
+
+    private function logActivity($action, $description)
+    {
+        ActivityLog::create([
+            'user_id' => auth()->id(),
+            'action' => $action,
+            'description' => $description,
+            'created_at' => now()
+        ]);
+    }
+
     /**
      * Display user management page
      */
@@ -17,7 +76,7 @@ class SuperAdminController extends Controller
     {
         $users = User::with('department')->orderBy('created_at', 'desc')->get();
         $departments = Department::where('is_active', true)->get();
-        
+
         return view('superadmin.users', compact('users', 'departments'));
     }
 
@@ -37,6 +96,7 @@ class SuperAdminController extends Controller
         $validated['password'] = Hash::make($validated['password']);
 
         User::create($validated);
+        $this->logActivity('Thêm người dùng', "Đã tạo tài khoản mới: {$validated['email']}");
 
         return redirect()->route('superadmin.users')->with('success', 'Người dùng đã được tạo thành công!');
     }
@@ -55,6 +115,7 @@ class SuperAdminController extends Controller
         ]);
 
         $user->update($validated);
+        $this->logActivity('Cập nhật người dùng', "Đã cập nhật thông tin cho người dùng: {$user->email}");
 
         return redirect()->route('superadmin.users')->with('success', 'Thông tin người dùng đã được cập nhật!');
     }
@@ -81,7 +142,7 @@ class SuperAdminController extends Controller
     public function resetPassword(User $user)
     {
         $defaultPassword = 'password'; // Default password
-        
+
         $user->update([
             'password' => Hash::make($defaultPassword)
         ]);
@@ -100,6 +161,7 @@ class SuperAdminController extends Controller
         }
 
         $user->delete();
+        $this->logActivity('Xóa người dùng', "Đã xóa người dùng: {$user->email}");
 
         return redirect()->route('superadmin.users')->with('success', 'Người dùng đã được xóa!');
     }
@@ -130,7 +192,7 @@ class SuperAdminController extends Controller
 
         $backups = collect(scandir($backupPath))
             ->filter(fn($file) => str_ends_with($file, '.sql'))
-            ->map(function($file) use ($backupPath) {
+            ->map(function ($file) use ($backupPath) {
                 $fullPath = $backupPath . '/' . $file;
                 return [
                     'name' => $file,
@@ -177,6 +239,7 @@ class SuperAdminController extends Controller
             exec($command, $output, $returnVar);
 
             if ($returnVar === 0) {
+                $this->logActivity('Backup Database', "Đã tạo bản sao lưu: {$filename}");
                 return redirect()->route('superadmin.data-management')->with('success', 'Backup đã được tạo thành công!');
             } else {
                 return redirect()->route('superadmin.data-management')->with('error', 'Không thể tạo backup!');
@@ -256,6 +319,7 @@ class SuperAdminController extends Controller
                     break;
             }
 
+            $this->logActivity('Import Dữ liệu', "Đã import {$imported} bản ghi loại {$importType}");
             return redirect()->route('superadmin.data-management')->with('success', "Đã import {$imported} bản ghi thành công!");
         } catch (\Exception $e) {
             return redirect()->route('superadmin.data-management')->with('error', 'Lỗi import: ' . $e->getMessage());
@@ -296,11 +360,11 @@ class SuperAdminController extends Controller
         }
 
         $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
-        
+
         header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         header('Content-Disposition: attachment;filename="' . $filename . '"');
         header('Cache-Control: max-age=0');
-        
+
         $writer->save('php://output');
         exit;
     }

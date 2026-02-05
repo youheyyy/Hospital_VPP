@@ -18,6 +18,7 @@ Route::post('/logout', [LoginController::class, 'logout'])->name('logout')->midd
 
 // SuperAdmin routes
 Route::middleware(['auth', 'role:SuperAdmin'])->prefix('superadmin')->name('superadmin.')->group(function () {
+    Route::get('/dashboard', [SuperAdminController::class, 'dashboard'])->name('dashboard');
     Route::get('/users', [SuperAdminController::class, 'users'])->name('users');
     Route::post('/users', [SuperAdminController::class, 'storeUser'])->name('users.store');
     Route::put('/users/{user}', [SuperAdminController::class, 'updateUser'])->name('users.update');
@@ -25,7 +26,7 @@ Route::middleware(['auth', 'role:SuperAdmin'])->prefix('superadmin')->name('supe
     Route::post('/users/{user}/reset-password', [SuperAdminController::class, 'resetPassword'])->name('users.reset-password');
     Route::post('/users/{user}/toggle-status', [SuperAdminController::class, 'toggleStatus'])->name('users.toggle-status');
     Route::delete('/users/{user}', [SuperAdminController::class, 'deleteUser'])->name('users.delete');
-    
+
     // Data Management
     Route::get('/data-management', [SuperAdminController::class, 'dataManagement'])->name('data-management');
     Route::post('/backup', [SuperAdminController::class, 'createBackup'])->name('backup.create');
@@ -37,12 +38,16 @@ Route::middleware(['auth', 'role:SuperAdmin'])->prefix('superadmin')->name('supe
 Route::middleware(['auth', 'role:SuperAdmin,Admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/dashboard', [AdminController::class, 'dashboard'])->name('dashboard');
     Route::get('/consolidated', [AdminController::class, 'consolidated'])->name('consolidated');
+    Route::get('/consolidated/export', [AdminController::class, 'exportConsolidated'])->name('consolidated.export');
+    Route::get('/consolidated/print', [AdminController::class, 'printConsolidated'])->name('consolidated.print');
+    Route::post('/consolidated/update-note', [AdminController::class, 'updateNote'])->name('consolidated.update_note');
 });
 
 // Department routes
 Route::middleware(['auth', 'role:Department'])->prefix('department')->name('department.')->group(function () {
     Route::get('/', [DepartmentController::class, 'index'])->name('index');
     Route::get('/history', [DepartmentController::class, 'history'])->name('history');
+    Route::get('/history/print', [DepartmentController::class, 'printHistory'])->name('history.print');
     Route::post('/store', [DepartmentController::class, 'store'])->name('store');
     Route::delete('/{id}', [DepartmentController::class, 'destroy'])->name('destroy');
 });

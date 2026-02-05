@@ -120,11 +120,46 @@ class DepartmentController extends Controller
             ->where('month', $selectedMonth)
             ->with('product')
             ->get()
-            ->sum(function($order) {
+            ->sum(function ($order) {
                 return $order->quantity * $order->product->price;
             });
 
         return view('department.history', compact(
+            'department',
+            'orders',
+            'selectedMonth',
+            'totalAmount'
+        ));
+    }
+
+    /**
+     * Hiển thị print view cho lịch sử yêu cầu
+     */
+    public function printHistory(Request $request)
+    {
+        $user = Auth::user();
+        $department = $user->department;
+
+        // Lấy tháng được chọn hoặc tháng hiện tại
+        $selectedMonth = $request->input('month', date('m/Y'));
+
+        // Lấy tất cả yêu cầu của khoa trong tháng
+        $orders = MonthlyOrder::where('department_id', $department->id)
+            ->where('month', $selectedMonth)
+            ->with(['product.category'])
+            ->get()
+            ->groupBy('product.category.name');
+
+        // Tính tổng
+        $totalAmount = MonthlyOrder::where('department_id', $department->id)
+            ->where('month', $selectedMonth)
+            ->with('product')
+            ->get()
+            ->sum(function ($order) {
+                return $order->quantity * $order->product->price;
+            });
+
+        return view('department.department-print', compact(
             'department',
             'orders',
             'selectedMonth',

@@ -73,7 +73,8 @@
                     <img src="{{ asset('images/logo-tmmc.png') }}" alt="HSS Logo" class="h-10 w-auto">
                     <div class="flex flex-col">
                         <h2 class="text-primary text-xl font-black leading-[0.8] tracking-tighter">TÂM TRÍ</h2>
-                        <span class="text-[10px] font-bold text-slate-800 uppercase tracking-widest mt-1">CAO LÃNH</span>
+                        <span class="text-[10px] font-bold text-slate-800 uppercase tracking-widest mt-1">CAO
+                            LÃNH</span>
                         <span class="text-[9px] font-medium text-slate-500 leading-none mt-0.5">Bệnh viện đa khoa</span>
                     </div>
                 </div>
@@ -165,7 +166,19 @@
             <aside
                 class="w-56 flex flex-col justify-between border-r border-[#e7ebf3] dark:border-gray-800 bg-white dark:bg-gray-900 p-4">
                 <div class="flex flex-col gap-6">
-
+                    <div class="px-2 mb-4">
+                        <div class="flex items-center gap-3">
+                            <img src="{{ asset('images/logo-tmmc.png') }}" alt="Logo" class="h-12 w-auto">
+                            <div class="flex flex-col text-left">
+                                <h2 class="text-slate-900 text-base font-black leading-none tracking-tighter">TÂM TRÍ
+                                </h2>
+                                <span class="text-[9px] font-bold text-slate-800 uppercase tracking-widest mt-1">CAO
+                                    LÃNH</span>
+                                <span class="text-[8px] font-medium text-slate-500 leading-none mt-0.5 uppercase">Quản
+                                    lý VPP</span>
+                            </div>
+                        </div>
+                    </div>
                     <div class="flex flex-col gap-1">
                         <a class="flex items-center gap-3 px-3 py-2.5 rounded-lg {{ request()->routeIs('department.dashboard') ? 'bg-primary text-white font-black shadow-md' : 'text-[#4c669a] dark:text-gray-400 hover:bg-[#e7ebf3] dark:hover:bg-gray-800 font-bold' }} text-sm transition-all"
                             href="{{ route('department.dashboard') }}">

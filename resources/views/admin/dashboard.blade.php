@@ -47,10 +47,15 @@
 <body class="bg-slate-50">
     <div class="flex h-screen overflow-hidden">
         <aside class="w-72 flex-shrink-0 bg-white border-r border-slate-200 flex flex-col">
-            <div class="p-8">
-                <div class="flex items-center gap-3 text-primary font-bold text-2xl tracking-tight">
-                    <span class="material-symbols-outlined text-3xl">inventory_2</span>
-                    <span>Admin VPP</span>
+            <div class="p-6">
+                <div class="flex items-center gap-3">
+                    <img src="{{ asset('images/logo-tmmc.png') }}" alt="Logo" class="h-12 w-auto">
+                    <div class="flex flex-col">
+                        <h2 class="text-primary text-xl font-black leading-none tracking-tighter">TÂM TRÍ</h2>
+                        <span class="text-[10px] font-bold text-slate-800 uppercase tracking-widest mt-1">CAO
+                            LÃNH</span>
+                        <span class="text-[9px] font-medium text-slate-500 leading-none mt-0.5">Quản lý VPP</span>
+                    </div>
                 </div>
             </div>
             <nav class="flex-1 px-6 space-y-2">
@@ -72,7 +77,8 @@
                     <div class="mt-4 flex items-center gap-3">
                         <div
                             class="h-10 w-10 rounded-full bg-blue-600 flex items-center justify-center text-sm font-bold">
-                            {{ strtoupper(substr(auth()->user()->name, 0, 2)) }}</div>
+                            {{ strtoupper(substr(auth()->user()->name, 0, 2)) }}
+                        </div>
                         <div>
                             <p class="text-xs font-bold leading-none">{{ auth()->user()->name }}</p>
                             <p class="text-[10px] text-slate-400">{{ auth()->user()->email }}</p>
@@ -80,7 +86,8 @@
                     </div>
                     <form action="{{ route('logout') }}" method="POST" class="mt-4">
                         @csrf
-                        <button type="submit" class="w-full text-xs text-slate-400 hover:text-white transition-colors text-left">
+                        <button type="submit"
+                            class="w-full text-xs text-slate-400 hover:text-white transition-colors text-left">
                             Đăng xuất
                         </button>
                     </form>
@@ -181,19 +188,24 @@
                             </thead>
                             <tbody class="divide-y divide-slate-50">
                                 @forelse($recentRequests as $request)
-                                <tr class="hover:bg-slate-50/50 transition-colors">
-                                    <td class="px-8 py-4">
-                                        <div class="text-sm font-medium text-slate-600">{{ $request->department->name }}</div>
-                                    </td>
-                                    <td class="px-8 py-4 font-bold text-sm text-slate-700">{{ $request->product->name }}</td>
-                                    <td class="px-8 py-4 text-sm text-slate-500">{{ $request->month }}</td>
-                                    <td class="px-8 py-4 text-sm font-bold text-slate-700 text-right">{{ $request->quantity }} {{ $request->product->unit }}</td>
-                                    <td class="px-8 py-4 text-sm text-slate-500">{{ $request->created_at->format('d/m/Y H:i') }}</td>
-                                </tr>
+                                    <tr class="hover:bg-slate-50/50 transition-colors">
+                                        <td class="px-8 py-4">
+                                            <div class="text-sm font-medium text-slate-600">{{ $request->department->name }}
+                                            </div>
+                                        </td>
+                                        <td class="px-8 py-4 font-bold text-sm text-slate-700">{{ $request->product->name }}
+                                        </td>
+                                        <td class="px-8 py-4 text-sm text-slate-500">{{ $request->month }}</td>
+                                        <td class="px-8 py-4 text-sm font-bold text-slate-700 text-right">
+                                            {{ $request->quantity }} {{ $request->product->unit }}</td>
+                                        <td class="px-8 py-4 text-sm text-slate-500">
+                                            {{ $request->created_at->format('d/m/Y H:i') }}</td>
+                                    </tr>
                                 @empty
-                                <tr>
-                                    <td colspan="5" class="px-8 py-8 text-center text-slate-400">Chưa có yêu cầu nào</td>
-                                </tr>
+                                    <tr>
+                                        <td colspan="5" class="px-8 py-8 text-center text-slate-400">Chưa có yêu cầu nào
+                                        </td>
+                                    </tr>
                                 @endforelse
                             </tbody>
                         </table>

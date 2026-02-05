@@ -7,15 +7,43 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ $department->name }} - Lịch sử yêu cầu</title>
     <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
-    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap"
+        rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+        rel="stylesheet" />
     <style>
-        body { font-family: 'Inter', sans-serif; }
-        .excel-table { border-collapse: collapse; width: 100%; }
-        .excel-table th, .excel-table td { border: 1px solid #d1d5db; padding: 8px 12px; }
-        .excel-table th { background: #f3f4f6; font-weight: 600; text-align: center; }
-        .category-header { background: #3b82f6 !important; color: white; font-weight: bold; text-align: left; }
-        .total-row { background: #fef3c7; font-weight: bold; }
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        .excel-table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        .excel-table th,
+        .excel-table td {
+            border: 1px solid #d1d5db;
+            padding: 8px 12px;
+        }
+
+        .excel-table th {
+            background: #f3f4f6;
+            font-weight: 600;
+            text-align: center;
+        }
+
+        .category-header {
+            background: #3b82f6 !important;
+            color: white;
+            font-weight: bold;
+            text-align: left;
+        }
+
+        .total-row {
+            background: #fef3c7;
+            font-weight: bold;
+        }
     </style>
 </head>
 
@@ -32,11 +60,13 @@
                 </div>
             </div>
             <nav class="flex-1 p-4 space-y-2">
-                <a href="{{ route('department.index') }}" class="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-gray-100 rounded-lg">
+                <a href="{{ route('department.index') }}"
+                    class="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-gray-100 rounded-lg">
                     <span class="material-symbols-outlined">assignment</span>
                     <span>Yêu cầu VPP</span>
                 </a>
-                <a href="{{ route('department.history') }}" class="flex items-center gap-3 px-4 py-3 bg-blue-600 text-white rounded-lg">
+                <a href="{{ route('department.history') }}"
+                    class="flex items-center gap-3 px-4 py-3 bg-blue-600 text-white rounded-lg">
                     <span class="material-symbols-outlined">history</span>
                     <span>Lịch sử yêu cầu</span>
                 </a>
@@ -44,7 +74,8 @@
             <div class="p-4 border-t">
                 <div class="bg-gray-50 rounded-xl p-3">
                     <div class="flex items-center gap-3">
-                        <div class="size-10 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-sm">
+                        <div
+                            class="size-10 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-sm">
                             {{ strtoupper(substr($department->name, 0, 2)) }}
                         </div>
                         <div class="flex-1 min-w-0">
@@ -54,7 +85,8 @@
                     </div>
                     <form action="{{ route('logout') }}" method="POST" class="mt-3">
                         @csrf
-                        <button type="submit" class="w-full text-xs text-gray-500 hover:text-blue-600 text-left px-2 py-1">
+                        <button type="submit"
+                            class="w-full text-xs text-gray-500 hover:text-blue-600 text-left px-2 py-1">
                             Đăng xuất
                         </button>
                     </form>
@@ -72,7 +104,8 @@
                 </div>
                 <div class="flex items-center gap-4">
                     <form method="GET" action="{{ route('department.history') }}">
-                        <select name="month" onchange="this.form.submit()" class="border-gray-300 rounded-lg text-sm px-4 py-2">
+                        <select name="month" onchange="this.form.submit()"
+                            class="border-gray-300 rounded-lg text-sm px-4 py-2">
                             @for($i = 0; $i < 12; $i++)
                                 @php
                                     $date = now()->subMonths($i);
@@ -93,7 +126,8 @@
                     <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
                         <span class="material-symbols-outlined text-6xl text-gray-300">inbox</span>
                         <p class="mt-4 text-gray-500">Chưa có yêu cầu nào trong tháng này</p>
-                        <a href="{{ route('department.index') }}" class="mt-4 inline-block px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                        <a href="{{ route('department.index') }}"
+                            class="mt-4 inline-block px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
                             Tạo yêu cầu mới
                         </a>
                     </div>
@@ -128,10 +162,14 @@
                                             <td class="text-sm font-medium">{{ $order->product->name }}</td>
                                             <td class="text-center text-sm">{{ $order->product->unit }}</td>
                                             <td class="text-right text-sm">{{ number_format($order->quantity, 0, ',', '.') }}</td>
-                                            <td class="text-right text-sm">{{ number_format($order->product->price, 0, ',', '.') }}</td>
-                                            <td class="text-right text-sm font-semibold">{{ number_format($order->quantity * $order->product->price, 0, ',', '.') }}</td>
-                                            <td class="text-center text-sm text-gray-600">{{ $order->created_at->format('d/m/Y H:i') }}</td>
-                                            <td class="text-center text-sm text-gray-600">{{ $order->updated_at->format('d/m/Y H:i') }}</td>
+                                            <td class="text-right text-sm">{{ number_format($order->product->price, 0, ',', '.') }}
+                                            </td>
+                                            <td class="text-right text-sm font-semibold">
+                                                {{ number_format($order->quantity * $order->product->price, 0, ',', '.') }}</td>
+                                            <td class="text-center text-sm text-gray-600">
+                                                {{ $order->created_at->format('d/m/Y H:i') }}</td>
+                                            <td class="text-center text-sm text-gray-600">
+                                                {{ $order->updated_at->format('d/m/Y H:i') }}</td>
                                         </tr>
                                     @endforeach
                                 @endforeach
@@ -147,14 +185,16 @@
                     </div>
 
                     <div class="mt-6 flex justify-end gap-4">
-                        <a href="{{ route('department.index') }}" class="px-6 py-2 border border-blue-600 text-blue-600 rounded-lg hover:bg-blue-50">
+                        <a href="{{ route('department.index') }}"
+                            class="px-6 py-2 border border-blue-600 text-blue-600 rounded-lg hover:bg-blue-50">
                             <span class="material-symbols-outlined text-sm inline-block align-middle">edit</span>
                             Chỉnh sửa yêu cầu
                         </a>
-                        <button onclick="window.print()" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-                            <span class="material-symbols-outlined text-sm inline-block align-middle">print</span>
+                        <a href="{{ route('department.history.print', ['month' => $selectedMonth]) }}" target="_blank"
+                            class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 inline-flex items-center gap-2">
+                            <span class="material-symbols-outlined text-sm">print</span>
                             In yêu cầu
-                        </button>
+                        </a>
                     </div>
                 @endif
             </div>

@@ -17,13 +17,13 @@ class MonthlyOrderSeeder extends Seeder
         $products = DB::table('products')->get();
 
         // Tạo dữ liệu mẫu cho tháng 01/2026 và 02/2026
-        $months = ['01/2026', '02/2026'];
+        $months = ['02/2026', '03/2026'];
 
         foreach ($months as $month) {
             foreach ($departments as $department) {
                 // Mỗi khoa đặt hàng ngẫu nhiên 5-10 sản phẩm
                 $randomProducts = $products->random(rand(5, 10));
-                
+
                 foreach ($randomProducts as $product) {
                     DB::table('monthly_orders')->insert([
                         'department_id' => $department->id,

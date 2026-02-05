@@ -79,7 +79,7 @@ class AdminController extends Controller
     {
         // Lấy tháng được chọn hoặc tháng hiện tại
         $selectedMonth = $request->input('month', date('m/Y'));
-        
+
         // Lấy category filter
         $selectedCategory = $request->input('category');
 
@@ -88,7 +88,7 @@ class AdminController extends Controller
 
         // Lấy tất cả categories
         $categoriesQuery = Category::where('is_active', true)->orderBy('display_order');
-        
+
         // Nếu có filter category, chỉ lấy category đó
         if ($selectedCategory) {
             $categories = $categoriesQuery->where('id', $selectedCategory)->get();
@@ -98,18 +98,21 @@ class AdminController extends Controller
 
         // Lấy tất cả products với orders của tháng
         $productsQuery = Product::where('is_active', true)
-            ->with(['category', 'monthlyOrders' => function($query) use ($selectedMonth) {
-                $query->where('month', $selectedMonth)
-                    ->with('department');
-            }])
+            ->with([
+                'category',
+                'monthlyOrders' => function ($query) use ($selectedMonth) {
+                    $query->where('month', $selectedMonth)
+                        ->with('department');
+                }
+            ])
             ->orderBy('category_id')
             ->orderBy('display_order');
-        
+
         // Filter theo category nếu có
         if ($selectedCategory) {
             $productsQuery->where('category_id', $selectedCategory);
         }
-        
+
         $products = $productsQuery->get()->groupBy('category_id');
 
         // Lấy tất cả categories cho dropdown (không filter)
@@ -140,4 +143,161 @@ class AdminController extends Controller
             'grandTotal'
         ));
     }
+
+    /**
+     * Export consolidated data to Excel
+     */
+    public function exportConsolidated(Request $request)
+    {
+        // Lấy tháng được chọn hoặc tháng hiện tại
+        $selectedMonth = $request->input('month', date('m/Y'));
+
+        // Lấy tất cả departments
+        $departments = Department::where('is_active', true)->orderBy('name')->get();
+
+        // Lấy tất cả categories (không filter theo category trong export)
+        $categories = Category::where('is_active', true)->orderBy('display_order')->get();
+
+        // Lấy tất cả products với orders của tháng
+        $products = Product::where('is_active', true)
+            ->with([
+                'category',
+                'monthlyOrders' => function ($query) use ($selectedMonth) {
+                    $query->where('month', $selectedMonth)
+                        ->with('department');
+                }
+            ])
+            ->orderBy('category_id')
+            ->orderBy('display_order')
+            ->get()
+            ->groupBy('category_id');
+
+        // Tính tổng cho mỗi category
+        $categoryTotals = [];
+        foreach ($products as $categoryId => $categoryProducts) {
+            $categoryTotal = 0;
+            foreach ($categoryProducts as $product) {
+                foreach ($product->monthlyOrders as $order) {
+                    $categoryTotal += $order->quantity * $product->price;
+                }
+            }
+            $categoryTotals[$categoryId] = $categoryTotal;
+        }
+
+        // Tính tổng tất cả
+        $grandTotal = array_sum($categoryTotals);
+
+        // Tạo filename
+        $filename = 'Tong_hop_VPP_' . str_replace('/', '_', $selectedMonth) . '_' . date('YmdHis') . '.xlsx';
+
+        // Export
+        $export = new \App\Exports\ConsolidatedExport(
+            $selectedMonth,
+            $departments,
+            $categories,
+            $products,
+            $categoryTotals,
+            $grandTotal
+        );
+
+        return $export->download($filename);
+    }
+
+    /**
+     * Print/PDF view for consolidated data
+     */
+    public function printConsolidated(Request $request)
+    {
+        // Lấy tháng được chọn hoặc tháng hiện tại
+        $selectedMonth = $request->input('month', date('m/Y'));
+
+        // Lấy tất cả departments
+        $departments = Department::where('is_active', true)->orderBy('name')->get();
+
+        // Lấy tất cả categories
+        $categories = Category::where('is_active', true)->orderBy('display_order')->get();
+
+        // Lấy tất cả products với orders của tháng
+        $products = Product::where('is_active', true)
+            ->with([
+                'category',
+                'monthlyOrders' => function ($query) use ($selectedMonth) {
+                    $query->where('month', $selectedMonth)
+                        ->with('department');
+                }
+            ])
+            ->orderBy('category_id')
+            ->orderBy('display_order')
+            ->get()
+            ->groupBy('category_id');
+
+        // Tính tổng cho mỗi category
+        $categoryTotals = [];
+        foreach ($products as $categoryId => $categoryProducts) {
+            $categoryTotal = 0;
+            foreach ($categoryProducts as $product) {
+                foreach ($product->monthlyOrders as $order) {
+                    $categoryTotal += $order->quantity * $product->price;
+                }
+            }
+            $categoryTotals[$categoryId] = $categoryTotal;
+        }
+
+        // Tính tổng tất cả
+        $grandTotal = array_sum($categoryTotals);
+
+        return view('admin.consolidated-print', compact(
+            'departments',
+            'categories',
+            'products',
+            'selectedMonth',
+            'categoryTotals',
+            'grandTotal'
+        ));
+    }
+    public function updateNote(Request $request)
+    {
+        \Log::info('=== UPDATE NOTE REQUEST ===');
+        \Log::info('Product ID: ' . $request->product_id);
+        \Log::info('Month: ' . $request->month);
+        \Log::info('Note: ' . $request->note);
+
+        $request->validate([
+            'product_id' => 'required|exists:products,id',
+            'month' => 'required',
+            'note' => 'nullable|string',
+        ]);
+
+        // Enable query logging
+        \DB::enableQueryLog();
+
+        // Get the orders first to see what we're updating
+        $orders = MonthlyOrder::where('product_id', $request->product_id)
+            ->where('month', $request->month)
+            ->get();
+
+        \Log::info('Found orders: ' . $orders->count());
+
+        // Update each order individually to ensure it works
+        $affected = 0;
+        foreach ($orders as $order) {
+            \Log::info("Updating order ID: {$order->id}, current note: '{$order->notes}'");
+            $order->notes = $request->note;
+            $order->save();
+            $affected++;
+            \Log::info("After save, note is: '{$order->notes}'");
+        }
+
+        // Log the queries
+        $queries = \DB::getQueryLog();
+        \Log::info('SQL Queries executed:');
+        foreach ($queries as $query) {
+            \Log::info(json_encode($query));
+        }
+
+        \Log::info('Total rows updated: ' . $affected);
+
+        return response()->json(['success' => true, 'affected' => $affected]);
+    }
 }
+

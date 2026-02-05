@@ -48,20 +48,29 @@
     <aside
         class="w-64 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col h-screen sticky top-0">
         <div class="p-6">
-            <div class="flex items-center gap-3 mb-8">
-                <img src="{{ asset('images/logo-tmmc.png') }}" alt="Hospital Logo" class="h-12 w-auto">
-                <div>
-                    <h1 class="text-sm font-bold tracking-tight text-slate-900 dark:text-white uppercase">VẬT TƯ Y TẾ
-                    </h1>
-                    <p class="text-[10px] font-medium text-slate-400 uppercase tracking-widest">Hệ Thống Quản Trị</p>
+            <div class="flex items-center gap-3 mb-8 px-2">
+                <img src="{{ asset('images/logo-tmmc.png') }}" alt="Logo" class="h-12 w-auto">
+                <div class="flex flex-col text-left">
+                    <h2 class="text-slate-900 text-lg font-black leading-none tracking-tighter">TÂM TRÍ</h2>
+                    <span class="text-[10px] font-bold text-slate-800 uppercase tracking-widest mt-1">CAO LÃNH</span>
+                    <span class="text-[9px] font-medium text-slate-500 leading-none mt-0.5 uppercase">Hệ Thống Vật
+                        Tư</span>
                 </div>
             </div>
             <nav class="flex flex-col gap-1">
-                <a class="flex items-center gap-3 px-3 py-2.5 rounded-md {{ request()->routeIs('admin.dashboard') ? 'sidebar-item-active' : 'hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400' }}"
-                    href="{{ route('admin.dashboard') }}">
-                    <span class="material-symbols-outlined text-[20px]">dashboard</span>
-                    <span class="text-sm font-semibold">Tổng quan</span>
-                </a>
+                @if(auth()->user()->role === 'SuperAdmin')
+                    <a class="flex items-center gap-3 px-3 py-2.5 rounded-md {{ request()->routeIs('superadmin.users') ? 'sidebar-item-active' : 'hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400' }}"
+                        href="{{ route('superadmin.users') }}">
+                        <span class="material-symbols-outlined text-[20px]">dashboard</span>
+                        <span class="text-sm font-semibold">Dashboard</span>
+                    </a>
+                @else
+                    <a class="flex items-center gap-3 px-3 py-2.5 rounded-md {{ request()->routeIs('admin.dashboard') ? 'sidebar-item-active' : 'hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400' }}"
+                        href="{{ route('admin.dashboard') }}">
+                        <span class="material-symbols-outlined text-[20px]">dashboard</span>
+                        <span class="text-sm font-semibold">Tổng quan</span>
+                    </a>
+                @endif
 
                 <a class="flex items-center gap-3 px-3 py-2.5 rounded-md {{ request()->routeIs('admin.approve_summary_votes') ? 'sidebar-item-active' : 'hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400' }}"
                     href="{{ route('admin.approve_summary_votes') }}">
