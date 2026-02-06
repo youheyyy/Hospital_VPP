@@ -221,6 +221,10 @@
                         class="tab-button px-6 py-3 font-semibold text-sm border-b-2 border-transparent text-gray-500 hover:text-gray-700">
                         TỔNG HỢP
                     </button>
+                    <button onclick="switchTab('phieu-xuat-kho')" id="tab-phieu-xuat-kho"
+                        class="tab-button px-6 py-3 font-semibold text-sm border-b-2 border-transparent text-gray-500 hover:text-gray-700">
+                        PHIẾU XUẤT KHO
+                    </button>
                 </div>
 
                 <!-- BẢNG TỔNG Tab -->
@@ -251,7 +255,9 @@
                                     @foreach($products[$category->id] as $product)
                                         @php
                                             $stt++;
-                                            $hasOrders = $product->monthlyOrders->count() > 0;
+                                            // Correctly filter orders for this month only
+                                            $monthlyOrders = $product->monthlyOrders->where('month', $selectedMonth);
+                                            $hasOrders = $monthlyOrders->sum('quantity') > 0;
                                             $totalQuantity = 0;
                                         @endphp
                                         @if($hasOrders)
@@ -261,7 +267,7 @@
                                                 <td class="text-center">{{ $product->unit }}</td>
                                                 @foreach($departments as $dept)
                                                     @php
-                                                        $order = $product->monthlyOrders->firstWhere('department_id', $dept->id);
+                                                        $order = $monthlyOrders->firstWhere('department_id', $dept->id);
                                                         $quantity = $order ? $order->quantity : 0;
                                                         $totalQuantity += $quantity;
                                                     @endphp
@@ -413,7 +419,9 @@
                                     @foreach($products[$category->id] as $product)
                                         @php
                                             $stt++;
-                                            $hasOrders = $product->monthlyOrders->count() > 0;
+                                            // Correctly filter orders for this month only
+                                            $monthlyOrders = $product->monthlyOrders->where('month', $selectedMonth);
+                                            $hasOrders = $monthlyOrders->sum('quantity') > 0;
                                             $totalQuantity = 0;
                                             $totalAmount = 0;
                                         @endphp
@@ -424,7 +432,7 @@
                                                 <td class="text-center">{{ $product->unit }}</td>
                                                 @php
                                                     foreach ($departments as $dept) {
-                                                        $order = $product->monthlyOrders->firstWhere('department_id', $dept->id);
+                                                        $order = $monthlyOrders->firstWhere('department_id', $dept->id);
                                                         $quantity = $order ? $order->quantity : 0;
                                                         $totalQuantity += $quantity;
                                                     }
@@ -510,8 +518,96 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- PHIẾU XUẤT KHO Tab -->
+                <div id="content-phieu-xuat-kho"
+                    class="tab-content hidden bg-white rounded-b-lg shadow-sm border border-gray-200 overflow-hidden"
+                    x-data="stockIssueApp()">
+
+                    <!-- Controls -->
+                    <div class="p-6 border-b bg-gray-50 no-print flex items-center justify-between">
+                        <div class="flex items-center gap-4">
+                            <label class="font-semibold text-gray-700">Chọn khoa/phòng:</label>
+                            <select x-model="selectedDeptId"
+                                class="border-gray-300 rounded-lg text-sm px-4 py-2 min-w-[250px] shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                <template x-for="dept in departments" :key="dept.id">
+                                    <option :value="dept.id" x-text="dept.name"></option>
+                                </template>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Report Content -->
+                    <div class="p-8">
+                        <!-- Table -->
+                        <table class="excel-table w-full">
+                            <thead>
+                                <tr>
+                                    <th class="w-[50px] text-center">STT</th>
+                                    <th class="text-left">Tên hàng hóa, quy cách</th>
+                                    <th class="w-[80px] text-center">ĐVT</th>
+                                    <th class="w-[100px] text-center">Số lượng</th>
+                                    <th class="w-[120px] text-right">Đơn giá</th>
+                                    <th class="w-[150px] text-right">Thành tiền</th>
+                                    <th class="w-[150px]">Ghi chú</th>
+                                </tr>
+                            </thead>
+                            <template x-for="(cat, index) in currentDeptData" :key="cat.id">
+                                <tbody class="border-b border-gray-200">
+                                    <!-- Category Header -->
+                                    <tr class="bg-blue-50">
+                                        <td colspan="7"
+                                            class="text-left font-bold text-blue-800 italic border px-3 py-2"
+                                            x-text="romanize(index + 1) + '. ' + cat.name.toUpperCase()"></td>
+                                    </tr>
+                                    <!-- Products -->
+                                    <template x-for="(prod, idx) in cat.products" :key="prod.id">
+                                        <tr class="hover:bg-gray-50">
+                                            <td class="text-center border px-3 py-2 text-gray-600" x-text="idx + 1">
+                                            </td>
+                                            <td class="font-medium border px-3 py-2 text-left" x-text="prod.name"></td>
+                                            <td class="text-center border px-3 py-2" x-text="prod.unit"></td>
+                                            <td class="text-center font-bold text-red-600 border px-3 py-2"
+                                                x-text="formatNumber(prod.quantity, 1)"></td>
+                                            <td class="text-right text-green-600 border px-3 py-2"
+                                                x-text="formatNumber(prod.price, 0)"></td>
+                                            <td class="text-right font-bold text-green-700 border px-3 py-2"
+                                                x-text="formatNumber(prod.total, 0)"></td>
+                                            <td class="border px-3 py-2 text-sm text-gray-500" x-text="prod.note"></td>
+                                        </tr>
+                                    </template>
+                                    <!-- Category Subtotal -->
+                                    <tr class="bg-blue-50">
+                                        <td colspan="5" class="text-right font-bold text-gray-700 border px-3 py-2">CỘNG
+                                            NHÓM (<span x-text="romanize(index + 1)"></span>):</td>
+                                        <td class="text-right font-bold text-blue-700 border px-3 py-2"
+                                            x-text="formatNumber(cat.total, 0)"></td>
+                                        <td class="border bg-white"></td>
+                                    </tr>
+                                </tbody>
+                            </template>
+
+                            <!-- Grand Total -->
+                            <tfoot>
+                                <tr class="bg-gray-100">
+                                    <td colspan="5"
+                                        class="text-right font-bold text-red-600 uppercase border px-3 py-3 text-lg">
+                                        TỔNG
+                                        CỘNG PHIẾU YÊU CẦU:</td>
+                                    <td class="text-right font-bold text-red-600 border px-3 py-3 text-lg"
+                                        x-text="formatNumber(grandTotal, 0)"></td>
+                                    <td class="border w-[150px]"></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+
+
+                    </div>
+
+                </div>
             </div>
-        </main>
+    </div>
+    </main>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -766,6 +862,121 @@
         });
 
         // Note manager toggle is now handled by Alpine.js x-show and @click.away
+    </script>
+
+    @php
+        $jsonDepartments = $departments->map(function ($dept) {
+            return [
+                'id' => $dept->id,
+                'name' => $dept->name
+            ];
+        });
+
+        $deptData = [];
+        foreach ($departments as $dept) {
+            $deptCats = [];
+            foreach ($categories as $cat) {
+                $catProducts = [];
+                if (isset($products[$cat->id])) {
+                    foreach ($products[$cat->id] as $product) {
+                        // Filter orders for CURRENT MONTH AND THIS DEPARTMENT ONLY (matching Excel export)
+                        $order = $product->monthlyOrders
+                            ->where('department_id', $dept->id)
+                            ->where('month', $selectedMonth)
+                            ->first();
+
+                        if ($order && $order->quantity > 0) {
+                            $catProducts[] = [
+                                'id' => $product->id,
+                                'name' => $product->name,
+                                'unit' => $product->unit,
+                                'quantity' => $order->quantity,
+                                'price' => $product->price,
+                                'total' => $order->quantity * $product->price,
+                                'note' => $order->notes ?? ''
+                            ];
+                        }
+                    }
+                }
+                if (count($catProducts) > 0) {
+                    // Map category names to include Supplier
+                    $displayName = $cat->name;
+                    if ($cat->id == 1 || stripos($cat->name, 'Văn phòng phẩm') !== false) {
+                        if (stripos($displayName, 'Thành Vân') === false) {
+                            $displayName = "VĂN PHÒNG PHẨM - NHÀ SÁCH THÀNH VÂN";
+                        }
+                    }
+                    if ($cat->id == 3 || stripos($cat->name, 'Văn phòng phẩm khác') !== false || stripos($cat->name, 'Vật tư tiêu hao') !== false) {
+                        if (stripos($displayName, 'Quốc Nam') === false) {
+                            $displayName = "VẬT TƯ TIÊU HAO - NHÀ SÁCH QUỐC NAM";
+                        }
+                    }
+
+                    $deptCats[] = [
+                        'id' => $cat->id,
+                        'name' => $displayName,
+                        'products' => $catProducts,
+                        'total' => array_sum(array_column($catProducts, 'total'))
+                    ];
+                }
+            }
+            $deptData[$dept->id] = $deptCats;
+        }
+    @endphp
+
+    <script>
+        document.addEventListener('alpine:init', () => {
+            Alpine.data('stockIssueApp', () => ({
+                departments: @json($jsonDepartments),
+                allDeptData: @json($deptData),
+                selectedDeptId: null,
+                selectedDeptName: '',
+                currentDeptData: [],
+                grandTotal: 0,
+
+                init() {
+                    if (this.departments.length > 0) {
+                        this.selectedDeptId = this.departments[0].id;
+                    }
+                    this.$watch('selectedDeptId', (val) => this.updateView(val));
+                    // Initial update if dept is selected
+                    if (this.selectedDeptId) {
+                        this.updateView(this.selectedDeptId);
+                    }
+                },
+
+                updateView(deptId) {
+                    const dept = this.departments.find(d => d.id == deptId);
+                    this.selectedDeptName = dept ? dept.name : '';
+                    this.currentDeptData = this.allDeptData[deptId] || [];
+
+                    this.grandTotal = 0;
+                    this.currentDeptData.forEach(cat => {
+                        this.grandTotal += cat.total;
+                    });
+                },
+
+                formatNumber(num, decimals = 0) {
+                    return new Intl.NumberFormat('vi-VN', {
+                        minimumFractionDigits: decimals,
+                        maximumFractionDigits: decimals
+                    }).format(num);
+                },
+
+                romanize(num) {
+                    if (isNaN(num)) return NaN;
+                    var digits = String(+num).split(""),
+                        key = ["", "C", "CC", "CCC", "CD", "D", "DC", "DCC", "DCCC", "CM",
+                            "", "X", "XX", "XXX", "XL", "L", "LX", "LXX", "LXXX", "XC",
+                            "", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX"],
+                        roman = "",
+                        i = 3;
+                    while (i--)
+                        roman = (key[+digits.pop() + (i * 10)] || "") + roman;
+                    return Array(+digits.join("") + 1).join("M") + roman;
+                }
+            }));
+        });
     </script>
 </body>
 
