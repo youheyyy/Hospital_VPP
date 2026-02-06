@@ -194,7 +194,11 @@ class ConsolidatedExport
                         $totalQuantity = 0;
                         $deptIndex = 0;
                         foreach ($this->departments as $dept) {
-                            $order = $product->monthlyOrders->firstWhere('department_id', $dept->id);
+                            // Filter by SELECTED MONTH ONLY
+                            $order = $product->monthlyOrders
+                                ->where('department_id', $dept->id)
+                                ->where('month', $this->month)
+                                ->first();
                             $quantity = $order ? $order->quantity : 0;
                             $totalQuantity += $quantity;
 
