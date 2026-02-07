@@ -43,6 +43,32 @@ class ConsolidatedExport
         $sheet2 = $spreadsheet->createSheet();
         $this->createTongHopSheet($sheet2);
 
+        // Sheets 3+: Each Department
+        foreach ($this->departments as $dept) {
+            // Check if department has valid orders for SELECTED MONTH ONLY
+            $hasOrders = false;
+            foreach ($this->products as $categoryId => $categoryProducts) {
+                foreach ($categoryProducts as $product) {
+                    $order = $product->monthlyOrders
+                        ->where('department_id', $dept->id)
+                        ->where('month', $this->month)
+                        ->first();
+                    if ($order && $order->quantity > 0) {
+                        $hasOrders = true;
+                        break 2;
+                    }
+                }
+            }
+
+            if ($hasOrders) {
+                $sheet = $spreadsheet->createSheet();
+                // Excel sheet names are limited to 31 chars
+                $sheetTitle = mb_substr($dept->name, 0, 31);
+                $sheet->setTitle($sheetTitle);
+                $this->createDepartmentSheet($sheet, $dept);
+            }
+        }
+
         // Set active sheet to first sheet
         $spreadsheet->setActiveSheetIndex(0);
 
@@ -168,7 +194,11 @@ class ConsolidatedExport
                         $totalQuantity = 0;
                         $deptIndex = 0;
                         foreach ($this->departments as $dept) {
-                            $order = $product->monthlyOrders->firstWhere('department_id', $dept->id);
+                            // Filter by SELECTED MONTH ONLY
+                            $order = $product->monthlyOrders
+                                ->where('department_id', $dept->id)
+                                ->where('month', $this->month)
+                                ->first();
                             $quantity = $order ? $order->quantity : 0;
                             $totalQuantity += $quantity;
 
@@ -395,7 +425,11 @@ class ConsolidatedExport
                         $allNotes = [];
 
                         foreach ($this->departments as $dept) {
-                            $order = $product->monthlyOrders->firstWhere('department_id', $dept->id);
+                            $order = $product->monthlyOrders
+                                ->where('department_id', $dept->id)
+                                ->where('month', $this->month)
+                                ->first();
+
                             if ($order) {
                                 $quantity = $order->quantity;
                                 $totalQuantity += $quantity;
@@ -502,5 +536,300 @@ class ConsolidatedExport
         $sheet->getColumnDimension('E')->setWidth(15); // ĐƠN GIÁ
         $sheet->getColumnDimension('F')->setWidth(15); // THÀNH TIỀN
         $sheet->getColumnDimension('G')->setWidth(20); // GHI CHÚ
+    }
+
+    protected function createDepartmentSheet($sheet, $department)
+    {
+        // Copy layout from createTongHopSheet but specific to department
+        $sheet->setTitle(mb_substr($department->name, 0, 31));
+
+        $currentRow = 1;
+
+        // ===== HEADER SECTION =====
+        // Row 1
+        $sheet->setCellValue('A' . $currentRow, 'CTY CP BV ĐA KHOA TÂM TRÍ CAO LÃNH');
+        $sheet->mergeCells('A' . $currentRow . ':D' . $currentRow);
+        $sheet->getStyle('A' . $currentRow)->getFont()->setBold(true);
+
+        $sheet->setCellValue('E' . $currentRow, 'Mẫu số 02-VT');
+        $sheet->mergeCells('E' . $currentRow . ':F' . $currentRow); // Reduced columns by 1
+        $sheet->getStyle('E' . $currentRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+        $currentRow++;
+
+        // Row 2
+        $sheet->setCellValue('A' . $currentRow, 'P. HỖ TRỢ DỊCH VỤ');
+        $sheet->mergeCells('A' . $currentRow . ':D' . $currentRow);
+        $sheet->getStyle('A' . $currentRow)->getFont()->setBold(true);
+
+        $sheet->setCellValue('E' . $currentRow, '(Ban hành theo TT số 200/2014/TT-BTC');
+        $sheet->mergeCells('E' . $currentRow . ':F' . $currentRow);
+        $sheet->getStyle('E' . $currentRow)->getFont()->setItalic(true);
+        $sheet->getStyle('E' . $currentRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+        $currentRow++;
+
+        // Row 3
+        $sheet->setCellValue('E' . $currentRow, 'Ngày 22/12/2014 của Bộ trưởng BTC)');
+        $sheet->mergeCells('E' . $currentRow . ':F' . $currentRow);
+        $sheet->getStyle('E' . $currentRow)->getFont()->setItalic(true);
+        $sheet->getStyle('E' . $currentRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+        $currentRow++;
+        $currentRow++;
+
+        // Row 5: Main title
+        $sheet->setCellValue('A' . $currentRow, 'PHIẾU XUẤT KHO VÀ BIÊN BẢN BÀN GIAO NỘI BỘ');
+        $sheet->mergeCells('A' . $currentRow . ':F' . $currentRow);
+        $sheet->getStyle('A' . $currentRow)->getFont()->setBold(true)->setSize(14);
+        $sheet->getStyle('A' . $currentRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $currentRow++;
+
+        // Row 6: Date subtitle
+        $sheet->setCellValue('A' . $currentRow, 'Ngày .../.../2026'); // Can be dynamic if needed
+        $sheet->mergeCells('A' . $currentRow . ':F' . $currentRow);
+        $sheet->getStyle('A' . $currentRow)->getFont()->setSize(11);
+        $sheet->getStyle('A' . $currentRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $currentRow++;
+
+        // Row 7: Department Name subtitle
+        $sheet->setCellValue('A' . $currentRow, mb_strtoupper($department->name));
+        $sheet->mergeCells('A' . $currentRow . ':F' . $currentRow);
+        $sheet->getStyle('A' . $currentRow)->getFont()->setBold(true)->setSize(12)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color(\PhpOffice\PhpSpreadsheet\Style\Color::COLOR_BLUE));
+        $sheet->getStyle('A' . $currentRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $currentRow++;
+
+        $currentRow++; // Empty row
+
+        // ===== TABLE SECTION =====
+        $tableStartRow = $currentRow;
+
+        // Table headers (REMOVED NOTE COLUMN)
+        $headers = ['STT', 'Tên hàng hóa, quy cách', 'ĐVT', 'Số lượng', 'Đơn giá', 'Thành tiền'];
+        $col = 'A';
+        foreach ($headers as $header) {
+            $sheet->setCellValue($col . $currentRow, $header);
+            $col++;
+        }
+
+        // Style table header
+        $sheet->getStyle('A' . $currentRow . ':F' . $currentRow)->applyFromArray([
+            'fill' => [
+                'fillType' => Fill::FILL_SOLID,
+                'startColor' => ['rgb' => 'F3F4F6'],
+            ],
+            'font' => ['bold' => true, 'name' => 'Times New Roman'],
+            'alignment' => [
+                'horizontal' => Alignment::HORIZONTAL_CENTER,
+                'vertical' => Alignment::VERTICAL_CENTER,
+            ],
+        ]);
+        $currentRow++;
+
+        // Data rows
+        $grandTotal = 0;
+        $categoryIndex = 0;
+
+        foreach ($this->categories as $category) {
+            if (isset($this->products[$category->id]) && $this->products[$category->id]->count() > 0) {
+                // Check if this category has products for this department
+                $categoryProducts = [];
+                $categoryTotal = 0;
+
+                foreach ($this->products[$category->id] as $product) {
+                    // Filter by SELECTED MONTH ONLY for Department Sheet
+                    $order = $product->monthlyOrders
+                        ->where('department_id', $department->id)
+                        ->where('month', $this->month)
+                        ->first();
+
+                    if ($order && $order->quantity > 0) {
+                        $amount = $order->quantity * $product->price;
+                        $categoryProducts[] = [
+                            'product' => $product,
+                            'quantity' => $order->quantity,
+                            'amount' => $amount,
+                        ];
+                        $categoryTotal += $amount;
+                    }
+                }
+
+                if (count($categoryProducts) > 0) {
+                    $categoryIndex++;
+                    // Category header
+                    $romanIndex = $this->romanize($categoryIndex);
+
+                    // Map category names to include Supplier if missing
+                    $displayName = mb_strtoupper($category->name);
+                    if ($category->id == 1 || stripos($category->name, 'Văn phòng phẩm') !== false) {
+                        if (stripos($displayName, 'THÀNH VÂN') === false) {
+                            $displayName = "VĂN PHÒNG PHẨM - NHÀ SÁCH THÀNH VÂN";
+                        }
+                    }
+                    if ($category->id == 3 || stripos($category->name, 'Văn phòng phẩm khác') !== false || stripos($category->name, 'Vật tư tiêu hao') !== false) {
+                        if (stripos($displayName, 'QUỐC NAM') === false) {
+                            $displayName = "VẬT TƯ TIÊU HAO - NHÀ SÁCH QUỐC NAM";
+                        }
+                    }
+
+                    $sheet->setCellValue('A' . $currentRow, $romanIndex . '. ' . $displayName);
+                    $sheet->mergeCells('A' . $currentRow . ':F' . $currentRow); // Reduced to F
+                    $sheet->getStyle('A' . $currentRow)->applyFromArray([
+                        'fill' => [
+                            'fillType' => Fill::FILL_SOLID,
+                            'startColor' => ['rgb' => 'EBF8FF'], // Light blue-50 approximation
+                        ],
+                        'font' => [
+                            'bold' => true,
+                            'color' => ['rgb' => '1D4ED8'], // Blue-700
+                            'italic' => true,
+                            'name' => 'Times New Roman',
+                        ],
+                    ]);
+                    $currentRow++;
+
+                    // Products
+                    $stt = 0;
+                    foreach ($categoryProducts as $item) {
+                        $stt++;
+                        $sheet->setCellValue('A' . $currentRow, $stt);
+                        $sheet->setCellValue('B' . $currentRow, $item['product']->name);
+                        $sheet->setCellValue('C' . $currentRow, $item['product']->unit);
+                        $sheet->setCellValue('D' . $currentRow, $item['quantity']);
+                        $sheet->setCellValue('E' . $currentRow, $item['product']->price);
+                        $sheet->setCellValue('F' . $currentRow, $item['amount']);
+                        // REMOVED NOTE CELL SETTING
+
+                        // Style cells
+                        $sheet->getStyle('A' . $currentRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER); // STT
+                        $sheet->getStyle('C' . $currentRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER); // Unit
+                        $sheet->getStyle('D' . $currentRow)->getFont()->setBold(true)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color(\PhpOffice\PhpSpreadsheet\Style\Color::COLOR_RED)); // Qty
+                        $sheet->getStyle('F' . $currentRow)->getFont()->setBold(true)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color(\PhpOffice\PhpSpreadsheet\Style\Color::COLOR_DARKGREEN)); // Total
+
+                        $currentRow++;
+                    }
+
+                    // Category total
+                    $sheet->setCellValue('E' . $currentRow, 'CỘNG NHÓM (' . $romanIndex . '):');
+                    $sheet->setCellValue('F' . $currentRow, $categoryTotal);
+                    $sheet->getStyle('E' . $currentRow)->getFont()->setBold(true);
+                    $sheet->getStyle('F' . $currentRow)->getFont()->setBold(true)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color(\PhpOffice\PhpSpreadsheet\Style\Color::COLOR_BLUE));
+                    $sheet->getStyle('A' . $currentRow . ':F' . $currentRow)->applyFromArray([
+                        'fill' => [
+                            'fillType' => Fill::FILL_SOLID,
+                            'startColor' => ['rgb' => 'EBF8FF'],
+                        ],
+                    ]);
+                    $currentRow++;
+
+                    $grandTotal += $categoryTotal;
+                }
+            }
+        }
+
+        // Grand total
+        $sheet->setCellValue('E' . $currentRow, 'TỔNG CỘNG:');
+        $sheet->setCellValue('F' . $currentRow, $grandTotal);
+        $sheet->getStyle('A' . $currentRow . ':F' . $currentRow)->applyFromArray([
+            'fill' => [
+                'fillType' => Fill::FILL_SOLID,
+                'startColor' => ['rgb' => 'F3F4F6'],
+            ],
+            'font' => [
+                'bold' => true,
+                'size' => 12,
+            ],
+        ]);
+        $sheet->getStyle('F' . $currentRow)->getFont()->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color(\PhpOffice\PhpSpreadsheet\Style\Color::COLOR_RED));
+        $tableEndRow = $currentRow;
+        $currentRow++;
+
+        // Borders for table
+        $sheet->getStyle('A' . $tableStartRow . ':F' . $tableEndRow)->applyFromArray([
+            'borders' => [
+                'allBorders' => [
+                    'borderStyle' => Border::BORDER_THIN,
+                ],
+            ],
+        ]);
+
+        // Number formatting
+        $sheet->getStyle('D' . ($tableStartRow + 1) . ':D' . $tableEndRow)->getNumberFormat()->setFormatCode('#,##0.0');
+        $sheet->getStyle('E' . ($tableStartRow + 1) . ':E' . $tableEndRow)->getNumberFormat()->setFormatCode('#,##0');
+        $sheet->getStyle('F' . ($tableStartRow + 1) . ':F' . $tableEndRow)->getNumberFormat()->setFormatCode('#,##0');
+
+        $currentRow++; // Empty row
+        $currentRow++; // Empty row
+
+        // ===== SIGNATURE SECTION =====
+        // Adjusted merge cells for 6 columns
+        $sheet->setCellValue('A' . $currentRow, 'NGƯỜI LẬP PHIẾU');
+        $sheet->mergeCells('A' . $currentRow . ':B' . $currentRow);
+        $sheet->setCellValue('C' . $currentRow, 'TRƯỞNG KHOA/PHÒNG');
+        $sheet->mergeCells('C' . $currentRow . ':D' . $currentRow);
+        $sheet->setCellValue('E' . $currentRow, 'P. KẾ HOẠCH TỔNG HỢP');
+        $sheet->mergeCells('E' . $currentRow . ':F' . $currentRow);
+
+        $sheet->getStyle('A' . $currentRow . ':F' . $currentRow)->getFont()->setBold(true);
+        $sheet->getStyle('A' . $currentRow . ':F' . $currentRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $currentRow += 1; // Empty row
+
+        $sheet->setCellValue('A' . $currentRow, '(Ký và ghi rõ họ tên)');
+        $sheet->mergeCells('A' . $currentRow . ':B' . $currentRow);
+        $sheet->setCellValue('C' . $currentRow, '(Duyệt)');
+        $sheet->mergeCells('C' . $currentRow . ':D' . $currentRow);
+        $sheet->setCellValue('E' . $currentRow, '(Xác nhận)');
+        $sheet->mergeCells('E' . $currentRow . ':F' . $currentRow);
+
+        $sheet->getStyle('A' . $currentRow . ':F' . $currentRow)->getFont()->setItalic(true)->setSize(10);
+        $sheet->getStyle('A' . $currentRow . ':F' . $currentRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $currentRow += 5; // Space for signatures
+
+        // Signature Names
+        $sheet->setCellValue('A' . $currentRow, 'Nguyễn Thị Thùy Trang');
+        $sheet->mergeCells('A' . $currentRow . ':B' . $currentRow);
+        $sheet->setCellValue('C' . $currentRow, ''); // Dept head signs manually
+        $sheet->mergeCells('C' . $currentRow . ':D' . $currentRow);
+        $sheet->setCellValue('E' . $currentRow, 'Lê Thúy Huỳnh'); // From user edit
+        $sheet->mergeCells('E' . $currentRow . ':F' . $currentRow);
+
+        $sheet->getStyle('A' . $currentRow . ':F' . $currentRow)->getFont()->setBold(true);
+        $sheet->getStyle('A' . $currentRow . ':F' . $currentRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+        // Set column widths
+        $sheet->getColumnDimension('A')->setWidth(6);  // STT
+        $sheet->getColumnDimension('B')->setAutoSize(true);  // TÊN
+        $sheet->getColumnDimension('C')->setWidth(10); // ĐVT
+        $sheet->getColumnDimension('D')->setWidth(10); // SL
+        $sheet->getColumnDimension('E')->setWidth(15); // ĐG
+        $sheet->getColumnDimension('F')->setWidth(18); // TT
+        // G removed
+    }
+
+    protected function romanize($num)
+    {
+        $map = [
+            'M' => 1000,
+            'CM' => 900,
+            'D' => 500,
+            'CD' => 400,
+            'C' => 100,
+            'XC' => 90,
+            'L' => 50,
+            'XL' => 40,
+            'X' => 10,
+            'IX' => 9,
+            'V' => 5,
+            'IV' => 4,
+            'I' => 1
+        ];
+        $returnValue = '';
+        while ($num > 0) {
+            foreach ($map as $roman => $int) {
+                if ($num >= $int) {
+                    $num -= $int;
+                    $returnValue .= $roman;
+                    break;
+                }
+            }
+        }
+        return $returnValue;
     }
 }

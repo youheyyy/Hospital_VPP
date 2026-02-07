@@ -87,7 +87,7 @@ class AdminController extends Controller
         $departments = Department::where('is_active', true)->orderBy('name')->get();
 
         // Lấy tất cả categories
-        $categoriesQuery = Category::where('is_active', true)->orderBy('display_order');
+        $categoriesQuery = Category::orderBy('display_order');
 
         // Nếu có filter category, chỉ lấy category đó
         if ($selectedCategory) {
@@ -96,15 +96,14 @@ class AdminController extends Controller
             $categories = $categoriesQuery->get();
         }
 
-        // Lấy tất cả products với orders của tháng
-        $productsQuery = Product::where('is_active', true)
-            ->with([
-                'category',
-                'monthlyOrders' => function ($query) use ($selectedMonth) {
-                    $query->where('month', $selectedMonth)
-                        ->with('department');
-                }
-            ])
+        // Lấy tất cả products với orders (ALL HISTORY per user request for Dept Slip)
+        $productsQuery = Product::with([
+            'category',
+            'monthlyOrders' => function ($query) {
+                $query->with('department');
+                // NO MONTH FILTER HERE
+            }
+        ])
             ->orderBy('category_id')
             ->orderBy('display_order');
 
@@ -116,21 +115,23 @@ class AdminController extends Controller
         $products = $productsQuery->get()->groupBy('category_id');
 
         // Lấy tất cả categories cho dropdown (không filter)
-        $allCategories = Category::where('is_active', true)->orderBy('display_order')->get();
+        $allCategories = Category::orderBy('display_order')->get();
 
-        // Tính tổng cho mỗi category
+        // Tính tổng cho mỗi category (CHỈ TÍNH THÁNG ĐƯỢC CHỌN cho Bảng Tổng)
         $categoryTotals = [];
         foreach ($products as $categoryId => $categoryProducts) {
             $categoryTotal = 0;
             foreach ($categoryProducts as $product) {
                 foreach ($product->monthlyOrders as $order) {
-                    $categoryTotal += $order->quantity * $product->price;
+                    if ($order->month == $selectedMonth) {
+                        $categoryTotal += $order->quantity * $product->price;
+                    }
                 }
             }
             $categoryTotals[$categoryId] = $categoryTotal;
         }
 
-        // Tính tổng tất cả
+        // Tính tổng tất cả (CHỈ THÁNG ĐƯỢC CHỌN)
         $grandTotal = array_sum($categoryTotals);
 
         return view('admin.consolidated', compact(
@@ -156,29 +157,30 @@ class AdminController extends Controller
         $departments = Department::where('is_active', true)->orderBy('name')->get();
 
         // Lấy tất cả categories (không filter theo category trong export)
-        $categories = Category::where('is_active', true)->orderBy('display_order')->get();
+        $categories = Category::orderBy('display_order')->get();
 
-        // Lấy tất cả products với orders của tháng
-        $products = Product::where('is_active', true)
-            ->with([
-                'category',
-                'monthlyOrders' => function ($query) use ($selectedMonth) {
-                    $query->where('month', $selectedMonth)
-                        ->with('department');
-                }
-            ])
+        // Lấy tất cả products với orders (ALL HISTORY)
+        $products = Product::with([
+            'category',
+            'monthlyOrders' => function ($query) {
+                $query->with('department');
+                // NO MONTH FILTER HERE
+            }
+        ])
             ->orderBy('category_id')
             ->orderBy('display_order')
             ->get()
             ->groupBy('category_id');
 
-        // Tính tổng cho mỗi category
+        // Tính tổng cho mỗi category (CHỈ THÁNG ĐƯỢC CHỌN)
         $categoryTotals = [];
         foreach ($products as $categoryId => $categoryProducts) {
             $categoryTotal = 0;
             foreach ($categoryProducts as $product) {
                 foreach ($product->monthlyOrders as $order) {
-                    $categoryTotal += $order->quantity * $product->price;
+                    if ($order->month == $selectedMonth) {
+                        $categoryTotal += $order->quantity * $product->price;
+                    }
                 }
             }
             $categoryTotals[$categoryId] = $categoryTotal;
