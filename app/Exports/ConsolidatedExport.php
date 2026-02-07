@@ -765,34 +765,23 @@ class ConsolidatedExport
 
         // ===== SIGNATURE SECTION =====
         // Adjusted merge cells for 6 columns
-        $sheet->setCellValue('A' . $currentRow, 'NGƯỜI LẬP PHIẾU');
+        $sheet->setCellValue('A' . $currentRow, 'Người Lập phiếu');
         $sheet->mergeCells('A' . $currentRow . ':B' . $currentRow);
-        $sheet->setCellValue('C' . $currentRow, 'TRƯỞNG KHOA/PHÒNG');
+        $sheet->setCellValue('C' . $currentRow, 'Người nhận');
         $sheet->mergeCells('C' . $currentRow . ':D' . $currentRow);
-        $sheet->setCellValue('E' . $currentRow, 'P. KẾ HOẠCH TỔNG HỢP');
+        $sheet->setCellValue('E' . $currentRow, 'Người giao');
         $sheet->mergeCells('E' . $currentRow . ':F' . $currentRow);
 
         $sheet->getStyle('A' . $currentRow . ':F' . $currentRow)->getFont()->setBold(true);
         $sheet->getStyle('A' . $currentRow . ':F' . $currentRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-        $currentRow += 1; // Empty row
-
-        $sheet->setCellValue('A' . $currentRow, '(Ký và ghi rõ họ tên)');
-        $sheet->mergeCells('A' . $currentRow . ':B' . $currentRow);
-        $sheet->setCellValue('C' . $currentRow, '(Duyệt)');
-        $sheet->mergeCells('C' . $currentRow . ':D' . $currentRow);
-        $sheet->setCellValue('E' . $currentRow, '(Xác nhận)');
-        $sheet->mergeCells('E' . $currentRow . ':F' . $currentRow);
-
-        $sheet->getStyle('A' . $currentRow . ':F' . $currentRow)->getFont()->setItalic(true)->setSize(10);
-        $sheet->getStyle('A' . $currentRow . ':F' . $currentRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-        $currentRow += 5; // Space for signatures
+        $currentRow += 4; // Space for signatures (Reduced spacing slightly as no sub-headers)
 
         // Signature Names
-        $sheet->setCellValue('A' . $currentRow, 'Nguyễn Thị Thùy Trang');
+        $sheet->setCellValue('A' . $currentRow, 'Phạm Thị Thuỳnh Như'); // Updated name to match Image 2
         $sheet->mergeCells('A' . $currentRow . ':B' . $currentRow);
         $sheet->setCellValue('C' . $currentRow, ''); // Dept head signs manually
         $sheet->mergeCells('C' . $currentRow . ':D' . $currentRow);
-        $sheet->setCellValue('E' . $currentRow, 'Lê Thúy Huỳnh'); // From user edit
+        $sheet->setCellValue('E' . $currentRow, 'Lê Thúy Huỳnh');
         $sheet->mergeCells('E' . $currentRow . ':F' . $currentRow);
 
         $sheet->getStyle('A' . $currentRow . ':F' . $currentRow)->getFont()->setBold(true);

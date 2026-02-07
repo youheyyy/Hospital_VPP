@@ -281,6 +281,7 @@ class AdminController extends Controller
         // Update each order individually to ensure it works
         $affected = 0;
         foreach ($orders as $order) {
+            /** @var \App\Models\MonthlyOrder $order */
             \Log::info("Updating order ID: {$order->id}, current note: '{$order->notes}'");
             $order->notes = $request->note;
             $order->save();
