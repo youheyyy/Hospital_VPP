@@ -27,7 +27,8 @@
 
     <!-- Content -->
     <div class="p-8 space-y-8">
-        <!-- Import Data Section -->
+        <!-- Import Data Section (COMMENTED OUT AS REQUESTED) -->
+        {{--
         <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
             <h2 class="text-lg font-bold text-slate-900 mb-6 flex items-center gap-2">
                 <span class="material-symbols-outlined text-blue-600">upload_file</span>
@@ -85,10 +86,11 @@
             </div>
         </div>
         </form>
+        --}}
 
         <!-- Use a separate form for Advanced Import? Or combine? 
-                         Let's create a separate distinct section for clarity as requested.
-                    -->
+                             Let's create a separate distinct section for clarity as requested.
+                        -->
     </div>
 
     <!-- Advanced Import Section -->

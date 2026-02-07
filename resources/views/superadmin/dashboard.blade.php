@@ -138,6 +138,7 @@
         </div>
 
         <!-- Row 3: Login Sessions & Activity Log -->
+        {{--
         <div class="grid grid-cols-1 gap-8 mb-8">
             <!-- Activity Log (Row 4) -->
             <div class="bg-white p-8 rounded-2xl border border-gray-100 shadow-sm" x-data="activityStats">
@@ -298,6 +299,7 @@
                 </div>
             </div>
         </div>
+        --}}
 @endsection
 
     @section('scripts')

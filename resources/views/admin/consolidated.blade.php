@@ -96,6 +96,87 @@
                 display: flex !important;
             }
         }
+
+        /* Sticky Headers & Columns */
+        .excel-table th.sticky-header {
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            box-shadow: 0 1px 0 #d1d5db;
+        }
+
+        .sticky-col {
+            position: sticky;
+            z-index: 40;
+            background-color: inherit;
+            /* Fallback */
+        }
+
+        /* Ensure sticky columns have a background so text doesn't overlap */
+        .excel-table tbody tr td.sticky-col,
+        .excel-table thead tr th.sticky-col {
+            background-color: #fff;
+            /* Default white */
+        }
+
+        /* Specific backgrounds for header/category rows */
+        .excel-table thead tr th.sticky-col {
+            background-color: #f3f4f6;
+            /* Match header bg */
+        }
+
+        /* Higher z-index for intersection of sticky header and sticky col */
+        th.sticky-col.sticky-header {
+            z-index: 60 !important;
+        }
+
+        .sticky-col-1 {
+            left: 0;
+            border-right: 1px solid #e5e7eb;
+        }
+
+        .sticky-col-2 {
+            left: 40px;
+            border-right: 1px solid #e5e7eb;
+        }
+
+        .sticky-col-3 {
+            left: 290px;
+            border-right: 1px solid #e5e7eb;
+        }
+
+        /* Category Header Sticky */
+        .category-header td {
+            position: sticky;
+            left: 0;
+            z-index: 45;
+            box-shadow: 0 1px 0 #d1d5db;
+            /* Separator shadow */
+            background-color: #3b82f6 !important;
+            /* Ensure blue background sticks */
+            color: white;
+        }
+
+        .category-header-text {
+            position: sticky;
+            left: 10px;
+            display: inline-block;
+        }
+
+        #content-bang-tong .category-header td {
+            top: var(--header-height-bang-tong, 50px);
+        }
+
+        #content-tong-hop .category-header td {
+            top: var(--header-height-tong-hop, 50px);
+        }
+
+        /* Prevent wrapping in sticky columns for better alignment */
+        .sticky-col {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
     </style>
 </head>
 
@@ -229,17 +310,19 @@
 
                 <!-- BẢNG TỔNG Tab -->
                 <div id="content-bang-tong"
-                    class="tab-content bg-white rounded-b-lg shadow-sm border border-gray-200 overflow-hidden">
+                    class="tab-content bg-white rounded-b-lg shadow-sm border border-gray-200 overflow-auto max-h-[calc(100vh-200px)]">
                     <table class="excel-table">
                         <thead>
                             <tr>
-                                <th style="width: 40px;">STT</th>
-                                <th style="width: 250px;">TÊN HÀNG</th>
-                                <th style="width: 80px;">ĐVT</th>
+                                <th class="sticky-header sticky-col sticky-col-1" style="width: 40px;">STT</th>
+                                <th class="sticky-header sticky-col sticky-col-2" style="width: 250px;">TÊN HÀNG</th>
+                                <th class="sticky-header sticky-col sticky-col-3" style="width: 80px;">ĐVT</th>
                                 @foreach($departments as $dept)
-                                    <th style="width: 100px; background: #d4edda;">{{ strtoupper($dept->name) }}</th>
+                                    <th class="sticky-header" style="width: 100px; background: #d4edda;">
+                                        {{ strtoupper($dept->name) }}
+                                    </th>
                                 @endforeach
-                                <th style="width: 120px; background: #fff3cd;">Tổng SL</th>
+                                <th class="sticky-header" style="width: 120px; background: #fff3cd;">Tổng SL</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -248,23 +331,27 @@
                                 @if(isset($products[$category->id]) && $products[$category->id]->count() > 0)
                                     <!-- Category Header -->
                                     <tr class="category-header">
-                                        <td colspan="{{ 4 + $departments->count() }}">{{ strtoupper($category->name) }}</td>
+                                        <td colspan="{{ 4 + $departments->count() }}">
+                                            <span class="category-header-text">
+                                                {{ strtoupper($category->name) }}
+                                            </span>
+                                        </td>
                                     </tr>
 
                                     <!-- Products -->
                                     @foreach($products[$category->id] as $product)
                                         @php
-                                            $stt++;
                                             // Correctly filter orders for this month only
                                             $monthlyOrders = $product->monthlyOrders->where('month', $selectedMonth);
                                             $hasOrders = $monthlyOrders->sum('quantity') > 0;
                                             $totalQuantity = 0;
                                         @endphp
                                         @if($hasOrders)
+                                            @php $stt++; @endphp
                                             <tr>
-                                                <td class="text-center text-gray-600">{{ $stt }}</td>
-                                                <td class="font-medium">{{ $product->name }}</td>
-                                                <td class="text-center">{{ $product->unit }}</td>
+                                                <td class="text-center text-gray-600 sticky-col sticky-col-1">{{ $stt }}</td>
+                                                <td class="font-medium sticky-col sticky-col-2">{{ $product->name }}</td>
+                                                <td class="text-center sticky-col sticky-col-3">{{ $product->unit }}</td>
                                                 @foreach($departments as $dept)
                                                     @php
                                                         $order = $monthlyOrders->firstWhere('department_id', $dept->id);
@@ -289,7 +376,7 @@
 
                 <!-- TỔNG HỢP Tab -->
                 <div id="content-tong-hop"
-                    class="tab-content hidden bg-white rounded-b-lg shadow-sm border border-gray-200 overflow-hidden">
+                    class="tab-content hidden bg-white rounded-b-lg shadow-sm border border-gray-200 overflow-auto max-h-[calc(100vh-200px)]">
                     <!-- Print Header -->
                     <div class="print-header p-6 text-[14px] leading-relaxed">
                         <div class="flex justify-between mb-4">
@@ -332,13 +419,14 @@
                     <table class="excel-table">
                         <thead>
                             <tr>
-                                <th style="width: 40px;">STT</th>
-                                <th style="width: 250px;">TÊN VPP - VTTH</th>
-                                <th style="width: 80px;">ĐVT</th>
-                                <th style="width: 80px;">SỐ LƯỢNG</th>
-                                <th style="width: 120px;">ĐƠN GIÁ</th>
-                                <th style="width: 130px;">THÀNH TIỀN</th>
-                                <th style="width: 150px;" class="relative group pdf-hide">
+                                <th class="sticky-header sticky-col sticky-col-1" style="width: 40px;">STT</th>
+                                <th class="sticky-header sticky-col sticky-col-2" style="width: 250px;">TÊN VPP - VTTH
+                                </th>
+                                <th class="sticky-header sticky-col sticky-col-3" style="width: 80px;">ĐVT</th>
+                                <th class="sticky-header" style="width: 80px;">SỐ LƯỢNG</th>
+                                <th class="sticky-header" style="width: 120px;">ĐƠN GIÁ</th>
+                                <th class="sticky-header" style="width: 130px;">THÀNH TIỀN</th>
+                                <th class="sticky-header relative group pdf-hide" style="width: 150px;">
                                     <div class="flex items-center justify-between">
                                         <span>GHI CHÚ</span>
                                         <button @click.stop="showNoteManager = !showNoteManager"
@@ -412,13 +500,16 @@
                                 @if(isset($products[$category->id]) && $products[$category->id]->count() > 0)
                                     <!-- Category Header -->
                                     <tr class="category-header">
-                                        <td colspan="7">{{ strtoupper($category->name) }}</td>
+                                        <td colspan="7">
+                                            <span class="category-header-text">
+                                                {{ strtoupper($category->name) }}
+                                            </span>
+                                        </td>
                                     </tr>
 
                                     <!-- Products -->
                                     @foreach($products[$category->id] as $product)
                                         @php
-                                            $stt++;
                                             // Correctly filter orders for this month only
                                             $monthlyOrders = $product->monthlyOrders->where('month', $selectedMonth);
                                             $hasOrders = $monthlyOrders->sum('quantity') > 0;
@@ -426,10 +517,11 @@
                                             $totalAmount = 0;
                                         @endphp
                                         @if($hasOrders)
+                                            @php $stt++; @endphp
                                             <tr>
-                                                <td class="text-center font-medium pdf-stt-cell">{{ $stt }}</td>
-                                                <td class="font-medium px-4">{{ $product->name }}</td>
-                                                <td class="text-center">{{ $product->unit }}</td>
+                                                <td class="text-center font-medium pdf-stt-cell sticky-col sticky-col-1">{{ $stt }}</td>
+                                                <td class="font-medium px-4 sticky-col sticky-col-2">{{ $product->name }}</td>
+                                                <td class="text-center sticky-col sticky-col-3">{{ $product->unit }}</td>
                                                 @php
                                                     foreach ($departments as $dept) {
                                                         $order = $monthlyOrders->firstWhere('department_id', $dept->id);
@@ -634,12 +726,31 @@
             document.getElementById('content-' + tabName).classList.remove('hidden');
 
             // Add active state to selected tab
-            const activeTab = document.getElementById('tab-' + tabName);
             if (activeTab) {
                 activeTab.classList.remove('border-transparent', 'text-gray-500');
                 activeTab.classList.add('border-blue-600', 'text-blue-600');
             }
+
+            // Recalculate sticky header positions after tab switch
+            setTimeout(updateHeaderHeights, 50);
         }
+
+        function updateHeaderHeights() {
+            const bangTongHead = document.querySelector('#content-bang-tong thead');
+            if (bangTongHead && bangTongHead.offsetParent !== null) {
+                // Use -1px to avoid gap
+                document.documentElement.style.setProperty('--header-height-bang-tong', (bangTongHead.offsetHeight - 1) + 'px');
+            }
+
+            const tongHopHead = document.querySelector('#content-tong-hop thead');
+            if (tongHopHead && tongHopHead.offsetParent !== null) {
+                document.documentElement.style.setProperty('--header-height-tong-hop', (tongHopHead.offsetHeight - 1) + 'px');
+            }
+        }
+
+        // Update on load and resize
+        window.addEventListener('load', updateHeaderHeights);
+        window.addEventListener('resize', updateHeaderHeights);
 
         // Initialize tab on load
         document.addEventListener('DOMContentLoaded', function () {

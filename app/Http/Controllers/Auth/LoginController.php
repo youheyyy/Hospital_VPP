@@ -35,7 +35,7 @@ class LoginController extends Controller
             if ($user->role === 'SuperAdmin') {
                 // Trigger Auto Backup
                 \App\Http\Controllers\SuperAdminController::autoBackupDaily();
-                return redirect()->intended('/superadmin/users');
+                return redirect()->intended('/superadmin/dashboard');
             } elseif ($user->role === 'Admin') {
                 return redirect()->intended('/admin/dashboard');
             } elseif ($user->role === 'Department') {
