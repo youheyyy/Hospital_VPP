@@ -257,45 +257,16 @@ class AdminController extends Controller
     }
     public function updateNote(Request $request)
     {
-        \Log::info('=== UPDATE NOTE REQUEST ===');
-        \Log::info('Product ID: ' . $request->product_id);
-        \Log::info('Month: ' . $request->month);
-        \Log::info('Note: ' . $request->note);
-
         $request->validate([
             'product_id' => 'required|exists:products,id',
             'month' => 'required',
             'note' => 'nullable|string',
         ]);
 
-        // Enable query logging
-        \DB::enableQueryLog();
-
-        // Get the orders first to see what we're updating
-        $orders = MonthlyOrder::where('product_id', $request->product_id)
+        // Update admin_notes for all orders of this product in this month
+        $affected = MonthlyOrder::where('product_id', $request->product_id)
             ->where('month', $request->month)
-            ->get();
-
-        \Log::info('Found orders: ' . $orders->count());
-
-        // Update each order individually to ensure it works
-        $affected = 0;
-        foreach ($orders as $order) {
-            \Log::info("Updating order ID: {$order->id}, current note: '{$order->notes}'");
-            $order->notes = $request->note;
-            $order->save();
-            $affected++;
-            \Log::info("After save, note is: '{$order->notes}'");
-        }
-
-        // Log the queries
-        $queries = \DB::getQueryLog();
-        \Log::info('SQL Queries executed:');
-        foreach ($queries as $query) {
-            \Log::info(json_encode($query));
-        }
-
-        \Log::info('Total rows updated: ' . $affected);
+            ->update(['admin_notes' => $request->note]);
 
         return response()->json(['success' => true, 'affected' => $affected]);
     }

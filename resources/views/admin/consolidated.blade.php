@@ -191,11 +191,11 @@
                             @endfor
                         </select>
                     </form>
-                    <a href="{{ route('admin.consolidated.print', ['month' => $selectedMonth]) }}" target="_blank"
+                    <button onclick="printDirect()"
                         class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2">
                         <span class="material-symbols-outlined text-sm">print</span>
                         In
-                    </a>
+                    </button>
                     <a href="{{ route('admin.consolidated.export', ['month' => $selectedMonth]) }}"
                         class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2">
                         <span class="material-symbols-outlined text-sm">table_chart</span>
@@ -332,9 +332,10 @@
                                 <th style="width: 80px;">SỐ LƯỢNG</th>
                                 <th style="width: 120px;">ĐƠN GIÁ</th>
                                 <th style="width: 130px;">THÀNH TIỀN</th>
+                                <th style="width: 150px;" class="pdf-hide">GHI CHÚ KHOA PHÒNG</th>
                                 <th style="width: 150px;" class="relative group pdf-hide">
                                     <div class="flex items-center justify-between">
-                                        <span>GHI CHÚ</span>
+                                        <span>GHI CHÚ ADMIN</span>
                                         <button @click.stop="showNoteManager = !showNoteManager"
                                             class="text-gray-400 hover:text-blue-600 p-1 rounded-full"
                                             title="Quản lý ghi chú nhanh">
@@ -406,7 +407,7 @@
                                 @if(isset($products[$category->id]) && $products[$category->id]->count() > 0)
                                     <!-- Category Header -->
                                     <tr class="category-header">
-                                        <td colspan="7">{{ strtoupper($category->name) }}</td>
+                                        <td colspan="8">{{ strtoupper($category->name) }}</td>
                                     </tr>
 
                                     <!-- Products -->
@@ -436,8 +437,11 @@
                                                 <td class="text-right font-bold text-red-600">
                                                     {{ number_format($totalAmount, 0, ',', '.') }}
                                                 </td>
+                                                <td class="px-2 py-1 text-sm text-gray-600 bg-gray-50 pdf-hide">
+                                                    {{ $product->monthlyOrders->first()->notes ?? '' }}
+                                                </td>
                                                 <td class="px-2 py-1 pdf-hide"
-                                                    x-data="smartNote('{{ $product->id }}', '{{ $selectedMonth }}', {{ \Illuminate\Support\Js::from($product->monthlyOrders->first()->notes ?? '') }})">
+                                                    x-data="smartNote('{{ $product->id }}', '{{ $selectedMonth }}', {{ \Illuminate\Support\Js::from($product->monthlyOrders->first()->admin_notes ?? '') }})">
                                                     <div class="relative" @click.away="dropdownOpen = false">
                                                         <div class="relative group">
                                                             <input type="text" x-model="note" @focus="dropdownOpen = true"
@@ -670,6 +674,28 @@
             };
 
             html2pdf().set(opt).from(element).save();
+        }
+
+        function printDirect() {
+            // Switch to TỔNG HỢP tab if not already there
+            const tongHopTab = document.getElementById('content-tong-hop');
+            if (tongHopTab.classList.contains('hidden')) {
+                switchTab('tong-hop');
+            }
+
+            // Update date fields
+            const now = new Date();
+            document.querySelectorAll('.print-date-day').forEach(el => el.innerText = now.getDate().toString().padStart(2, '0'));
+            document.querySelectorAll('.print-date-month').forEach(el => el.innerText = (now.getMonth() + 1).toString().padStart(2, '0'));
+            document.querySelectorAll('.print-date-year').forEach(el => el.innerText = now.getFullYear());
+
+            // Update total fields
+            const grandTotalValue = {{ (float) $grandTotal }};
+            document.querySelectorAll('.pdf-total-numeric').forEach(el => el.innerText = new Intl.NumberFormat('vi-VN').format(grandTotalValue));
+            document.querySelectorAll('.pdf-total-text').forEach(el => el.innerText = docSoThanhChu(grandTotalValue));
+
+            // Trigger print dialog
+            window.print();
         }
     </script>
     <script>

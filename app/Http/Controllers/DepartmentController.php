@@ -77,6 +77,7 @@ class DepartmentController extends Controller
             'orders' => 'required|array',
             'orders.*.product_id' => 'required|exists:products,id',
             'orders.*.quantity' => 'required|numeric|min:0',
+            'orders.*.notes' => 'nullable|string|max:500',
         ]);
 
         // Kiểm tra tháng được chọn phải là tháng hiện tại
@@ -103,20 +104,28 @@ class DepartmentController extends Controller
         $currentDay = now()->day;
         $canEdit = $currentDay < 5;
 
+        // Debug: Write to log file to see what's being received
+        \Log::info('=== NOTES DEBUG ===', ['validated_orders' => $validated['orders']]);
+
+
         foreach ($validated['orders'] as $order) {
-            if ($order['quantity'] > 0) {
-                // Kiểm tra xem đã có order này chưa
-                $existingOrder = MonthlyOrder::where([
-                    'department_id' => $department->id,
-                    'product_id' => $order['product_id'],
-                    'month' => $validated['month'],
-                ])->first();
+            // Kiểm tra xem đã có order này chưa
+            $existingOrder = MonthlyOrder::where([
+                'department_id' => $department->id,
+                'product_id' => $order['product_id'],
+                'month' => $validated['month'],
+            ])->first();
 
-                // Nếu sau ngày 5 và đã có order, không cho phép cập nhật
-                if (!$canEdit && $existingOrder) {
-                    continue; // Bỏ qua việc cập nhật order đã tồn tại
-                }
+            // Nếu sau ngày 5 và đã có order, không cho phép cập nhật
+            if (!$canEdit && $existingOrder) {
+                continue; // Bỏ qua việc cập nhật order đã tồn tại
+            }
 
+            // Lưu nếu có số lượng > 0 hoặc có ghi chú
+            $hasNotes = !empty($order['notes']);
+            $hasQuantity = $order['quantity'] > 0;
+            
+            if ($hasQuantity || $hasNotes) {
                 // Cho phép tạo mới hoặc cập nhật nếu trước ngày 5
                 MonthlyOrder::updateOrCreate(
                     [
@@ -126,8 +135,14 @@ class DepartmentController extends Controller
                     ],
                     [
                         'quantity' => $order['quantity'],
+                        'notes' => $order['notes'] ?? null,
                     ]
                 );
+            } else {
+                // Xóa order nếu không có số lượng và không có ghi chú
+                if ($existingOrder) {
+                    $existingOrder->delete();
+                }
             }
         }
 
@@ -203,6 +218,63 @@ class DepartmentController extends Controller
             'selectedMonth',
             'totalAmount'
         ));
+    }
+
+    /**
+     * Cập nhật số lượng qua AJAX
+     */
+    public function updateQuantity(Request $request, $id)
+    {
+        $order = MonthlyOrder::findOrFail($id);
+
+        // Kiểm tra quyền
+        if ($order->department_id !== Auth::user()->department_id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Bạn không có quyền chỉnh sửa yêu cầu này.'
+            ], 403);
+        }
+
+        // Validate
+        $validated = $request->validate([
+            'quantity' => 'required|numeric|min:0',
+        ]);
+
+        // Cập nhật số lượng
+        $order->quantity = $validated['quantity'];
+        $order->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Đã cập nhật số lượng thành công!',
+            'data' => [
+                'quantity' => $order->quantity,
+                'total' => $order->quantity * $order->product->price
+            ]
+        ]);
+    }
+
+    /**
+     * Xóa yêu cầu qua AJAX
+     */
+    public function deleteOrder($id)
+    {
+        $order = MonthlyOrder::findOrFail($id);
+
+        // Kiểm tra quyền
+        if ($order->department_id !== Auth::user()->department_id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Bạn không có quyền xóa yêu cầu này.'
+            ], 403);
+        }
+
+        $order->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Đã xóa yêu cầu thành công!'
+        ]);
     }
 
     /**

@@ -44,6 +44,23 @@
             background: #fef3c7;
             font-weight: bold;
         }
+
+        .editable-quantity {
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .editable-quantity:hover {
+            background-color: #f0f9ff;
+        }
+
+        .quantity-input-edit {
+            width: 100%;
+            text-align: right;
+            border: 2px solid #3b82f6;
+            padding: 4px 8px;
+            font-size: 0.875rem;
+        }
     </style>
 </head>
 
@@ -142,8 +159,11 @@
                                     <th style="width: 120px;">Số lượng</th>
                                     <th style="width: 130px;">Đơn giá</th>
                                     <th style="width: 150px;">Thành tiền</th>
+                                    <th style="width: 200px;">Ghi chú</th>
+                                    <th style="width: 200px;">Ghi chú Admin</th>
                                     <th style="width: 150px;">Ngày tạo</th>
                                     <th style="width: 150px;">Ngày cập nhật</th>
+                                    <th style="width: 100px;">Thao tác</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -151,25 +171,40 @@
                                 @foreach($orders as $categoryName => $categoryOrders)
                                     <!-- Category Header -->
                                     <tr class="category-header">
-                                        <td colspan="8">{{ strtoupper($categoryName) }}</td>
+                                        <td colspan="12">{{ strtoupper($categoryName) }}</td>
                                     </tr>
 
                                     <!-- Products -->
                                     @foreach($categoryOrders as $order)
                                         @php $stt++; @endphp
-                                        <tr>
+                                        <tr data-order-id="{{ $order->id }}" data-product-price="{{ $order->product->price }}" id="order-row-{{ $order->id }}">
                                             <td class="text-center text-sm text-gray-600">{{ $stt }}</td>
                                             <td class="text-sm font-medium">{{ $order->product->name }}</td>
                                             <td class="text-center text-sm">{{ $order->product->unit }}</td>
-                                            <td class="text-right text-sm">{{ number_format($order->quantity, 0, ',', '.') }}</td>
+                                            <td class="text-right text-sm editable-quantity" 
+                                                data-order-id="{{ $order->id }}" 
+                                                data-current-quantity="{{ $order->quantity }}"
+                                                ondblclick="editQuantity(this)"
+                                                title="Double click để chỉnh sửa">
+                                                <span class="quantity-display">{{ number_format($order->quantity, 0, ',', '.') }}</span>
+                                            </td>
                                             <td class="text-right text-sm">{{ number_format($order->product->price, 0, ',', '.') }}
                                             </td>
-                                            <td class="text-right text-sm font-semibold">
+                                            <td class="text-right text-sm font-semibold total-cell">
                                                 {{ number_format($order->quantity * $order->product->price, 0, ',', '.') }}</td>
+                                            <td class="text-sm text-gray-600">{{ $order->notes ?? '' }}</td>
+                                            <td class="text-sm text-blue-700 bg-blue-50">{{ $order->admin_notes ?? '' }}</td>
                                             <td class="text-center text-sm text-gray-600">
                                                 {{ $order->created_at->format('d/m/Y H:i') }}</td>
                                             <td class="text-center text-sm text-gray-600">
                                                 {{ $order->updated_at->format('d/m/Y H:i') }}</td>
+                                            <td class="text-center">
+                                                <button onclick="deleteOrder({{ $order->id }})" 
+                                                    class="px-3 py-1 text-xs text-red-600 hover:text-white hover:bg-red-600 border border-red-600 rounded transition-colors"
+                                                    title="Xóa dòng này">
+                                                    <span class="material-symbols-outlined text-sm" style="font-size: 16px;">delete</span>
+                                                </button>
+                                            </td>
                                         </tr>
                                     @endforeach
                                 @endforeach
@@ -177,19 +212,14 @@
                                 <!-- Total Row -->
                                 <tr class="total-row">
                                     <td colspan="5" class="text-right font-bold">TỔNG CỘNG:</td>
-                                    <td class="text-right font-bold">{{ number_format($totalAmount, 0, ',', '.') }}</td>
-                                    <td colspan="2"></td>
+                                    <td class="text-right font-bold" id="grandTotalDisplay">{{ number_format($totalAmount, 0, ',', '.') }}</td>
+                                    <td colspan="6"></td>
                                 </tr>
                             </tbody>
                         </table>
                     </div>
 
                     <div class="mt-6 flex justify-end gap-4">
-                        <a href="{{ route('department.index') }}"
-                            class="px-6 py-2 border border-blue-600 text-blue-600 rounded-lg hover:bg-blue-50">
-                            <span class="material-symbols-outlined text-sm inline-block align-middle">edit</span>
-                            Chỉnh sửa yêu cầu
-                        </a>
                         <a href="{{ route('department.history.print', ['month' => $selectedMonth]) }}" target="_blank"
                             class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 inline-flex items-center gap-2">
                             <span class="material-symbols-outlined text-sm">print</span>
@@ -200,6 +230,179 @@
             </div>
         </main>
     </div>
+
+    <script>
+        let currentEditingCell = null;
+
+        function editQuantity(cell) {
+            // Prevent multiple edits at once
+            if (currentEditingCell) {
+                return;
+            }
+
+            currentEditingCell = cell;
+            const orderId = cell.dataset.orderId;
+            const currentQuantity = cell.dataset.currentQuantity;
+            const displaySpan = cell.querySelector('.quantity-display');
+
+            // Create input element
+            const input = document.createElement('input');
+            input.type = 'number';
+            input.className = 'quantity-input-edit';
+            input.value = currentQuantity;
+            input.min = '0';
+            input.step = '1';
+
+            // Replace display with input
+            displaySpan.style.display = 'none';
+            cell.appendChild(input);
+            input.focus();
+            input.select();
+
+            // Handle save on Enter or blur
+            const saveEdit = async () => {
+                const newQuantity = parseInt(input.value) || 0;
+                
+                if (newQuantity === parseInt(currentQuantity)) {
+                    // No change, just cancel
+                    cancelEdit();
+                    return;
+                }
+
+                // Show loading state
+                input.disabled = true;
+                cell.style.opacity = '0.6';
+
+                try {
+                    const response = await fetch(`/department/order/${orderId}/update-quantity`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                        },
+                        body: JSON.stringify({ quantity: newQuantity })
+                    });
+
+                    const data = await response.json();
+
+                    if (response.ok) {
+                        // Update display
+                        displaySpan.textContent = newQuantity.toLocaleString('vi-VN');
+                        cell.dataset.currentQuantity = newQuantity;
+                        
+                        // Update total cell
+                        const row = cell.closest('tr');
+                        const price = parseFloat(row.dataset.productPrice);
+                        const totalCell = row.querySelector('.total-cell');
+                        totalCell.textContent = (newQuantity * price).toLocaleString('vi-VN');
+                        
+                        // Update grand total
+                        updateGrandTotal();
+                        
+                        // Show success feedback
+                        cell.style.backgroundColor = '#d1fae5';
+                        setTimeout(() => {
+                            cell.style.backgroundColor = '';
+                        }, 1000);
+                    } else {
+                        alert(data.message || 'Có lỗi xảy ra khi cập nhật số lượng');
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('Có lỗi xảy ra khi cập nhật số lượng');
+                }
+
+                // Clean up
+                input.remove();
+                displaySpan.style.display = '';
+                cell.style.opacity = '';
+                currentEditingCell = null;
+            };
+
+            const cancelEdit = () => {
+                input.remove();
+                displaySpan.style.display = '';
+                currentEditingCell = null;
+            };
+
+            // Event listeners
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    saveEdit();
+                } else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    cancelEdit();
+                }
+            });
+
+            input.addEventListener('blur', () => {
+                setTimeout(saveEdit, 100);
+            });
+        }
+
+        function updateGrandTotal() {
+            let grandTotal = 0;
+            document.querySelectorAll('tr[data-order-id]').forEach(row => {
+                const quantity = parseFloat(row.querySelector('.editable-quantity').dataset.currentQuantity) || 0;
+                const price = parseFloat(row.dataset.productPrice) || 0;
+                grandTotal += quantity * price;
+            });
+            
+            const totalCell = document.getElementById('grandTotalDisplay');
+            if (totalCell) {
+                totalCell.textContent = grandTotal.toLocaleString('vi-VN');
+            }
+        }
+
+        async function deleteOrder(orderId) {
+            if (!confirm('Bạn có chắc chắn muốn xóa dòng này không?')) {
+                return;
+            }
+
+            const row = document.getElementById(`order-row-${orderId}`);
+            if (!row) return;
+
+            // Show loading state
+            row.style.opacity = '0.5';
+
+            try {
+                const response = await fetch(`/department/order/${orderId}/delete`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    // Fade out animation
+                    row.style.transition = 'opacity 0.3s';
+                    row.style.opacity = '0';
+                    
+                    setTimeout(() => {
+                        row.remove();
+                        updateGrandTotal();
+                        
+                        // Check if table is empty
+                        const remainingRows = document.querySelectorAll('tr[data-order-id]');
+                        if (remainingRows.length === 0) {
+                            location.reload();
+                        }
+                    }, 300);
+                } else {
+                    alert(data.message || 'Có lỗi xảy ra khi xóa dòng này');
+                    row.style.opacity = '1';
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Có lỗi xảy ra khi xóa dòng này');
+                row.style.opacity = '1';
+            }
+        }
+    </script>
 </body>
 
 </html>
