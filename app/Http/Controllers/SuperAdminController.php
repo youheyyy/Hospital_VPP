@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class SuperAdminController extends Controller
 {
@@ -67,6 +68,63 @@ class SuperAdminController extends Controller
             'description' => $description,
             'created_at' => now()
         ]);
+    }
+
+    /**
+     * Ensure a department has a user account
+     * Format: CLEANNAME@hospital.com / password
+     */
+    private function ensureDepartmentUser(Department $department)
+    {
+        $cleanName = $this->cleanString($department->name);
+        $email = strtoupper($cleanName) . '@hospital.com';
+
+        // Check if user exists
+        $user = User::where('email', $email)->first();
+
+        if (!$user) {
+            User::create([
+                'name' => $department->name,
+                'email' => $email,
+                'password' => Hash::make('password'),
+                'role' => 'Department',
+                'department_id' => $department->id,
+                'is_active' => true,
+            ]);
+            Log::info("Created auto-account for department: {$email}");
+        } else {
+            // Update department ID if it was null or wrong, but don't error out
+            $user->update(['department_id' => $department->id, 'role' => 'Department']);
+        }
+    }
+
+    /**
+     * Remove accents and spaces from string
+     */
+    private function cleanString($str)
+    {
+        $unicode = array(
+            'a' => 'á|à|ả|ã|ạ|ă|ắ|ặ|ằ|ẳ|ẵ|â|ấ|ầ|ẩ|ẫ|ậ',
+            'd' => 'đ',
+            'e' => 'é|è|ẻ|ẽ|ẹ|ê|ế|ề|ể|ễ|ệ',
+            'i' => 'í|ì|ỉ|ĩ|ị',
+            'o' => 'ó|ò|ỏ|õ|ọ|ô|ố|ồ|ổ|ỗ|ộ|ơ|ớ|ờ|ở|ỡ|ợ',
+            'u' => 'ú|ù|ủ|ũ|ụ|ư|ứ|ừ|ử|ữ|ự',
+            'y' => 'ý|ỳ|ỷ|ỹ|ỵ',
+            'A' => 'Á|À|Ả|Ã|Ạ|Ă|Ắ|Ặ|Ằ|Ẳ|Ẵ|Â|Ấ|Ầ|Ẩ|Ẫ|Ậ',
+            'D' => 'Đ',
+            'E' => 'É|È|Ẻ|Ẽ|Ẹ|Ê|Ế|Ề|Ể|Ễ|Ệ',
+            'I' => 'Í|Ì|Ỉ|Ĩ|Ị',
+            'O' => 'Ó|Ò|Ỏ|Õ|Ọ|Ô|Ố|Ồ|Ổ|Ỗ|Ộ|Ơ|Ớ|Ờ|Ở|Ỡ|Ợ',
+            'U' => 'Ú|Ù|Ủ|Ũ|Ụ|Ư|Ứ|Ừ|Ử|Ữ|Ự',
+            'Y' => 'Ý|Ỳ|Ỷ|Ỹ|Ỵ',
+        );
+
+        foreach ($unicode as $nonUnicode => $uni) {
+            $str = preg_replace("/($uni)/i", $nonUnicode, $str);
+        }
+        $str = str_replace(' ', '', $str); // Remove spaces
+        return $str;
     }
 
     /**
@@ -588,138 +646,340 @@ class SuperAdminController extends Controller
     {
         $request->validate([
             'excel_file' => 'required|file|mimes:xlsx,xls',
-            'month' => 'required|date_format:Y-m', // "2026-02"
+            'month' => 'required|date_format:Y-m',
         ]);
 
         try {
+            set_time_limit(0);
+            ini_set('memory_limit', '1024M'); // Increase memory for large batch processing
+
             $file = $request->file('excel_file');
             $monthInput = $request->input('month');
-            // Convert "2026-02" to "02/2026" for database storage if that's the format
-            // Check monthly_orders table migration: $table->string('month', 7); // Format: MM/YYYY
             $monthParts = explode('-', $monthInput);
             $targetMonth = "{$monthParts[1]}/{$monthParts[0]}";
 
-            // Load Excel file
-            $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($file->getPathname());
+            $reader = \PhpOffice\PhpSpreadsheet\IOFactory::createReaderForFile($file->getPathname());
+            $reader->setReadDataOnly(true);
+            $spreadsheet = $reader->load($file->getPathname());
 
-            // --- STEP 1: PARSE "TỔNG HỢP" SHEET (Master Data) ---
-            $masterSheet = $spreadsheet->getSheetByName('TỔNG HỢP');
+            // --- PRE-LOAD DATA INTO HASH MAPS (Optimization) ---
+            // Departments: [normalized_code => dept_object]
+            $existingDepts = \App\Models\Department::all();
+            $deptMap = [];
+            foreach ($existingDepts as $d) {
+                $deptMap[strtoupper(\Illuminate\Support\Str::slug($d->name))] = $d;
+            }
+
+            // Products: [normalized_name => product_object] - LOADING FULL OBJECTS TO AVOID "Find()"
+            $existingProducts = \App\Models\Product::all();
+            $productMap = [];
+            foreach ($existingProducts as $p) {
+                $uniqueKey = $this->cleanString($p->name);
+                $productMap[$uniqueKey] = $p;
+            }
+
+            // Categories: [normalized_name => id]
+            $existingCats = \App\Models\Category::all();
+            $catMap = [];
+            foreach ($existingCats as $c) {
+                $catMap[$this->cleanString($c->name)] = $c->id;
+            }
+
+            $ordersToInsert = [];
+            $processedDepartments = 0;
+            $processedOrders = 0;
+            $pivotMode = false;
+            $pivotDeptIds = []; // [colIndex => departmentId]
+
+            // --- STEP 1: DETECT & PARSE "TỔNG HỢP" SHEET (Pivot Mode) ---
+            $masterSheet = $spreadsheet->getSheetByName('TỔNG HỢP') ?? $spreadsheet->getSheetByName('Tong hop');
+
             if ($masterSheet) {
                 $rows = $masterSheet->toArray();
                 $currentCategoryId = null;
-                // row 0 is header usually? Let's iterate.
-                // Based on User feedback, we scan for categories and products.
-                // Assuming Row 9 is header, data starts Row 10 (index 9). But let's scan all.
 
-                foreach ($rows as $index => $row) {
-                    if ($index < 5)
-                        continue; // Skip top header
-
-                    $colA = trim($row[0] ?? ''); // STT
-                    $colB = trim($row[1] ?? ''); // Tên hàng / Danh mục
-                    $colC = trim($row[2] ?? ''); // ĐVT
-                    $colE = trim($row[4] ?? ''); // Đơn giá (check index carefully: A=0, B=1, C=2, D=3, E=4)
-
-                    // Identify Category: usually no STT, no Unit, and has Name
-                    // Or "VĂN PHÒNG PHẨM..." style.
-                    // Simple heuristic: If STT is empty AND Name is not empty AND Unit is empty -> Category
-                    // OR if Name is UPPERCASE and long?
-
-                    // Better approach from user image: Category "VĂN PHÒNG PHẨM..." is in Blue, no STT.
-
-                    if (empty($colA) && !empty($colB) && empty($colC)) {
-                        // Likely a Category
-                        $category = \App\Models\Category::updateOrCreate(
-                            ['name' => $colB],
-                            ['is_active' => true]
-                        );
-                        $currentCategoryId = $category->id;
+                // DETECT PIVOT HEADERS (Scan rows 3-5 for Department Names)
+                $headerRowIndex = -1;
+                for ($r = 2; $r <= 5; $r++) {
+                    if (!isset($rows[$r]))
+                        continue;
+                    $row = $rows[$r];
+                    // Check if > 3 columns look like Departments
+                    $deptCount = 0;
+                    for ($c = 3; $c < count($row); $c++) {
+                        $cell = trim($row[$c] ?? '');
+                        if (strlen($cell) > 2 && !str_contains($cell, 'Tổng') && !is_numeric($cell)) {
+                            $deptCount++;
+                        }
                     }
-                    // Identify Product: Has STT (numeric)
-                    elseif (is_numeric($colA) && !empty($colB)) {
-                        // It's a product
-                        $price = (float) str_replace([',', '.'], '', $colE); // Remove commas/dots
-
-                        \App\Models\Product::updateOrCreate(
-                            ['name' => $colB],
-                            [
-                                'unit' => $colC,
-                                'price' => $price,
-                                'category_id' => $currentCategoryId, // Assign to current category
-                                'is_active' => true
-                            ]
-                        );
+                    if ($deptCount > 2) {
+                        $headerRowIndex = $r;
+                        $pivotMode = true;
+                        break;
                     }
                 }
-            }
 
-            // --- STEP 2: PARSE DEPARTMENT SHEETS ---
-            $sheetNames = $spreadsheet->getSheetNames();
-            $ignoredSheets = ['BẢNG TỔNG', 'TỔNG HỢP', 'Highlights', 'Sheet1', 'Tong hop', 'Ghi chu'];
+                if ($pivotMode) {
+                    // Process Headers to create/map Departments
+                    $headerRow = $rows[$headerRowIndex];
+                    for ($col = 3; $col < count($headerRow); $col++) {
+                        $deptName = trim($headerRow[$col] ?? '');
+                        if (empty($deptName) || str_contains($deptName, 'Tổng') || str_contains($deptName, 'Ghi chú'))
+                            continue;
 
-            $processedDepartments = 0;
-            $processedOrders = 0;
+                        $deptSlug = strtoupper(\Illuminate\Support\Str::slug($deptName));
 
-            foreach ($sheetNames as $sheetName) {
-                if (in_array($sheetName, $ignoredSheets))
-                    continue;
+                        if (isset($deptMap[$deptSlug])) {
+                            $dept = $deptMap[$deptSlug];
+                        } else {
+                            $dept = \App\Models\Department::create(['code' => $deptSlug, 'name' => $deptName]);
+                            $this->ensureDepartmentUser($dept);
+                            $deptMap[$deptSlug] = $dept; // Update map
+                        }
 
-                // 1. Identify/Create Department
-                $departmentName = trim($sheetName);
-                if (empty($departmentName))
-                    continue;
+                        $pivotDeptIds[$col] = $dept->id;
 
-                $department = \App\Models\Department::firstOrCreate(
-                    ['name' => $departmentName],
-                    ['code' => strtoupper(\Illuminate\Support\Str::slug($departmentName))]
-                );
+                        // Clear old data for matched departments
+                        \App\Models\MonthlyOrder::where('department_id', $dept->id)
+                            ->where('month', $targetMonth)
+                            ->delete();
+                    }
+                    $processedDepartments = count($pivotDeptIds);
 
-                // 2. Clean Old Data for this Month + Dept
-                \App\Models\MonthlyOrder::where('department_id', $department->id)
-                    ->where('month', $targetMonth)
-                    ->delete();
+                    // Process Data Rows
+                    for ($i = $headerRowIndex + 1; $i < count($rows); $i++) {
+                        $row = $rows[$i];
+                        $colB = trim($row[1] ?? ''); // Name (often in B for Single)
+                        $colC = trim($row[2] ?? ''); // Name (often in C for Pivot) or Unit
 
-                // 3. Parse Sheet
-                $sheet = $spreadsheet->getSheetByName($sheetName);
-                $rows = $sheet->toArray();
+                        // Heuristic: If pivot mode, Name is usually C, Unit D. 
+                        // But sometimes B is name if A is empty.
+                        $name = !empty($colC) ? $colC : $colB;
+                        $unit = trim($row[3] ?? '');
 
-                foreach ($rows as $index => $row) {
-                    if ($index < 8)
-                        continue; // Skip headers (Row 9 is header, data starts Row 10 -> index 9)
+                        if (empty($name) || strlen($name) < 2)
+                            continue;
 
-                    $colA = trim($row[0] ?? ''); // STT
-                    $colB = trim($row[1] ?? ''); // Tên hàng (Product Name)
-                    $colD = trim($row[3] ?? ''); // Số lượng (A=0, B=1, C=2, D=3)
+                        // Filter junk
+                        if (str_contains($name, 'CỘNG HÒA') || str_contains($name, 'BẢNG') || str_contains($name, 'Tên hàng'))
+                            continue;
 
-                    // Only process rows with numeric STT (valid products)
-                    if (is_numeric($colA) && !empty($colB)) {
-                        $product = \App\Models\Product::where('name', $colB)->first();
+                        // Identify Product
+                        $normName = $this->cleanString($name);
+                        $product = $productMap[$normName] ?? null;
+                        $productId = $product ? $product->id : null;
 
-                        if ($product) {
-                            $quantity = (float) str_replace([',', '.'], '', $colD);
+                        // Create if new
+                        if (!$product) {
+                            // Detect Category (No Unit, Name only)
+                            if (empty($unit)) {
+                                // Category Logic
+                                $normCatName = $this->cleanString($name);
+                                if (isset($catMap[$normCatName])) {
+                                    $currentCategoryId = $catMap[$normCatName];
+                                } else {
+                                    $cat = \App\Models\Category::create(['name' => $name, 'is_active' => true]);
+                                    $catMap[$normCatName] = $cat->id;
+                                    $currentCategoryId = $cat->id;
+                                }
+                                continue;
+                            }
+                            // Create Product
+                            else {
+                                if (!$currentCategoryId) {
+                                    $defaultCatName = $this->cleanString('Văn phòng phẩm');
+                                    $currentCategoryId = $catMap[$defaultCatName] ?? \App\Models\Category::firstOrCreate(['name' => 'Văn phòng phẩm'])->id;
+                                    $catMap[$defaultCatName] = $currentCategoryId;
+                                }
 
-                            if ($quantity > 0) {
-                                \App\Models\MonthlyOrder::create([
-                                    'department_id' => $department->id,
-                                    'product_id' => $product->id,
-                                    'month' => $targetMonth,
-                                    'quantity' => $quantity,
-                                    'notes' => '' // Can parse note from Col F if needed
+                                $product = \App\Models\Product::create([
+                                    'name' => $name,
+                                    'unit' => $unit,
+                                    'category_id' => $currentCategoryId,
+                                    'is_active' => true
                                 ]);
-                                $processedOrders++;
+                                $productMap[$normName] = $product;
+                                $productId = $product->id;
+                            }
+                        }
+
+                        // Add Orders for this row
+                        if ($productId) {
+                            foreach ($pivotDeptIds as $colIndex => $deptId) {
+                                $qty = trim($row[$colIndex] ?? '');
+                                $qty = (float) str_replace([',', '.'], '', $qty);
+                                if ($qty > 0) {
+                                    $ordersToInsert[] = [
+                                        'department_id' => $deptId,
+                                        'product_id' => $productId,
+                                        'month' => $targetMonth,
+                                        'quantity' => $qty,
+                                        'notes' => '',
+                                        'created_at' => now(),
+                                        'updated_at' => now(),
+                                    ];
+                                    $processedOrders++;
+                                }
                             }
                         }
                     }
                 }
-                $processedDepartments++;
             }
 
-            $this->logActivity('Import Excel Nâng cao', "Đã import dữ liệu tháng {$targetMonth} cho {$processedDepartments} khoa.");
-            return redirect()->route('superadmin.data-management')->with('success', "Import thành công! Đã xử lý {$processedDepartments} khoa và {$processedOrders} đơn hàng cho tháng {$targetMonth}.");
+            // --- STEP 2: FALLBACK TO MULTI-SHEET (If no Pivot Mode detected) ---
+            if (!$pivotMode) {
+                $sheetNames = $spreadsheet->getSheetNames();
+                $ignoredSheets = ['BẢNG TỔNG', 'TỔNG HỢP', 'Highlights', 'Sheet1', 'Tong hop', 'Ghi chu'];
+
+                foreach ($sheetNames as $sheetName) {
+                    if (in_array($sheetName, $ignoredSheets))
+                        continue;
+
+                    // Parse Department from Sheet Name
+                    $deptSlug = strtoupper(\Illuminate\Support\Str::slug($sheetName));
+                    if (isset($deptMap[$deptSlug])) {
+                        $dept = $deptMap[$deptSlug];
+                    } else {
+                        $dept = \App\Models\Department::create(['code' => $deptSlug, 'name' => $sheetName]);
+                        $this->ensureDepartmentUser($dept);
+                        $deptMap[$deptSlug] = $dept;
+                    }
+
+                    // Reset data for this dept
+                    \App\Models\MonthlyOrder::where('department_id', $dept->id)
+                        ->where('month', $targetMonth)
+                        ->delete();
+
+                    $processedDepartments++;
+
+                    $sheet = $spreadsheet->getSheetByName($sheetName);
+                    $rows = $sheet->toArray();
+
+                    // Buffer for summation: [prod_id => ['quantity' => float, 'notes' => string]]
+                    $deptOrdersBuffer = [];
+                    // Default fallback category if sheet starts without one
+                    $defaultCatName = $this->cleanString('Văn phòng phẩm');
+                    $currentCategoryId = $catMap[$defaultCatName] ?? \App\Models\Category::firstOrCreate(['name' => 'Văn phòng phẩm'])->id;
+                    $catMap[$defaultCatName] = $currentCategoryId;
+
+                    foreach ($rows as $index => $row) {
+                        if ($index < 5)
+                            continue; // Skip header mostly
+
+                        // Indexes:
+                        // 0: STT, 1: Name (B), 2: Unit (C), 3: Qty (D), 4: Price (E), 6: Note (G)
+                        $name = trim($row[1] ?? ''); // usually Col B
+                        $unit = trim($row[2] ?? '');
+                        $qtyStr = trim($row[3] ?? '');
+                        $priceStr = trim($row[4] ?? '');
+                        $note = trim($row[6] ?? '');
+
+                        if (empty($name))
+                            continue;
+
+                        // --- CATEGORY DETECTION ---
+                        if (empty($unit) && empty($qtyStr) && empty($priceStr)) {
+                            if (str_contains($name, 'CỘNG') || str_contains($name, 'Tổng'))
+                                continue;
+                            $normCatName = $this->cleanString($name);
+                            if (isset($catMap[$normCatName])) {
+                                $currentCategoryId = $catMap[$normCatName];
+                            } else {
+                                $cat = \App\Models\Category::create(['name' => $name, 'is_active' => true]);
+                                $catMap[$normCatName] = $cat->id;
+                                $currentCategoryId = $cat->id;
+                            }
+                            continue;
+                        }
+
+                        // --- PRODUCT PROCESSING ---
+                        $qty = (float) str_replace([',', '.'], '', $qtyStr);
+                        if ($qty <= 0)
+                            continue;
+                        if (str_contains($name, 'Tên hàng') || str_contains($name, 'ĐVT') || str_contains($name, 'Cộng') || str_contains($name, 'Tổng'))
+                            continue;
+
+                        $normName = $this->cleanString($name);
+                        $product = $productMap[$normName] ?? null;
+                        $productId = $product ? $product->id : null;
+
+                        // Create if missing
+                        if (!$product) {
+                            $newProd = \App\Models\Product::create([
+                                'name' => $name,
+                                'unit' => $unit,
+                                'category_id' => $currentCategoryId,
+                                'is_active' => true
+                            ]);
+                            $productMap[$normName] = $newProd; // Cache full object
+                            $product = $newProd;
+                            $productId = $newProd->id;
+                        }
+
+                        // UPDATE PRODUCT PRICE (In-Memory Check to avoid DB writes)
+                        if (!empty($priceStr)) {
+                            $price = (float) str_replace([',', '.'], '', $priceStr);
+                            if ($price > 0) {
+                                // Only update if price changed
+                                if ((float) $product->price != $price) {
+                                    $product->price = $price;
+                                    // Update unit if missing
+                                    if (empty($product->unit) && !empty($unit)) {
+                                        $product->unit = $unit;
+                                    }
+                                    $product->save(); // Save to DB
+                                }
+                            }
+                        }
+
+                        // BUFFER QUANTITY (Summation)
+                        if (isset($deptOrdersBuffer[$productId])) {
+                            $deptOrdersBuffer[$productId]['quantity'] += $qty;
+                            if (!empty($note)) {
+                                $deptOrdersBuffer[$productId]['notes'] .= '; ' . $note;
+                            }
+                        } else {
+                            $deptOrdersBuffer[$productId] = [
+                                'quantity' => $qty,
+                                'notes' => $note
+                            ];
+                        }
+                    }
+
+                    // Convert Buffer to Insert Array
+                    foreach ($deptOrdersBuffer as $pId => $data) {
+                        $ordersToInsert[] = [
+                            'department_id' => $dept->id,
+                            'product_id' => $pId,
+                            'month' => $targetMonth,
+                            'quantity' => $data['quantity'],
+                            'notes' => trim($data['notes'], '; '),
+                            'created_at' => now(),
+                            'updated_at' => now(),
+                        ];
+                        $processedOrders++;
+                    }
+                }
+            }
+
+            // --- STEP 3: BATCH INSERT ---
+            if (count($ordersToInsert) > 0) {
+                // Chunk to verify memory limits
+                $chunks = array_chunk($ordersToInsert, 1000);
+                foreach ($chunks as $chunk) {
+                    \App\Models\MonthlyOrder::insert($chunk);
+                }
+            }
+
+            $mode = $pivotMode ? 'Pivot (Siêu tốc)' : 'Đơn lẻ (Nhiều sheet)';
+            $this->logActivity('Import HighPerf', "Import {$processedOrders} dòng cho {$processedDepartments} khoa. Mode: {$mode}");
+
+            return redirect()->route('superadmin.data-management')
+                ->with('success', "Đã import xong! ({$mode}): {$processedDepartments} khoa, {$processedOrders} sản phẩm.");
 
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error('Advanced Import failed: ' . $e->getMessage());
-            return redirect()->route('superadmin.data-management')->with('error', 'Lỗi Import Nâng cao: ' . $e->getMessage());
+            Log::error('Advanced Import failed: ' . $e->getMessage());
+            return redirect()->route('superadmin.data-management')->with('error', 'Lỗi Import: ' . $e->getMessage());
         }
     }
 
@@ -739,6 +999,12 @@ class SuperAdminController extends Controller
 
             // Load Excel file
             $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($file->getPathname());
+
+            // CHECK IF USER UPLOADED THE COMPLEX "TỔNG HỢP" FILE BY MISTAKE
+            if ($spreadsheet->getSheetByName('TỔNG HỢP')) {
+                return redirect()->route('superadmin.data-management')->with('error', 'Lỗi: Bạn đang dùng chức năng "Import Đơn giản" cho file "Tổng Hợp" (nhiều sheet). Vui lòng kéo xuống dưới và dùng mục "Import File Tổng Hợp (Nhiều Sheet)" để hệ thống xử lý chính xác!');
+            }
+
             $worksheet = $spreadsheet->getActiveSheet();
             $rows = $worksheet->toArray();
 

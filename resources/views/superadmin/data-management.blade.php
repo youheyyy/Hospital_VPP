@@ -87,8 +87,8 @@
         </form>
 
         <!-- Use a separate form for Advanced Import? Or combine? 
-                     Let's create a separate distinct section for clarity as requested.
-                -->
+                         Let's create a separate distinct section for clarity as requested.
+                    -->
     </div>
 
     <!-- Advanced Import Section -->
@@ -97,8 +97,17 @@
             <span class="material-symbols-outlined text-purple-600">folder_zip</span>
             Import File Tổng Hợp (Nhiều Sheet)
         </h2>
+        <div class="alert alert-info">
+            <strong>Hướng dẫn Import Nâng cao:</strong><br>
+            1. <strong>Chế độ Pivot (TỔNG HỢP):</strong> Dành cho sheet có nhiều cột khoa (Khoa A, Khoa B...).<br>
+            2. <strong>Chế độ Đơn lẻ (Nhiều Sheet):</strong> Dành cho file có mỗi sheet là một khoa (như "BẢNG KÊ MUA
+            HÀNG").<br>
+            - Hệ thống tự nhận diện <strong>Danh mục</strong> (dòng đậm, không có ĐVT/Số lượng).<br>
+            - Tự động cập nhật <strong>Đơn giá</strong> (Cột E).<br>
+            - Tự động <strong>cộng dồn số lượng</strong> nếu trùng tên sản phẩm.
+        </div>
         <form action="{{ route('superadmin.import.advanced') }}" method="POST" enctype="multipart/form-data"
-            class="space-y-6">
+            id="importAdvancedForm" class="space-y-6">
             @csrf
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>

@@ -96,12 +96,11 @@ class AdminController extends Controller
             $categories = $categoriesQuery->get();
         }
 
-        // Lấy tất cả products với orders (ALL HISTORY per user request for Dept Slip)
+        // Lấy tất cả products với orders (CHỈ THÁNG ĐƯỢC CHỌN)
         $productsQuery = Product::with([
             'category',
-            'monthlyOrders' => function ($query) {
-                $query->with('department');
-                // NO MONTH FILTER HERE
+            'monthlyOrders' => function ($query) use ($selectedMonth) {
+                $query->where('month', $selectedMonth)->with('department');
             }
         ])
             ->orderBy('category_id')
@@ -159,12 +158,11 @@ class AdminController extends Controller
         // Lấy tất cả categories (không filter theo category trong export)
         $categories = Category::orderBy('display_order')->get();
 
-        // Lấy tất cả products với orders (ALL HISTORY)
+        // Lấy tất cả products với orders (CHỈ THÁNG ĐƯỢC CHỌN)
         $products = Product::with([
             'category',
-            'monthlyOrders' => function ($query) {
-                $query->with('department');
-                // NO MONTH FILTER HERE
+            'monthlyOrders' => function ($query) use ($selectedMonth) {
+                $query->where('month', $selectedMonth)->with('department');
             }
         ])
             ->orderBy('category_id')
