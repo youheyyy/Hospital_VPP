@@ -50,6 +50,7 @@ Route::middleware(['auth', 'role:Department'])->prefix('department')->name('depa
     Route::get('/history/print', [DepartmentController::class, 'printHistory'])->name('history.print');
     Route::post('/store', [DepartmentController::class, 'store'])->name('store');
     Route::post('/order/{id}/update-quantity', [DepartmentController::class, 'updateQuantity'])->name('order.update-quantity');
+    Route::post('/order/{id}/update-notes', [DepartmentController::class, 'updateNotes'])->name('order.update-notes');
     Route::delete('/order/{id}/delete', [DepartmentController::class, 'deleteOrder'])->name('order.delete');
     Route::delete('/{id}', [DepartmentController::class, 'destroy'])->name('destroy');
 });

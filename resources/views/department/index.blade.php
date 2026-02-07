@@ -161,7 +161,6 @@
                                     <th style="width: 120px;">Số lượng</th>
                                     <th style="width: 130px;">Đơn giá</th>
                                     <th style="width: 150px;">Thành tiền</th>
-                                    <th style="width: 200px;">Ghi chú</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -174,16 +173,13 @@
                                     
                                     <!-- Category Header -->
                                     <tr class="category-header">
-                                        <td colspan="8">{{ strtoupper($category->name) }}</td>
+                                        <td colspan="7">{{ strtoupper($category->name) }}</td>
                                     </tr>
 
                                     <!-- Products -->
                                     @foreach($categoryProducts as $product)
                                         @php
                                             $stt++;
-                                            $existingOrder = $monthlyOrders[$product->id] ?? null;
-                                            $quantity = $existingOrder ? $existingOrder->quantity : 0;
-                                            $notes = $existingOrder ? $existingOrder->notes : '';
                                         @endphp
                                         <tr class="product-row" data-product-id="{{ $product->id }}">
                                             <td class="text-center">
@@ -208,14 +204,7 @@
                                                     oninput="calculateTotal(this)">
                                             </td>
                                             <td class="text-right text-sm price-cell">{{ number_format($product->price, 0, ',', '.') }}</td>
-                                            <td class="text-right text-sm font-semibold total-cell">{{ number_format($product->price * $quantity, 0, ',', '.') }}</td>
-                                            <td>
-                                                <textarea 
-                                                    name="orders[{{ $product->id }}][notes]"
-                                                    class="notes-input w-full border-gray-300 rounded text-sm px-2 py-1"
-                                                    rows="1"
-                                                    placeholder="Ghi chú...">{{ $notes }}</textarea>
-                                            </td>
+                                            <td class="text-right text-sm font-semibold total-cell">0</td>
                                         </tr>
                                     @endforeach
                                 @endforeach
@@ -224,7 +213,6 @@
                                 <tr class="total-row">
                                     <td colspan="6" class="text-right font-bold">TỔNG CỘNG:</td>
                                     <td class="text-right font-bold" id="grandTotal">0</td>
-                                    <td></td>
                                 </tr>
                             </tbody>
                         </table>

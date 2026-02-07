@@ -48,12 +48,10 @@ class DepartmentController extends Controller
             ->orderBy('display_order')
             ->get();
 
-        // Lấy các yêu cầu hiện tại của khoa trong tháng
-        $monthlyOrders = MonthlyOrder::where('department_id', $department->id)
-            ->where('month', $selectedMonth)
-            ->with('product')
-            ->get()
-            ->keyBy('product_id');
+
+        // Không load yêu cầu cũ - trang này chỉ dùng để tạo yêu cầu mới
+        // Nếu muốn xem/sửa yêu cầu cũ, dùng trang "Lịch sử yêu cầu"
+        $monthlyOrders = collect(); // Empty collection
 
         return view('department.index', compact(
             'department',
@@ -250,6 +248,39 @@ class DepartmentController extends Controller
             'data' => [
                 'quantity' => $order->quantity,
                 'total' => $order->quantity * $order->product->price
+            ]
+        ]);
+    }
+
+    /**
+     * Cập nhật ghi chú qua AJAX
+     */
+    public function updateNotes(Request $request, $id)
+    {
+        $order = MonthlyOrder::findOrFail($id);
+
+        // Kiểm tra quyền
+        if ($order->department_id !== Auth::user()->department_id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Bạn không có quyền chỉnh sửa yêu cầu này.'
+            ], 403);
+        }
+
+        // Validate
+        $validated = $request->validate([
+            'notes' => 'nullable|string|max:500',
+        ]);
+
+        // Cập nhật ghi chú
+        $order->notes = $validated['notes'];
+        $order->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Đã cập nhật ghi chú thành công!',
+            'data' => [
+                'notes' => $order->notes
             ]
         ]);
     }

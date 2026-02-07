@@ -213,13 +213,13 @@ class AdminController extends Controller
         // Lấy tháng được chọn hoặc tháng hiện tại
         $selectedMonth = $request->input('month', date('m/Y'));
 
-        // Lấy tất cả departments
+        // Lấy tất cả departments active
         $departments = Department::where('is_active', true)->orderBy('name')->get();
 
-        // Lấy tất cả categories
+        // Lấy tất cả categories active
         $categories = Category::where('is_active', true)->orderBy('display_order')->get();
 
-        // Lấy tất cả products với orders của tháng
+        // Lấy tất cả products với orders của tháng (Eager load to avoid N+1)
         $products = Product::where('is_active', true)
             ->with([
                 'category',
@@ -248,13 +248,49 @@ class AdminController extends Controller
         // Tính tổng tất cả
         $grandTotal = array_sum($categoryTotals);
 
+        // Chuẩn bị dữ liệu cho Phiếu Xuất Kho (Grouped by Department)
+        $departmentOrders = [];
+        foreach ($departments as $dept) {
+            $deptOrders = [];
+            foreach ($products as $categoryId => $categoryProducts) {
+                $categoryData = [
+                    'category' => $categories->firstWhere('id', $categoryId),
+                    'orders' => []
+                ];
+
+                foreach ($categoryProducts as $product) {
+                    $order = $product->monthlyOrders->firstWhere('department_id', $dept->id);
+                    if ($order && $order->quantity > 0) {
+                        $categoryData['orders'][] = [
+                            'product' => $product,
+                            'order' => $order,
+                            'total' => $order->quantity * $product->price
+                        ];
+                    }
+                }
+
+                if (!empty($categoryData['orders'])) {
+                    $deptOrders[] = $categoryData;
+                }
+            }
+
+            if (!empty($deptOrders)) {
+                $departmentOrders[$dept->id] = [
+                    'department' => $dept,
+                    'sections' => $deptOrders,
+                    'total' => collect($deptOrders)->sum(fn($s) => collect($s['orders'])->sum('total'))
+                ];
+            }
+        }
+
         return view('admin.consolidated-print', compact(
             'departments',
             'categories',
             'products',
             'selectedMonth',
             'categoryTotals',
-            'grandTotal'
+            'grandTotal',
+            'departmentOrders'
         ));
     }
     public function updateNote(Request $request)

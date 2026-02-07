@@ -15,6 +15,7 @@ class MonthlyOrder extends Model
         'month',
         'quantity',
         'notes',
+        'admin_notes',
     ];
 
     protected $casts = [

@@ -101,6 +101,8 @@
 
 <body class="bg-gray-50" x-data="{ showNoteManager: false }">
     <div class="flex h-screen">
+        <!-- Hidden Print Iframe -->
+        <iframe id="printFrame" style="display:none;"></iframe>
         <!-- Sidebar -->
         <aside class="w-64 bg-white border-r border-gray-200 flex flex-col no-print">
             <div class="p-6 border-b">
@@ -159,20 +161,6 @@
                     <p class="text-sm text-gray-500">Tháng {{ $selectedMonth }}</p>
                 </div>
                 <div class="flex items-center gap-4">
-                    <!-- Category Filter -->
-                    <form method="GET" action="{{ route('admin.consolidated') }}" class="flex items-center gap-2">
-                        <input type="hidden" name="month" value="{{ $selectedMonth }}">
-                        <select name="category" onchange="this.form.submit()"
-                            class="border-gray-300 rounded-lg text-sm px-4 py-2">
-                            <option value="">Tất cả danh mục</option>
-                            @foreach($allCategories as $cat)
-                                <option value="{{ $cat->id }}" {{ request('category') == $cat->id ? 'selected' : '' }}>
-                                    {{ $cat->name }}
-                                </option>
-                            @endforeach
-                        </select>
-                    </form>
-
                     <!-- Month Filter -->
                     <form method="GET" action="{{ route('admin.consolidated') }}">
                         @if(request('category'))
@@ -230,7 +218,35 @@
                 <!-- BẢNG TỔNG Tab -->
                 <div id="content-bang-tong"
                     class="tab-content bg-white rounded-b-lg shadow-sm border border-gray-200 overflow-hidden">
-                    <table class="excel-table">
+                    <!-- Dropdown Filter for Bảng Tổng -->
+                    <div class="p-4 border-b bg-gray-50 flex items-center gap-4">
+                        <div class="relative flex-1 max-w-sm">
+                            <label for="searchBangTong" class="block text-xs font-medium text-gray-700 mb-1">Lọc theo sản phẩm:</label>
+                            <select id="searchBangTong" onchange="filterBangTong()" 
+                                class="w-full pl-3 pr-10 py-2 border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white">
+                                <option value="">-- Tất cả sản phẩm --</option>
+                                @php
+                                    $allUniqueProducts = collect();
+                                    foreach($products as $catProducts) {
+                                        foreach($catProducts as $p) {
+                                            if ($p->monthlyOrders->where('month', $selectedMonth)->sum('quantity') > 0) {
+                                                $allUniqueProducts->push($p->name);
+                                            }
+                                        }
+                                    }
+                                    $allUniqueProducts = $allUniqueProducts->unique()->sort();
+                                @endphp
+                                @foreach($allUniqueProducts as $productName)
+                                    <option value="{{ $productName }}">{{ $productName }}</option>
+                                @endforeach
+                            </select>
+                            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 pt-5 text-gray-700">
+                                <span class="material-symbols-outlined text-sm">expand_more</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <table class="excel-table" id="tableBangTong">
                         <thead>
                             <tr>
                                 <th style="width: 40px;">STT</th>
@@ -338,10 +354,9 @@
                                 <th style="width: 80px;">SỐ LƯỢNG</th>
                                 <th style="width: 120px;">ĐƠN GIÁ</th>
                                 <th style="width: 130px;">THÀNH TIỀN</th>
-                                <th style="width: 150px;" class="pdf-hide">GHI CHÚ KHOA PHÒNG</th>
                                 <th style="width: 150px;" class="relative group pdf-hide">
                                     <div class="flex items-center justify-between">
-                                        <span>GHI CHÚ ADMIN</span>
+                                        <span>GHI CHÚ QUẢN LÝ</span>
                                         <button @click.stop="showNoteManager = !showNoteManager"
                                             class="text-gray-400 hover:text-blue-600 p-1 rounded-full"
                                             title="Quản lý ghi chú nhanh">
@@ -413,7 +428,7 @@
                                 @if(isset($products[$category->id]) && $products[$category->id]->count() > 0)
                                     <!-- Category Header -->
                                     <tr class="category-header">
-                                        <td colspan="8">{{ strtoupper($category->name) }}</td>
+                                        <td colspan="7">{{ strtoupper($category->name) }}</td>
                                     </tr>
 
                                     <!-- Products -->
@@ -439,14 +454,11 @@
                                                     }
                                                     $totalAmount = $totalQuantity * $product->price;
                                                 @endphp
-                                                <td class="text-right font-bold">{{ number_format($totalQuantity, 1, ',', '.') }}
+                                                <td class="text-right font-bold">{{ number_format($totalQuantity, 0, ',', '.') }}
                                                 </td>
                                                 <td class="text-right">{{ number_format($product->price, 0, ',', '.') }}</td>
                                                 <td class="text-right font-bold text-red-600">
                                                     {{ number_format($totalAmount, 0, ',', '.') }}
-                                                </td>
-                                                <td class="px-2 py-1 text-sm text-gray-600 bg-gray-50 pdf-hide">
-                                                    {{ $product->monthlyOrders->first()->notes ?? '' }}
                                                 </td>
                                                 <td class="px-2 py-1 pdf-hide"
                                                     x-data="smartNote('{{ $product->id }}', '{{ $selectedMonth }}', {{ \Illuminate\Support\Js::from($product->monthlyOrders->first()->admin_notes ?? '') }})">
@@ -572,7 +584,7 @@
                                             <td class="font-medium border px-3 py-2 text-left" x-text="prod.name"></td>
                                             <td class="text-center border px-3 py-2" x-text="prod.unit"></td>
                                             <td class="text-center font-bold text-red-600 border px-3 py-2"
-                                                x-text="formatNumber(prod.quantity, 1)"></td>
+                                                x-text="formatNumber(prod.quantity, 0)"></td>
                                             <td class="text-right text-green-600 border px-3 py-2"
                                                 x-text="formatNumber(prod.price, 0)"></td>
                                             <td class="text-right font-bold text-green-700 border px-3 py-2"
@@ -695,103 +707,132 @@
             return res.trim().charAt(0).toUpperCase() + res.trim().slice(1) + " đồng./.";
         }
 
-        function exportToPDF() {
-            const container = document.querySelector('#content-tong-hop');
-            const element = container.cloneNode(true);
-            element.classList.remove('hidden');
+        async function exportToPDF() {
+            const month = "{{ $selectedMonth }}";
+            const printUrl = "{{ route('admin.consolidated.print') }}?month=" + encodeURIComponent(month);
+            
+            // Show loading state
+            const btn = event.currentTarget;
+            const originalContent = btn.innerHTML;
+            btn.innerHTML = '<span class="material-symbols-outlined text-sm animate-spin">sync</span> Đang chuẩn bị PDF...';
+            btn.disabled = true;
 
-            // Apply PDF Container Styling (Centered A4 Landscape)
-            element.style.width = '1100px';
-            element.style.margin = '0 auto';
-            element.style.backgroundColor = 'white';
-            element.style.padding = '40px';
-            element.style.fontFamily = "'Times New Roman', serif";
+            try {
+                // Fetch the printable HTML content
+                const response = await fetch(printUrl);
+                const html = await response.text();
+                
+                // Create a temporary container to hold the HTML
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = html;
+                
+                // Extract only the part we want to print (the pages)
+                // In our consolidated-print.blade.php, we have .page elements
+                const pages = tempDiv.querySelectorAll('.page');
+                const container = document.createElement('div');
+                pages.forEach(p => {
+                    // Clone to avoid issues and append to container
+                    const clone = p.cloneNode(true);
+                    // Add some height spacing for the PDF converter if needed
+                    clone.style.marginBottom = '20px';
+                    container.appendChild(clone);
+                });
 
-            // Set Date Fields
-            const now = new Date();
-            element.querySelectorAll('.print-date-day').forEach(el => el.innerText = now.getDate().toString().padStart(2, '0'));
-            element.querySelectorAll('.print-date-month').forEach(el => el.innerText = (now.getMonth() + 1).toString().padStart(2, '0'));
-            element.querySelectorAll('.print-date-year').forEach(el => el.innerText = now.getFullYear());
+                const opt = {
+                    margin: [0.2, 0.2, 0.2, 0.2],
+                    filename: 'Tong_hop_VPP_' + month.replace('/', '_') + '.pdf',
+                    image: { type: 'jpeg', quality: 0.98 },
+                    html2canvas: { 
+                        scale: 2, 
+                        useCORS: true,
+                        letterRendering: true
+                    },
+                    jsPDF: { unit: 'in', format: 'a4', orientation: 'landscape' },
+                    pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+                };
 
-            // Set Totals
-            const grandTotalValue = {{ (float) $grandTotal }};
-            element.querySelectorAll('.pdf-total-numeric').forEach(el => el.innerText = new Intl.NumberFormat('vi-VN').format(grandTotalValue));
-            element.querySelectorAll('.pdf-total-text').forEach(el => el.innerText = docSoThanhChu(grandTotalValue));
-
-            // Setup Header and Sections
-            const h = element.querySelector('.print-header');
-            if (h) {
-                h.classList.remove('hidden');
-                h.style.display = 'block';
-                h.style.marginBottom = '20px';
+                // Generate PDF
+                await html2pdf().set(opt).from(container).save();
+            } catch (error) {
+                console.error("PDF generation failed:", error);
+                alert("Có lỗi xảy ra khi tạo PDF. Vui lòng thử lại.");
+            } finally {
+                btn.innerHTML = originalContent;
+                btn.disabled = false;
             }
-
-            const s = element.querySelector('.signature-section');
-            if (s) {
-                s.classList.remove('hidden');
-                s.classList.add('flex');
-                s.style.display = 'flex';
-                s.style.justifyContent = 'space-between';
-                s.style.marginTop = '40px';
-                s.style.paddingBottom = '30px'; // Ensure space before edge
-            }
-
-            // Remove unwanted columns/elements
-            element.querySelectorAll('.pdf-hide, button, .material-symbols-outlined, #noteManager, [x-show="dropdownOpen"]').forEach(el => el.remove());
-
-            // Explicit Border styling for PDF
-            element.querySelectorAll('table').forEach(t => {
-                t.style.borderCollapse = 'collapse';
-                t.style.width = '100%';
-                t.style.border = '1px solid black';
-                t.style.marginBottom = '0';
-            });
-
-            element.querySelectorAll('th, td').forEach(cell => {
-                cell.style.border = '1px solid black';
-                cell.style.padding = '6px 4px'; // Slightly smaller padding
-            });
-
-            element.style.paddingBottom = '0px';
-
-            const opt = {
-                margin: [0.4, 0.4, 0.4, 0.4],
-                filename: 'Bang_De_Nghi_Mua_VPP_{{ $selectedMonth }}.pdf',
-                image: { type: 'jpeg', quality: 0.98 },
-                html2canvas: {
-                    scale: 2,
-                    useCORS: true,
-                    letterRendering: true,
-                    width: 1100,
-                    scrollY: 0
-                },
-                jsPDF: { unit: 'in', format: 'a4', orientation: 'landscape' },
-                pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
-            };
-
-            html2pdf().set(opt).from(element).save();
         }
 
         function printDirect() {
-            // Switch to TỔNG HỢP tab if not already there
-            const tongHopTab = document.getElementById('content-tong-hop');
-            if (tongHopTab.classList.contains('hidden')) {
-                switchTab('tong-hop');
+            const month = "{{ $selectedMonth }}";
+            const printUrl = "{{ route('admin.consolidated.print') }}?month=" + encodeURIComponent(month);
+            
+            const printFrame = document.getElementById('printFrame');
+            
+            // Show a simple loading indicator if needed, but the iframe itself is hidden
+            const btn = event.currentTarget;
+            const originalContent = btn.innerHTML;
+            btn.innerHTML = '<span class="material-symbols-outlined text-sm animate-spin">sync</span> Đang chuẩn bị...';
+            btn.disabled = true;
+
+            printFrame.onload = function() {
+                try {
+                    printFrame.contentWindow.focus();
+                    printFrame.contentWindow.print();
+                } catch (e) {
+                    console.error("Print failed:", e);
+                    // Fallback to new tab if iframe fails
+                    window.open(printUrl, '_blank');
+                } finally {
+                    btn.innerHTML = originalContent;
+                    btn.disabled = false;
+                }
+            };
+            
+            printFrame.src = printUrl;
+        }
+
+        function filterBangTong() {
+            const select = document.getElementById("searchBangTong");
+            const filter = select.value.toUpperCase();
+            const table = document.getElementById("tableBangTong");
+            const tr = table.getElementsByTagName("tr");
+            
+            let currentCategoryRow = null;
+            let hasVisibleProductsInCategory = false;
+
+            for (let i = 0; i < tr.length; i++) {
+                const row = tr[i];
+                
+                // Skip thead rows
+                if (row.parentElement.tagName === 'THEAD') continue;
+
+                if (row.classList.contains("category-header")) {
+                    // If we had a category row before, hide it if it has no products
+                    if (currentCategoryRow && !hasVisibleProductsInCategory) {
+                        currentCategoryRow.style.display = "none";
+                    }
+
+                    currentCategoryRow = row;
+                    hasVisibleProductsInCategory = false;
+                    row.style.display = ""; // Temporarily show to process
+                } else {
+                    const td = row.getElementsByTagName("td")[1]; // Product name is in the second column
+                    if (td) {
+                        const txtValue = td.textContent || td.innerText;
+                        if (filter === "" || txtValue.toUpperCase() === filter) {
+                            row.style.display = "";
+                            hasVisibleProductsInCategory = true;
+                        } else {
+                            row.style.display = "none";
+                        }
+                    }
+                }
             }
 
-            // Update date fields
-            const now = new Date();
-            document.querySelectorAll('.print-date-day').forEach(el => el.innerText = now.getDate().toString().padStart(2, '0'));
-            document.querySelectorAll('.print-date-month').forEach(el => el.innerText = (now.getMonth() + 1).toString().padStart(2, '0'));
-            document.querySelectorAll('.print-date-year').forEach(el => el.innerText = now.getFullYear());
-
-            // Update total fields
-            const grandTotalValue = {{ (float) $grandTotal }};
-            document.querySelectorAll('.pdf-total-numeric').forEach(el => el.innerText = new Intl.NumberFormat('vi-VN').format(grandTotalValue));
-            document.querySelectorAll('.pdf-total-text').forEach(el => el.innerText = docSoThanhChu(grandTotalValue));
-
-            // Trigger print dialog
-            window.print();
+            // Final check for the last category
+            if (currentCategoryRow && !hasVisibleProductsInCategory) {
+                currentCategoryRow.style.display = "none";
+            }
         }
     </script>
     <script>

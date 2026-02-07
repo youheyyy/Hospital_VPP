@@ -54,12 +54,29 @@
             background-color: #f0f9ff;
         }
 
+        .editable-notes {
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .editable-notes:hover {
+            background-color: #f0f9ff;
+        }
+
         .quantity-input-edit {
             width: 100%;
             text-align: right;
             border: 2px solid #3b82f6;
             padding: 4px 8px;
             font-size: 0.875rem;
+        }
+
+        .notes-input-edit {
+            width: 100%;
+            border: 2px solid #3b82f6;
+            padding: 4px 8px;
+            font-size: 0.875rem;
+            min-height: 60px;
         }
     </style>
 </head>
@@ -192,7 +209,13 @@
                                             </td>
                                             <td class="text-right text-sm font-semibold total-cell">
                                                 {{ number_format($order->quantity * $order->product->price, 0, ',', '.') }}</td>
-                                            <td class="text-sm text-gray-600">{{ $order->notes ?? '' }}</td>
+                                            <td class="text-sm text-gray-600 editable-notes"
+                                                data-order-id="{{ $order->id }}"
+                                                data-current-notes="{{ $order->notes ?? '' }}"
+                                                ondblclick="editNotes(this)"
+                                                title="Double click để chỉnh sửa">
+                                                <span class="notes-display">{{ $order->notes ?? '' }}</span>
+                                            </td>
                                             <td class="text-sm text-blue-700 bg-blue-50">{{ $order->admin_notes ?? '' }}</td>
                                             <td class="text-center text-sm text-gray-600">
                                                 {{ $order->created_at->format('d/m/Y H:i') }}</td>
@@ -220,11 +243,11 @@
                     </div>
 
                     <div class="mt-6 flex justify-end gap-4">
-                        <a href="{{ route('department.history.print', ['month' => $selectedMonth]) }}" target="_blank"
+                        <button onclick="window.print()" type="button"
                             class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 inline-flex items-center gap-2">
                             <span class="material-symbols-outlined text-sm">print</span>
                             In yêu cầu
-                        </a>
+                        </button>
                     </div>
                 @endif
             </div>
@@ -353,6 +376,102 @@
             if (totalCell) {
                 totalCell.textContent = grandTotal.toLocaleString('vi-VN');
             }
+        }
+
+        function editNotes(cell) {
+            // Prevent multiple edits at once
+            if (currentEditingCell) {
+                return;
+            }
+
+            currentEditingCell = cell;
+            const orderId = cell.dataset.orderId;
+            const currentNotes = cell.dataset.currentNotes;
+            const displaySpan = cell.querySelector('.notes-display');
+
+            // Create textarea element
+            const textarea = document.createElement('textarea');
+            textarea.className = 'notes-input-edit';
+            textarea.value = currentNotes;
+
+            // Replace display with textarea
+            displaySpan.style.display = 'none';
+            cell.appendChild(textarea);
+            textarea.focus();
+            textarea.select();
+
+            // Handle save on Ctrl+Enter or blur
+            const saveEdit = async () => {
+                const newNotes = textarea.value.trim();
+                
+                if (newNotes === currentNotes) {
+                    // No change, just cancel
+                    cancelEdit();
+                    return;
+                }
+
+                // Show loading state
+                textarea.disabled = true;
+                cell.style.opacity = '0.6';
+
+                try {
+                    const response = await fetch(`/department/order/${orderId}/update-notes`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                        },
+                        body: JSON.stringify({ notes: newNotes })
+                    });
+
+                    const data = await response.json();
+
+                    if (response.ok) {
+                        // Update display
+                        displaySpan.textContent = newNotes;
+                        cell.dataset.currentNotes = newNotes;
+                        
+                        // Show success feedback
+                        cell.style.backgroundColor = '#d1fae5';
+                        setTimeout(() => {
+                            cell.style.backgroundColor = '';
+                        }, 1000);
+                    } else {
+                        alert(data.message || 'Có lỗi xảy ra khi cập nhật ghi chú');
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('Có lỗi xảy ra khi cập nhật ghi chú');
+                }
+
+                // Clean up
+                textarea.remove();
+                displaySpan.style.display = '';
+                cell.style.opacity = '';
+                currentEditingCell = null;
+            };
+
+            const cancelEdit = () => {
+                textarea.remove();
+                displaySpan.style.display = '';
+                currentEditingCell = null;
+            };
+
+            // Event listeners
+            textarea.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && e.ctrlKey) {
+                    // Ctrl+Enter to save
+                    e.preventDefault();
+                    saveEdit();
+                } else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    cancelEdit();
+                }
+            });
+
+            textarea.addEventListener('blur', () => {
+                setTimeout(saveEdit, 100);
+            });
         }
 
         async function deleteOrder(orderId) {
