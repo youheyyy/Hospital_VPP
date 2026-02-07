@@ -184,10 +184,48 @@ class SuperAdminController extends Controller
      */
     public function dataManagement()
     {
+        // Clear file status cache to ensure correct file sizes are obtained
+        clearstatcache();
+
         // Get list of backups
         $backupPath = storage_path('app/backups');
         if (!file_exists($backupPath)) {
             mkdir($backupPath, 0755, true);
+        }
+
+        // SELF-HEALING: Check if V2 is missing for today (e.g. if user didn't logout/login)
+        $date = date('Y-m-d');
+        $filenameV1 = "backup_{$date}_auto_v1.sql";
+        $filenameV2 = "backup_{$date}_auto_v2.sql";
+
+        // 1. Refresh V1 (Main Copy) on page load so user sees latest size/data
+        // This ensures V1 is always "fresh" when viewing the list
+        if (file_exists($backupPath . '/' . $filenameV1)) {
+            $host = config('database.connections.mysql.host');
+            $database = config('database.connections.mysql.database');
+            $username = config('database.connections.mysql.username');
+            $password = config('database.connections.mysql.password');
+            $port = config('database.connections.mysql.port');
+
+            try {
+                $dump = new \Ifsnop\Mysqldump\Mysqldump(
+                    "mysql:host={$host};port={$port};dbname={$database}",
+                    $username,
+                    $password,
+                    [
+                        'compress' => \Ifsnop\Mysqldump\Mysqldump::NONE,
+                        'add-drop-table' => true
+                    ]
+                );
+                $dump->start($backupPath . '/' . $filenameV1);
+            } catch (\Exception $e) {
+                // Log error but continue causing page load logic
+                \Illuminate\Support\Facades\Log::error('Auto refresh V1 failed: ' . $e->getMessage());
+            }
+        }
+
+        if (file_exists($backupPath . '/' . $filenameV1) && !file_exists($backupPath . '/' . $filenameV2)) {
+            copy($backupPath . '/' . $filenameV1, $backupPath . '/' . $filenameV2);
         }
 
         $backups = collect(scandir($backupPath))
@@ -203,7 +241,97 @@ class SuperAdminController extends Controller
             ->sortByDesc('date')
             ->values();
 
-        return view('superadmin.data-management', compact('backups'));
+        // Get backup config
+        $configPath = storage_path('app/backup_config.json');
+        $backupConfig = file_exists($configPath) ? json_decode(file_get_contents($configPath), true) : ['minutes' => 0, 'seconds' => 0];
+
+        return view('superadmin.data-management', compact('backups', 'backupConfig'));
+    }
+
+    /**
+     * Update backup configuration
+     */
+    public function updateBackupConfig(Request $request)
+    {
+        $request->validate([
+            'interval_minutes' => 'required|integer|min:0',
+            'interval_seconds' => 'required|integer|min:0|max:59',
+        ]);
+
+        $config = [
+            'minutes' => (int) $request->interval_minutes,
+            'seconds' => (int) $request->interval_seconds,
+            'last_backup_at' => time() // Reset timer
+        ];
+
+        file_put_contents(storage_path('app/backup_config.json'), json_encode($config));
+
+        // Also update the auto-backup timestamp to now to prevent immediate trigger
+        // actually last_backup_at in config is enough if we use that.
+
+        return redirect()->route('superadmin.data-management')->with('success', 'Cấu hình tự động backup đã được lưu!');
+    }
+
+    /**
+     * Upload and restore backup
+     */
+    public function uploadBackup(Request $request)
+    {
+        $request->validate([
+            'backup_file' => 'required|file|mimes:sql,txt', // .sql is often text/plain
+        ]);
+
+        try {
+            $file = $request->file('backup_file');
+            $filename = 'upload_restore_' . date('Y-m-d_His') . '.sql';
+            $path = storage_path('app/backups/' . $filename);
+
+            // Move uploaded file to backups folder
+            $file->move(storage_path('app/backups'), $filename);
+
+            // Trigger restore
+            // We can reuse the restore logic, but let's call it directly or redirect
+            // Calling restoreBackup requires a filename.
+
+            // Let's reuse restoreBackup logic by calling it internally or redirecting
+            // But restoreBackup expects a filename in route.
+            // Let's just call the restore logic here to avoid redirect loops or route issues.
+
+            // --- RESTORE LOGIC (Copied/Refactored from restoreBackup) ---
+            // Disable foreign key checks
+            DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+
+            // WIPE DATABASE
+            $tables = DB::select('SHOW TABLES');
+            foreach ($tables as $table) {
+                $tableName = array_values((array) $table)[0];
+                DB::statement("DROP TABLE IF EXISTS `{$tableName}`");
+            }
+
+            // Read and Execute SQL
+            $sql = file_get_contents($path);
+            DB::unprepared($sql);
+
+            // Enable foreign key checks
+            DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+
+            // Re-login user (current user)
+            $currentUserId = auth()->id();
+            if ($currentUserId) {
+                $user = User::find($currentUserId);
+                if ($user) {
+                    \Illuminate\Support\Facades\Auth::login($user);
+                }
+            }
+
+            $this->logActivity('Restore Database', "Đã khôi phục dữ liệu từ file upload: {$file->getClientOriginalName()}");
+
+            return redirect()->route('superadmin.data-management')->with('success', 'Đã khôi phục dữ liệu thành công từ file upload!');
+
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Upload restore failed: ' . $e->getMessage());
+            return redirect()->route('superadmin.data-management')->with('error', 'Lỗi khôi phục: ' . $e->getMessage());
+        }
     }
 
     /**
@@ -225,24 +353,25 @@ class SuperAdminController extends Controller
             $database = config('database.connections.mysql.database');
             $username = config('database.connections.mysql.username');
             $password = config('database.connections.mysql.password');
+            $port = config('database.connections.mysql.port');
 
-            // Create mysqldump command
-            $command = sprintf(
-                'mysqldump -h %s -u %s -p%s %s > %s',
-                escapeshellarg($host),
-                escapeshellarg($username),
-                escapeshellarg($password),
-                escapeshellarg($database),
-                escapeshellarg($filepath)
-            );
+            try {
+                $dump = new \Ifsnop\Mysqldump\Mysqldump(
+                    "mysql:host={$host};port={$port};dbname={$database}",
+                    $username,
+                    $password,
+                    [
+                        'compress' => \Ifsnop\Mysqldump\Mysqldump::NONE,
+                        'add-drop-table' => true
+                    ]
+                );
+                $dump->start($filepath);
 
-            exec($command, $output, $returnVar);
-
-            if ($returnVar === 0) {
                 $this->logActivity('Backup Database', "Đã tạo bản sao lưu: {$filename}");
                 return redirect()->route('superadmin.data-management')->with('success', 'Backup đã được tạo thành công!');
-            } else {
-                return redirect()->route('superadmin.data-management')->with('error', 'Không thể tạo backup!');
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error('Backup failed: ' . $e->getMessage());
+                return redirect()->route('superadmin.data-management')->with('error', 'Lỗi khi tạo backup: ' . $e->getMessage());
             }
         } catch (\Exception $e) {
             return redirect()->route('superadmin.data-management')->with('error', 'Lỗi: ' . $e->getMessage());
@@ -250,7 +379,352 @@ class SuperAdminController extends Controller
     }
 
     /**
-     * Import data from Excel
+     * Download backup file
+     */
+    public function downloadBackup($filename)
+    {
+        $path = storage_path('app/backups/' . $filename);
+
+        // SMART DOWNLOAD LOGIC:
+        // Only refresh V1 (Main Copy) to provide latest data.
+        // V2 (Redundant Copy) MUST remain a static snapshot of the morning (Login time) to allow restore if data is deleted during the day.
+        $today = date('Y-m-d');
+        if (str_contains($filename, "backup_{$today}_auto_") && !str_contains($filename, '_v2.sql')) {
+            try {
+                // Determine file version (v1 or v2)
+                // Actually, we should force update both or just the requested one.
+                // Let's update the requested file specifically.
+
+                $host = config('database.connections.mysql.host');
+                $database = config('database.connections.mysql.database');
+                $username = config('database.connections.mysql.username');
+                $password = config('database.connections.mysql.password');
+                $port = config('database.connections.mysql.port');
+
+                // Re-dump specifically to this file path
+                $dump = new \Ifsnop\Mysqldump\Mysqldump(
+                    "mysql:host={$host};port={$port};dbname={$database}",
+                    $username,
+                    $password,
+                    [
+                        'compress' => \Ifsnop\Mysqldump\Mysqldump::NONE,
+                        'add-drop-table' => true
+                    ]
+                );
+                $dump->start($path);
+
+                // If it's v1, we should probably also update v2 to keep them in sync, 
+                // but let's just focus on the file the user is downloading to be safe.
+                // If the file didn't exist, start() created it.
+
+            } catch (\Exception $e) {
+                // If refresh fails, try to download existing file if it exists, otherwise error
+                \Illuminate\Support\Facades\Log::error('Smart download refresh failed: ' . $e->getMessage());
+            }
+        }
+
+        if (!file_exists($path)) {
+            return redirect()->route('superadmin.data-management')->with('error', 'File không tồn tại!');
+        }
+
+        return response()->download($path);
+    }
+
+    /**
+     * Delete backup file
+     */
+    public function deleteBackup($filename)
+    {
+        // STRICT PROTECTION: Prevent deleting auto-generated backups
+        if (str_contains($filename, '_auto_')) {
+            return redirect()->route('superadmin.data-management')->with('error', 'Không thể xóa bản sao lưu tự động! Đây là dữ liệu quan trọng.');
+        }
+
+        $path = storage_path('app/backups/' . $filename);
+
+        if (file_exists($path)) {
+            unlink($path);
+            $this->logActivity('Xóa Backup', "Đã xóa bản sao lưu: {$filename}");
+            return redirect()->route('superadmin.data-management')->with('success', 'File backup đã được xóa thành công!');
+        }
+
+        return redirect()->route('superadmin.data-management')->with('error', 'File không tồn tại!');
+    }
+
+    /**
+     * Restore database from backup file
+     */
+    public function restoreBackup($filename)
+    {
+        $path = storage_path('app/backups/' . $filename);
+
+        if (!file_exists($path)) {
+            return redirect()->route('superadmin.data-management')->with('error', 'File backup không tồn tại!');
+        }
+
+        // Capture current user ID to re-login after restore (since sessions table might be wiped)
+        $currentUserId = auth()->id();
+
+        try {
+            // Disable foreign key checks to prevent errors during restore
+            DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+
+            // WIPE DATABASE: Drop all tables to ensure clean state
+            // This fixes "Table already exists" error if backup file doesn't have DROP TABLE
+            $tables = DB::select('SHOW TABLES');
+            foreach ($tables as $table) {
+                $tableName = array_values((array) $table)[0];
+                DB::statement("DROP TABLE IF EXISTS `{$tableName}`");
+            }
+
+            // Read the SQL file
+            $sql = file_get_contents($path);
+
+            // Execute the SQL statements
+            // Note: DB::unprepared is suitable for raw SQL dumps provided they are not too massive for memory.
+            // Since our DB is small/medium, this is fine and reliable.
+            DB::unprepared($sql);
+
+            // Re-enable foreign key checks
+            DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+
+            // RE-LOGIN USER:
+            // Since the sessions table was likely wiped or replaced, the current session is invalid.
+            // We manually re-login the user to prevent them from being kicked out.
+            if ($currentUserId) {
+                $user = User::find($currentUserId);
+                if ($user) {
+                    \Illuminate\Support\Facades\Auth::login($user);
+                }
+            }
+
+            $this->logActivity('Restore Database', "Đã khôi phục dữ liệu từ file: {$filename}");
+
+            // Clear cache/session if needed, but usually not required for this simple app
+            return redirect()->route('superadmin.data-management')->with('success', "Đã khôi phục dữ liệu thành công từ bản: {$filename}");
+
+        } catch (\Exception $e) {
+            // Ensure FK checks are re-enabled even if error occurs
+            try {
+                DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+            } catch (\Exception $ex) {
+            }
+
+            \Illuminate\Support\Facades\Log::error('Restore failed: ' . $e->getMessage());
+            return redirect()->route('superadmin.data-management')->with('error', 'Lỗi khi khôi phục dữ liệu: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Auto backup daily (Called from LoginController)
+     */
+    public static function autoBackupDaily()
+    {
+        try {
+            $backupPath = storage_path('app/backups');
+            if (!file_exists($backupPath)) {
+                mkdir($backupPath, 0755, true);
+            }
+
+            $date = date('Y-m-d');
+            $filenameV1 = "backup_{$date}_auto_v1.sql";
+            $filenameV2 = "backup_{$date}_auto_v2.sql";
+
+            // Check if backup V1 for today already exists
+            if (file_exists($backupPath . '/' . $filenameV1)) {
+                // If V1 exists but V2 is missing (legacy case or error), create V2 from V1
+                if (!file_exists($backupPath . '/' . $filenameV2)) {
+                    copy($backupPath . '/' . $filenameV1, $backupPath . '/' . $filenameV2);
+                }
+                return; // Already backed up today
+            }
+
+            // Get database credentials
+            $host = config('database.connections.mysql.host');
+            $database = config('database.connections.mysql.database');
+            $username = config('database.connections.mysql.username');
+            $password = config('database.connections.mysql.password');
+            $port = config('database.connections.mysql.port');
+
+            // Create mysqldump for V1
+            $filepathV1 = $backupPath . '/' . $filenameV1;
+
+            try {
+                $dump = new \Ifsnop\Mysqldump\Mysqldump(
+                    "mysql:host={$host};port={$port};dbname={$database}",
+                    $username,
+                    $password,
+                    [
+                        'compress' => \Ifsnop\Mysqldump\Mysqldump::NONE,
+                        'add-drop-table' => true
+                    ]
+                );
+                $dump->start($filepathV1);
+
+                // Copy to V2 for redundancy
+                copy($filepathV1, $backupPath . '/' . $filenameV2);
+
+                \App\Models\ActivityLog::create([
+                    'user_id' => auth()->id(),
+                    'action' => 'Auto Backup',
+                    'description' => "Hệ thống tự động sao lưu 2 bản: {$filenameV1}, {$filenameV2}",
+                    'created_at' => now()
+                ]);
+
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error('Auto backup failed: ' . $e->getMessage());
+            }
+
+        } catch (\Exception $e) {
+            // Silently fail or log error to file
+            \Illuminate\Support\Facades\Log::error('Auto backup failed: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Import Advanced (Multi-sheet)
+     */
+    public function importAdvanced(Request $request)
+    {
+        $request->validate([
+            'excel_file' => 'required|file|mimes:xlsx,xls',
+            'month' => 'required|date_format:Y-m', // "2026-02"
+        ]);
+
+        try {
+            $file = $request->file('excel_file');
+            $monthInput = $request->input('month');
+            // Convert "2026-02" to "02/2026" for database storage if that's the format
+            // Check monthly_orders table migration: $table->string('month', 7); // Format: MM/YYYY
+            $monthParts = explode('-', $monthInput);
+            $targetMonth = "{$monthParts[1]}/{$monthParts[0]}";
+
+            // Load Excel file
+            $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($file->getPathname());
+
+            // --- STEP 1: PARSE "TỔNG HỢP" SHEET (Master Data) ---
+            $masterSheet = $spreadsheet->getSheetByName('TỔNG HỢP');
+            if ($masterSheet) {
+                $rows = $masterSheet->toArray();
+                $currentCategoryId = null;
+                // row 0 is header usually? Let's iterate.
+                // Based on User feedback, we scan for categories and products.
+                // Assuming Row 9 is header, data starts Row 10 (index 9). But let's scan all.
+
+                foreach ($rows as $index => $row) {
+                    if ($index < 5)
+                        continue; // Skip top header
+
+                    $colA = trim($row[0] ?? ''); // STT
+                    $colB = trim($row[1] ?? ''); // Tên hàng / Danh mục
+                    $colC = trim($row[2] ?? ''); // ĐVT
+                    $colE = trim($row[4] ?? ''); // Đơn giá (check index carefully: A=0, B=1, C=2, D=3, E=4)
+
+                    // Identify Category: usually no STT, no Unit, and has Name
+                    // Or "VĂN PHÒNG PHẨM..." style.
+                    // Simple heuristic: If STT is empty AND Name is not empty AND Unit is empty -> Category
+                    // OR if Name is UPPERCASE and long?
+
+                    // Better approach from user image: Category "VĂN PHÒNG PHẨM..." is in Blue, no STT.
+
+                    if (empty($colA) && !empty($colB) && empty($colC)) {
+                        // Likely a Category
+                        $category = \App\Models\Category::updateOrCreate(
+                            ['name' => $colB],
+                            ['is_active' => true]
+                        );
+                        $currentCategoryId = $category->id;
+                    }
+                    // Identify Product: Has STT (numeric)
+                    elseif (is_numeric($colA) && !empty($colB)) {
+                        // It's a product
+                        $price = (float) str_replace([',', '.'], '', $colE); // Remove commas/dots
+
+                        \App\Models\Product::updateOrCreate(
+                            ['name' => $colB],
+                            [
+                                'unit' => $colC,
+                                'price' => $price,
+                                'category_id' => $currentCategoryId, // Assign to current category
+                                'is_active' => true
+                            ]
+                        );
+                    }
+                }
+            }
+
+            // --- STEP 2: PARSE DEPARTMENT SHEETS ---
+            $sheetNames = $spreadsheet->getSheetNames();
+            $ignoredSheets = ['BẢNG TỔNG', 'TỔNG HỢP', 'Highlights', 'Sheet1', 'Tong hop', 'Ghi chu'];
+
+            $processedDepartments = 0;
+            $processedOrders = 0;
+
+            foreach ($sheetNames as $sheetName) {
+                if (in_array($sheetName, $ignoredSheets))
+                    continue;
+
+                // 1. Identify/Create Department
+                $departmentName = trim($sheetName);
+                if (empty($departmentName))
+                    continue;
+
+                $department = \App\Models\Department::firstOrCreate(
+                    ['name' => $departmentName],
+                    ['code' => strtoupper(\Illuminate\Support\Str::slug($departmentName))]
+                );
+
+                // 2. Clean Old Data for this Month + Dept
+                \App\Models\MonthlyOrder::where('department_id', $department->id)
+                    ->where('month', $targetMonth)
+                    ->delete();
+
+                // 3. Parse Sheet
+                $sheet = $spreadsheet->getSheetByName($sheetName);
+                $rows = $sheet->toArray();
+
+                foreach ($rows as $index => $row) {
+                    if ($index < 8)
+                        continue; // Skip headers (Row 9 is header, data starts Row 10 -> index 9)
+
+                    $colA = trim($row[0] ?? ''); // STT
+                    $colB = trim($row[1] ?? ''); // Tên hàng (Product Name)
+                    $colD = trim($row[3] ?? ''); // Số lượng (A=0, B=1, C=2, D=3)
+
+                    // Only process rows with numeric STT (valid products)
+                    if (is_numeric($colA) && !empty($colB)) {
+                        $product = \App\Models\Product::where('name', $colB)->first();
+
+                        if ($product) {
+                            $quantity = (float) str_replace([',', '.'], '', $colD);
+
+                            if ($quantity > 0) {
+                                \App\Models\MonthlyOrder::create([
+                                    'department_id' => $department->id,
+                                    'product_id' => $product->id,
+                                    'month' => $targetMonth,
+                                    'quantity' => $quantity,
+                                    'notes' => '' // Can parse note from Col F if needed
+                                ]);
+                                $processedOrders++;
+                            }
+                        }
+                    }
+                }
+                $processedDepartments++;
+            }
+
+            $this->logActivity('Import Excel Nâng cao', "Đã import dữ liệu tháng {$targetMonth} cho {$processedDepartments} khoa.");
+            return redirect()->route('superadmin.data-management')->with('success', "Import thành công! Đã xử lý {$processedDepartments} khoa và {$processedOrders} đơn hàng cho tháng {$targetMonth}.");
+
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Advanced Import failed: ' . $e->getMessage());
+            return redirect()->route('superadmin.data-management')->with('error', 'Lỗi Import Nâng cao: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Import data from Excel (Simple)
      */
     public function importData(Request $request)
     {

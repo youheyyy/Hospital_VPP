@@ -69,3 +69,6 @@ php artisan migrate:fresh --seed
 
 php artisan db:seed --class=DepartmentSeeder
 php artisan db:seed --class=UserSeeder
+
+## Câu lệnh cài để backup tự động
+composer require ifsnop/mysqldump-php

@@ -30,7 +30,13 @@ Route::middleware(['auth', 'role:SuperAdmin'])->prefix('superadmin')->name('supe
     // Data Management
     Route::get('/data-management', [SuperAdminController::class, 'dataManagement'])->name('data-management');
     Route::post('/backup', [SuperAdminController::class, 'createBackup'])->name('backup.create');
+    Route::get('/backup/download/{filename}', [SuperAdminController::class, 'downloadBackup'])->name('backup.download');
+    Route::delete('/backup/delete/{filename}', [SuperAdminController::class, 'deleteBackup'])->name('backup.delete');
+    Route::post('/backup/restore/{filename}', [SuperAdminController::class, 'restoreBackup'])->name('backup.restore');
+    Route::post('/backup/upload', [SuperAdminController::class, 'uploadBackup'])->name('backup.upload');
+    Route::post('/backup/config', [SuperAdminController::class, 'updateBackupConfig'])->name('backup.config');
     Route::post('/import', [SuperAdminController::class, 'importData'])->name('import');
+    Route::post('/import-advanced', [SuperAdminController::class, 'importAdvanced'])->name('import.advanced');
     Route::get('/export-template/{type}', [SuperAdminController::class, 'exportTemplate'])->name('export-template');
 });
 
