@@ -288,16 +288,16 @@
 
         <div class="signature-section">
             <div class="sig-block">
-                <p class="sig-title">BP.HTDV</p>
-                <p class="sig-name">Nguyễn Thị Thùy Trang</p>
+                <p class="sig-title">Người Lập phiếu</p>
+                <p class="sig-name">Phạm Thị Huỳnh Như</p>
             </div>
             <div class="sig-block">
-                <p class="sig-title">TRƯỞNG PHÒNG TCKT</p>
-                <p class="sig-name">Nguyễn Thị Thúy Huỳnh</p>
+                <p class="sig-title">Người nhận</p>
+                <p class="sig-name"></p>
             </div>
             <div class="sig-block">
-                <p class="sig-title">BAN GIÁM ĐỐC</p>
-                <p class="sig-name">Huỳnh Thị Nguyệt</p>
+                <p class="sig-title">Người giao</p>
+                <p class="sig-name">Lê Thúy Huỳnh</p>
             </div>
         </div>
     </div>
