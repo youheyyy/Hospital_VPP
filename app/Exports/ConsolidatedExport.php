@@ -11,6 +11,7 @@ use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 
 class ConsolidatedExport
 {
@@ -128,7 +129,7 @@ class ConsolidatedExport
             $sheet->setCellValue($col . $currentRow, $header);
             $col++;
         }
-        $lastCol = chr(ord($col) - 1);
+        $lastCol = Coordinate::stringFromColumnIndex(Coordinate::columnIndexFromString($col) - 1);
 
         // Style header row
         $sheet->getStyle('A' . $currentRow . ':' . $lastCol . $currentRow)->applyFromArray([
@@ -149,7 +150,7 @@ class ConsolidatedExport
 
         // Department columns (green background)
         $deptStartCol = 'D';
-        $deptEndCol = chr(ord($deptStartCol) + $this->departments->count() - 1);
+        $deptEndCol = Coordinate::stringFromColumnIndex(Coordinate::columnIndexFromString($deptStartCol) + $this->departments->count() - 1);
         $sheet->getStyle($deptStartCol . $currentRow . ':' . $deptEndCol . $currentRow)->applyFromArray([
             'fill' => [
                 'fillType' => Fill::FILL_SOLID,
@@ -182,24 +183,27 @@ class ConsolidatedExport
                 ]);
                 $currentRow++;
 
+                // Pre-build order map for this category to avoid O(N^2) filtering
+                $orderMap = [];
+                foreach ($this->products[$category->id] as $product) {
+                    foreach ($product->monthlyOrders as $order) {
+                        $orderMap[$product->id][$order->department_id] = $order->quantity;
+                    }
+                }
+
                 // Products
                 foreach ($this->products[$category->id] as $product) {
                     if ($product->monthlyOrders->count() > 0) {
                         $stt++;
-                        $col = 'A';
-                        $sheet->setCellValue($col++ . $currentRow, $stt);
-                        $sheet->setCellValue($col++ . $currentRow, $product->name);
-                        $sheet->setCellValue($col++ . $currentRow, $product->unit);
+                        $colIdx = 1;
+                        $sheet->setCellValue(Coordinate::stringFromColumnIndex($colIdx++) . $currentRow, $stt);
+                        $sheet->setCellValue(Coordinate::stringFromColumnIndex($colIdx++) . $currentRow, $product->name);
+                        $sheet->setCellValue(Coordinate::stringFromColumnIndex($colIdx++) . $currentRow, $product->unit);
 
                         $totalQuantity = 0;
                         $deptIndex = 0;
                         foreach ($this->departments as $dept) {
-                            // Filter by SELECTED MONTH ONLY
-                            $order = $product->monthlyOrders
-                                ->where('department_id', $dept->id)
-                                ->where('month', $this->month)
-                                ->first();
-                            $quantity = $order ? $order->quantity : 0;
+                            $quantity = $orderMap[$product->id][$dept->id] ?? 0;
                             $totalQuantity += $quantity;
 
                             // Track department totals
@@ -208,11 +212,11 @@ class ConsolidatedExport
                             }
                             $departmentTotals[$deptIndex] += $quantity;
 
-                            $sheet->setCellValue($col++ . $currentRow, $quantity > 0 ? $quantity : '');
+                            $sheet->setCellValue(Coordinate::stringFromColumnIndex($colIdx++) . $currentRow, $quantity > 0 ? $quantity : '');
                             $deptIndex++;
                         }
 
-                        $sheet->setCellValue($col . $currentRow, $totalQuantity);
+                        $sheet->setCellValue(Coordinate::stringFromColumnIndex($colIdx) . $currentRow, $totalQuantity);
                         $grandTotal += $totalQuantity;
                         $currentRow++;
                     }
@@ -270,9 +274,10 @@ class ConsolidatedExport
         $sheet->getColumnDimension('A')->setWidth(6);  // STT
         $sheet->getColumnDimension('B')->setAutoSize(true);  // TÊN HÀNG
         $sheet->getColumnDimension('C')->setWidth(10); // ĐVT
-        // Department columns and total column auto-size
+        // Department columns and total column size
+        $colIdx = 4; // Starting from 'D'
         for ($i = 0; $i < $this->departments->count() + 1; $i++) {
-            $colLetter = chr(ord('D') + $i);
+            $colLetter = Coordinate::stringFromColumnIndex($colIdx + $i);
             $sheet->getColumnDimension($colLetter)->setWidth(12);
         }
     }
@@ -760,34 +765,23 @@ class ConsolidatedExport
 
         // ===== SIGNATURE SECTION =====
         // Adjusted merge cells for 6 columns
-        $sheet->setCellValue('A' . $currentRow, 'NGƯỜI LẬP PHIẾU');
+        $sheet->setCellValue('A' . $currentRow, 'Người Lập phiếu');
         $sheet->mergeCells('A' . $currentRow . ':B' . $currentRow);
-        $sheet->setCellValue('C' . $currentRow, 'TRƯỞNG KHOA/PHÒNG');
+        $sheet->setCellValue('C' . $currentRow, 'Người nhận');
         $sheet->mergeCells('C' . $currentRow . ':D' . $currentRow);
-        $sheet->setCellValue('E' . $currentRow, 'P. KẾ HOẠCH TỔNG HỢP');
+        $sheet->setCellValue('E' . $currentRow, 'Người giao');
         $sheet->mergeCells('E' . $currentRow . ':F' . $currentRow);
 
         $sheet->getStyle('A' . $currentRow . ':F' . $currentRow)->getFont()->setBold(true);
         $sheet->getStyle('A' . $currentRow . ':F' . $currentRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-        $currentRow += 1; // Empty row
-
-        $sheet->setCellValue('A' . $currentRow, '(Ký và ghi rõ họ tên)');
-        $sheet->mergeCells('A' . $currentRow . ':B' . $currentRow);
-        $sheet->setCellValue('C' . $currentRow, '(Duyệt)');
-        $sheet->mergeCells('C' . $currentRow . ':D' . $currentRow);
-        $sheet->setCellValue('E' . $currentRow, '(Xác nhận)');
-        $sheet->mergeCells('E' . $currentRow . ':F' . $currentRow);
-
-        $sheet->getStyle('A' . $currentRow . ':F' . $currentRow)->getFont()->setItalic(true)->setSize(10);
-        $sheet->getStyle('A' . $currentRow . ':F' . $currentRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-        $currentRow += 5; // Space for signatures
+        $currentRow += 4; // Space for signatures (Reduced spacing slightly as no sub-headers)
 
         // Signature Names
-        $sheet->setCellValue('A' . $currentRow, 'Nguyễn Thị Thùy Trang');
+        $sheet->setCellValue('A' . $currentRow, 'Phạm Thị Thuỳnh Như'); // Updated name to match Image 2
         $sheet->mergeCells('A' . $currentRow . ':B' . $currentRow);
         $sheet->setCellValue('C' . $currentRow, ''); // Dept head signs manually
         $sheet->mergeCells('C' . $currentRow . ':D' . $currentRow);
-        $sheet->setCellValue('E' . $currentRow, 'Lê Thúy Huỳnh'); // From user edit
+        $sheet->setCellValue('E' . $currentRow, 'Lê Thúy Huỳnh');
         $sheet->mergeCells('E' . $currentRow . ':F' . $currentRow);
 
         $sheet->getStyle('A' . $currentRow . ':F' . $currentRow)->getFont()->setBold(true);

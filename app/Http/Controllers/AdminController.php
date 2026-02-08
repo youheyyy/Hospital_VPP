@@ -96,12 +96,11 @@ class AdminController extends Controller
             $categories = $categoriesQuery->get();
         }
 
-        // Lấy tất cả products với orders (ALL HISTORY per user request for Dept Slip)
+        // Lấy tất cả products với orders (CHỈ THÁNG ĐƯỢC CHỌN)
         $productsQuery = Product::with([
             'category',
-            'monthlyOrders' => function ($query) {
-                $query->with('department');
-                // NO MONTH FILTER HERE
+            'monthlyOrders' => function ($query) use ($selectedMonth) {
+                $query->where('month', $selectedMonth)->with('department');
             }
         ])
             ->orderBy('category_id')
@@ -159,12 +158,11 @@ class AdminController extends Controller
         // Lấy tất cả categories (không filter theo category trong export)
         $categories = Category::orderBy('display_order')->get();
 
-        // Lấy tất cả products với orders (ALL HISTORY)
+        // Lấy tất cả products với orders (CHỈ THÁNG ĐƯỢC CHỌN)
         $products = Product::with([
             'category',
-            'monthlyOrders' => function ($query) {
-                $query->with('department');
-                // NO MONTH FILTER HERE
+            'monthlyOrders' => function ($query) use ($selectedMonth) {
+                $query->where('month', $selectedMonth)->with('department');
             }
         ])
             ->orderBy('category_id')
@@ -293,18 +291,57 @@ class AdminController extends Controller
             'departmentOrders'
         ));
     }
+    // public function updateNote(Request $request)
+    // {
     public function updateNote(Request $request)
     {
+        \Log::info('=== UPDATE NOTE REQUEST ===');
+        \Log::info('Product ID: ' . $request->product_id);
+        \Log::info('Month: ' . $request->month);
+        \Log::info('Note: ' . $request->note);
+
         $request->validate([
             'product_id' => 'required|exists:products,id',
             'month' => 'required',
             'note' => 'nullable|string',
         ]);
+        // Enable query logging
+        \DB::enableQueryLog();
+
+        // Get the orders first to see what we're updating
+        $orders = MonthlyOrder::where('product_id', $request->product_id)
+            ->where('month', $request->month)
+            ->get();
+
+        \Log::info('Found orders: ' . $orders->count());
 
         // Update admin_notes for all orders of this product in this month
         $affected = MonthlyOrder::where('product_id', $request->product_id)
             ->where('month', $request->month)
-            ->update(['admin_notes' => $request->note]);
+            ->get();
+
+        \Log::info('Found orders: ' . $orders->count());
+
+        // Update each order individually to ensure it works
+        $affected = 0;
+        foreach ($orders as $order) {
+            /** @var \App\Models\MonthlyOrder $order */
+
+            \Log::info("Updating order ID: {$order->id}, current note: '{$order->notes}'");
+            $order->notes = $request->note;
+            $order->save();
+            $affected++;
+            \Log::info("After save, note is: '{$order->notes}'");
+        }
+
+        // Log the queries
+        $queries = \DB::getQueryLog();
+        \Log::info('SQL Queries executed:');
+        foreach ($queries as $query) {
+            \Log::info(json_encode($query));
+        }
+
+        \Log::info('Total rows updated: ' . $affected);
 
         return response()->json(['success' => true, 'affected' => $affected]);
     }

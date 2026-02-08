@@ -44,7 +44,7 @@
     </style>
 </head>
 
-<body class="bg-slate-50">
+<body class="bg-white">
     <div class="flex h-screen overflow-hidden">
         <aside class="w-72 flex-shrink-0 bg-white border-r border-slate-200 flex flex-col">
             <div class="p-6">
@@ -71,23 +71,26 @@
                 </a>
             </nav>
             <div class="p-6 mt-auto">
-                <div class="bg-slate-900 rounded-2xl p-5 text-white">
-                    <p class="text-xs text-slate-400 font-medium mb-1">Phiên bản Admin</p>
-                    <p class="text-sm font-bold">Hệ thống VPP v2.0</p>
+                <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+                    <p class="text-xs text-slate-500 font-medium mb-1">Phiên bản Admin</p>
+                    <p class="text-sm font-bold text-slate-800">Hệ thống VPP v2.0</p>
                     <div class="mt-4 flex items-center gap-3">
                         <div
-                            class="h-10 w-10 rounded-full bg-blue-600 flex items-center justify-center text-sm font-bold">
+                            class="h-10 w-10 rounded-full bg-blue-600 flex items-center justify-center text-white text-sm font-bold shadow-md shadow-blue-200">
                             {{ strtoupper(substr(auth()->user()->name, 0, 2)) }}
                         </div>
-                        <div>
-                            <p class="text-xs font-bold leading-none">{{ auth()->user()->name }}</p>
-                            <p class="text-[10px] text-slate-400">{{ auth()->user()->email }}</p>
+                        <div class="min-w-0">
+                            <p class="text-xs font-bold leading-none text-slate-800 truncate">{{ auth()->user()->name }}
+                            </p>
+                            <p class="text-[10px] text-slate-500 truncate">{{ auth()->user()->email }}</p>
                         </div>
                     </div>
                     <form action="{{ route('logout') }}" method="POST" class="mt-4">
                         @csrf
                         <button type="submit"
-                            class="w-full text-xs text-slate-400 hover:text-white transition-colors text-left">
+                            class="w-full text-xs text-slate-500 hover:text-blue-600 font-medium transition-colors text-left flex items-center gap-2 group">
+                            <span
+                                class="material-symbols-outlined text-[16px] group-hover:translate-x-1 transition-transform">logout</span>
                             Đăng xuất
                         </button>
                     </form>
@@ -182,9 +185,11 @@
                                         </td>
                                         <td class="px-8 py-4 text-sm text-slate-500">{{ $request->month }}</td>
                                         <td class="px-8 py-4 text-sm font-bold text-slate-700 text-right">
-                                            {{ $request->quantity }} {{ $request->product->unit }}</td>
+                                            {{ $request->quantity }} {{ $request->product->unit }}
+                                        </td>
                                         <td class="px-8 py-4 text-sm text-slate-500">
-                                            {{ $request->created_at->format('d/m/Y H:i') }}</td>
+                                            {{ $request->created_at->format('d/m/Y H:i') }}
+                                        </td>
                                     </tr>
                                 @empty
                                     <tr>
