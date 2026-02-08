@@ -258,32 +258,37 @@ class SuperAdminController extends Controller
 
         // 1. Refresh V1 (Main Copy) on page load so user sees latest size/data
         // This ensures V1 is always "fresh" when viewing the list
-        if (file_exists($backupPath . '/' . $filenameV1)) {
-            $host = config('database.connections.mysql.host');
-            $database = config('database.connections.mysql.database');
-            $username = config('database.connections.mysql.username');
-            $password = config('database.connections.mysql.password');
-            $port = config('database.connections.mysql.port');
+        // 1. REALTIME REFRESH V1 (Force create new V1)
+        // This ensures V1 is always "fresh" when viewing the list
+        $host = config('database.connections.mysql.host');
+        $database = config('database.connections.mysql.database');
+        $username = config('database.connections.mysql.username');
+        $password = config('database.connections.mysql.password');
+        $port = config('database.connections.mysql.port');
 
-            try {
-                $dump = new \Ifsnop\Mysqldump\Mysqldump(
-                    "mysql:host={$host};port={$port};dbname={$database}",
-                    $username,
-                    $password,
-                    [
-                        'compress' => \Ifsnop\Mysqldump\Mysqldump::NONE,
-                        'add-drop-table' => true
-                    ]
-                );
-                $dump->start($backupPath . '/' . $filenameV1);
-            } catch (\Exception $e) {
-                // Log error but continue causing page load logic
-                \Illuminate\Support\Facades\Log::error('Auto refresh V1 failed: ' . $e->getMessage());
+        try {
+            // Force create V1 (Overwrite existing)
+            $dump = new \Ifsnop\Mysqldump\Mysqldump(
+                "mysql:host={$host};port={$port};dbname={$database}",
+                $username,
+                $password,
+                [
+                    'compress' => \Ifsnop\Mysqldump\Mysqldump::NONE,
+                    'add-drop-table' => true
+                ]
+            );
+            $dump->start($backupPath . '/' . $filenameV1);
+
+            // Also ensure V2 exists (Sync if missing)
+            if (!file_exists($backupPath . '/' . $filenameV2)) {
+                copy($backupPath . '/' . $filenameV1, $backupPath . '/' . $filenameV2);
             }
-        }
 
-        if (file_exists($backupPath . '/' . $filenameV1) && !file_exists($backupPath . '/' . $filenameV2)) {
-            copy($backupPath . '/' . $filenameV1, $backupPath . '/' . $filenameV2);
+            // FLASH SUCCESS MESSAGE FOR REALTIME UPDATE
+            session()->flash('success', 'Hệ thống đã tự động cập nhật dữ liệu mới nhất (Realtime)');
+
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Auto refresh V1 failed: ' . $e->getMessage());
         }
 
         $backups = collect(scandir($backupPath))

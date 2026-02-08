@@ -89,8 +89,8 @@
         --}}
 
         <!-- Use a separate form for Advanced Import? Or combine? 
-                             Let's create a separate distinct section for clarity as requested.
-                        -->
+                                 Let's create a separate distinct section for clarity as requested.
+                            -->
     </div>
 
     <!-- Advanced Import Section -->
@@ -162,6 +162,8 @@
         </div>
 
         <!-- Auto Backup Config -->
+        <!-- Auto Backup Config (HIDDEN AS REQUESTED) -->
+        {{--
         <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
             <h2 class="text-lg font-bold text-slate-900 mb-6 flex items-center gap-2">
                 <span class="material-symbols-outlined text-purple-600">timer</span>
@@ -193,6 +195,7 @@
                 </p>
             </form>
         </div>
+        --}}
     </div>
     <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         <div class="p-8 border-b border-gray-50 flex justify-between items-center">
@@ -222,6 +225,8 @@
                 </thead>
                 <tbody class="divide-y divide-gray-50">
                     @forelse($backups as $backup)
+                        {{-- Hide V2 Backups as requested --}}
+                        @if(str_contains($backup['name'], '_v2.sql')) @continue @endif
                         <tr
                             class="hover:bg-gray-50/50 transition-colors {{ str_contains($backup['name'], '_auto_') ? 'bg-blue-50/30' : '' }}">
                             <td class="px-8 py-4 text-sm font-bold text-slate-900 flex items-center gap-2">
