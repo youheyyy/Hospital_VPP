@@ -1,10 +1,45 @@
+@php
+    function docSoThanhChu($number) {
+        $chuSo = ["không", "một", "hai", "ba", "bốn", "năm", "sáu", "bảy", "tám", "chín"];
+        $docBlock = function ($number) use ($chuSo, &$docBlock) {
+            $tram = floor($number / 100);
+            $chuc = floor(($number % 100) / 10);
+            $donvi = $number % 10;
+            $res = "";
+            if ($tram > 0) $res .= $chuSo[$tram] . " trăm ";
+            else if ($res !== "") $res .= "không trăm ";
+            if ($chuc > 1) $res .= $chuSo[$chuc] . " mươi ";
+            else if ($chuc === 1) $res .= "mười ";
+            else if ($tram > 0 && $donvi > 0) $res .= "lẻ ";
+            if ($donvi === 5 && $chuc >= 1) $res .= "lăm";
+            else if ($donvi > 1 || ($donvi === 1 && $chuc === 0)) $res .= $chuSo[$donvi];
+            else if ($donvi === 1 && $chuc > 0) $res .= "mốt";
+            return $res;
+        };
+        $hangDonVi = ["", " nghìn", " triệu", " tỷ", " nghìn tỷ", " triệu tỷ"];
+        if ($number == 0) return "Không đồng";
+        $res = "";
+        $i = 0;
+        $num = (float) $number;
+        do {
+            $block = $num % 1000;
+            if ($block > 0) {
+                $s = $docBlock($block);
+                $res = $s . $hangDonVi[$i] . ($res !== "" ? " " : "") . $res;
+            }
+            $i++;
+            $num = floor($num / 1000);
+        } while ($num > 0);
+        return ucfirst(trim($res)) . " đồng./.";
+    }
+@endphp
 <!DOCTYPE html>
 <html lang="vi">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Phiếu xuất kho - {{ $department->name }}</title>
+    <title>Phiếu xuất kho - {{ $department->name }} - Tháng {{ $selectedMonth }}</title>
     <style>
         * {
             margin: 0;
@@ -14,237 +49,256 @@
 
         body {
             font-family: 'Times New Roman', Times, serif;
-            font-size: 13pt;
-            line-height: 1.5;
-            padding: 1cm;
+            font-size: 12pt;
+            line-height: 1.3;
             background: white;
         }
 
-        .header {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 15px;
-            page-break-inside: avoid;
-        }
-
-        .header-left {
-            flex: 1;
-        }
-
-        .header-right {
-            flex: 1;
-            text-align: center;
-        }
-
-        .logo {
-            width: 80px;
-            height: auto;
-            margin-bottom: 10px;
-        }
-
-        .company-name {
-            font-weight: bold;
-            font-size: 11pt;
-            text-transform: uppercase;
-        }
-
-        .department {
-            font-size: 11pt;
-        }
-
-        .form-number {
-            font-weight: bold;
-            font-size: 11pt;
-        }
-
-        .form-regulation {
-            font-style: italic;
-            font-size: 10pt;
-        }
-
-        .date {
-            font-style: italic;
-            font-size: 10pt;
-            margin-top: 3px;
-        }
-
-        .title {
-            text-align: center;
-            margin: 15px 0 10px 0;
-            page-break-inside: avoid;
-        }
-
-        .title h1 {
-            font-size: 14pt;
-            font-weight: bold;
-            text-transform: uppercase;
-            margin-bottom: 5px;
-        }
-
-        .title h2 {
-            font-size: 12pt;
-            font-weight: normal;
-        }
-
-        .department-name {
-            text-align: center;
-            font-weight: bold;
-            font-size: 13pt;
-            margin: 10px 0;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 20px 0;
-        }
-
-        th,
-        td {
-            border: 1px solid black;
-            padding: 6px;
-            text-align: left;
-        }
-
-        th {
-            background: #f3f4f6;
-            font-weight: bold;
-            text-align: center;
-        }
-
-        .category-header {
-            background: #3b82f6;
-            color: white;
-            font-weight: bold;
-            text-align: left;
-        }
-
-        .text-center {
-            text-align: center;
-        }
-
-        .text-right {
-            text-align: right;
-        }
-
-        .total-row {
-            background: #fef3c7;
-            font-weight: bold;
-        }
-
-        .signatures {
-            display: flex;
-            justify-content: space-around;
-            margin-top: 40px;
-            text-align: center;
-            page-break-inside: avoid;
-        }
-
-        .signature-block {
-            flex: 1;
-            page-break-inside: avoid;
-        }
-
-        .signature-title {
-            font-weight: bold;
-            margin-bottom: 80px;
-        }
-
-        .signature-name {
-            font-weight: bold;
+        .page {
+            padding: 1.5cm;
+            width: 210mm;
+            margin: 0 auto;
+            min-height: 297mm;
+            position: relative;
         }
 
         @media print {
             body {
-                padding: 0.5cm;
+                background: none;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
             }
 
             @page {
-                size: A4;
-                margin: 1cm;
+                size: A4 portrait;
+                margin: 0; /* Removing margin hides browser headers/footers */
             }
 
-            .header {
-                page-break-inside: avoid;
-                page-break-after: avoid;
+            .page {
+                margin: 20mm 15mm 20mm 15mm; /* Add margin back to content */
+                border: none;
+                width: auto;
+                min-height: auto;
+                padding: 0 !important;
+                page-break-after: always;
             }
+            
+            thead { display: table-header-group; }
+            tfoot { display: table-footer-group; }
+            tr { page-break-inside: avoid; }
+        }
+
+        /* Common Styles */
+        .text-center { text-align: center; }
+        .text-right { text-align: right; }
+        .text-left { text-align: left; }
+        .font-bold { font-weight: bold; }
+        .italic { font-style: italic; }
+        .uppercase { text-transform: uppercase; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
+        }
+
+        th, td {
+            border: 1px solid black;
+            padding: 4px 6px;
+            font-size: 11pt;
+            vertical-align: middle;
+        }
+
+        th {
+            background: #4472c4 !important;
+            color: white !important;
+            font-weight: bold;
+            text-align: center;
+            text-transform: uppercase;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+        }
+
+        .bg-blue-header {
+            background-color: #4472c4 !important;
+            color: white !important;
+            font-weight: bold;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+        }
+
+        .bg-subtotal {
+            background-color: #fff2cc !important;
+            font-weight: bold;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+        }
+
+        .bg-gold-total {
+            background-color: #ffc000 !important;
+            font-weight: bold;
+            font-size: 14pt;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+        }
+
+        /* Header info */
+        .header-section {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+        }
+
+        .company-info p, .national-info p {
+            margin: 2px 0;
+            font-size: 11pt;
+        }
+
+        .national-info {
+            text-align: center;
+        }
+        
+        .title-section {
+             margin: 10px 0;
+             text-align: center;
+        }
+
+        /* Signatures */
+        .signature-section {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 50px;
+            page-break-inside: avoid;
+        }
+
+        .sig-block {
+            text-align: center;
+            flex: 1;
+        }
+
+        .sig-title {
+            font-weight: bold;
+            margin-bottom: 70px;
+            text-transform: uppercase;
+            font-size: 11pt;
+        }
+
+        .sig-name {
+            font-weight: bold;
+            text-transform: uppercase;
+            font-size: 11pt;
+
         }
     </style>
 </head>
 
 <body>
-    <div class="header">
-        <div class="header-left">
-            <div class="company-name">CTCP BỆNH VIỆN ĐA KHOA<br>TÂM TRÍ CAO LÃNH</div>
-            <div class="department">P. HỖ TRỢ DỊCH VỤ</div>
+    <div class="page">
+        <div class="header-section">
+            <div class="company-info">
+                <p class="font-bold uppercase">CTCP BỆNH VIỆN ĐA KHOA</p>
+                <p class="font-bold uppercase">TÂM TRÍ CAO LÃNH</p>
+                <p class="uppercase">{{ $department->name }}</p>
+            </div>
+            <div class="national-info">
+                <p class="font-bold uppercase">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</p>
+                <p class="font-bold">Độc lập - Tự do - Hạnh phúc</p>
+                <p class="italic" style="margin-top: 5px;">Đồng Tháp, ngày {{ date('d') }} tháng {{ date('m') }} năm {{ date('Y') }}</p>
+            </div>
         </div>
-        <div class="header-right">
-            <div class="form-number">Mẫu số 02-VT</div>
-            <div class="form-regulation">(Ban hành theo TT số 200/2014/TT-BTC<br>Ngày 22/12/2014 của Bộ trưởng BTC)</div>
-            <div class="date">Ngày …../…./2026</div>
+
+        <div class="title-section">
+            <p class="font-bold" style="font-size: 16pt; text-transform: uppercase;">PHIẾU DỰ TRÙ VĂN PHÒNG PHẨM - VTTH</p>
+            <p class="font-bold">Tháng {{ $selectedMonth }}</p>
         </div>
-    </div>
 
-    <div class="title">
-        <h1>PHIẾU XUẤT KHO VÀ BIÊN BẢN BÀN GIAO NỘI BỘ</h1>
-        <h2>Ngày …../…./2026</h2>
-    </div>
+        <div style="margin: 10px 0;">
+             <p>Kính gửi: Ban Giám đốc, Phòng Tài chính Kế toán, Bộ phận Hỗ trợ dịch vụ.</p>
+             <p>Căn cứ nhu cầu sử dụng thực tế, {{ $department->name }} đề nghị cấp các vật tư sau:</p>
+        </div>
 
-    <div class="department-name">KHOA DƯỢC</div>
-
-    <table>
-        <thead>
-            <tr>
-                <th style="width: 50px;">STT</th>
-                <th>Tên hàng</th>
-                <th style="width: 80px;">ĐVT</th>
-                <th style="width: 100px;">Số Lượng</th>
-                <th style="width: 120px;">Đơn Giá</th>
-                <th style="width: 130px;">Thành Tiền</th>
-            </tr>
-        </thead>
-        <tbody>
-            @php $stt = 0; @endphp
-            @foreach($orders as $categoryName => $categoryOrders)
+        <table>
+            <thead>
                 <tr>
-                    <td colspan="6" class="category-header">{{ $categoryName }}</td>
+                    <th style="width: 40px;">STT</th>
+                    <th>Tên hàng</th>
+                    <th style="width: 60px;">ĐVT</th>
+                    <th style="width: 80px;">Số lượng</th>
+                    <th style="width: 100px;">Đơn giá</th>
+                    <th style="width: 120px;">Thành tiền</th>
+                    <th style="width: 150px;">Ghi chú</th>
+                    <th style="width: 150px;">Phản hồi</th>
                 </tr>
-                @foreach($categoryOrders as $order)
-                    @php 
-                        $stt++;
-                        $totalPrice = $order->quantity * $order->product->price;
+            </thead>
+            <tbody>
+                @php 
+                    $stt = 0; 
+                    $grandTotal = 0;
+                @endphp
+                @foreach($orders as $categoryName => $categoryOrders)
+                    @php
+                        $catTotal = 0;
+                        foreach($categoryOrders as $o) {
+                            $catTotal += $o->quantity * $o->product->price;
+                        }
+                        $grandTotal += $catTotal;
                     @endphp
-                    <tr>
-                        <td class="text-center">{{ $stt }}</td>
-                        <td>{{ $order->product->name }}</td>
-                        <td class="text-center">{{ $order->product->unit }}</td>
-                        <td class="text-right">{{ number_format($order->quantity, 0, ',', '.') }}</td>
-                        <td class="text-right">{{ number_format($order->product->price, 0, ',', '.') }}</td>
-                        <td class="text-right">{{ number_format($totalPrice, 0, ',', '.') }}</td>
+                    
+                    <tr class="bg-blue-header">
+                        <td colspan="8" class="font-bold text-left pl-2">{{ $categoryName }}</td>
+                    </tr>
+                    
+                    @foreach($categoryOrders as $order)
+                        @php 
+                            $stt++;
+                            $itemTotal = $order->quantity * $order->product->price;
+                        @endphp
+                        <tr>
+                            <td class="text-center">{{ $stt }}</td>
+                            <td>{{ $order->product->name }}</td>
+                            <td class="text-center">{{ $order->product->unit }}</td>
+                            <td class="text-right">{{ number_format($order->quantity, 0, ',', '.') }}</td>
+                            <td class="text-right">{{ number_format($order->product->price, 0, ',', '.') }}</td>
+                            <td class="text-right font-bold">{{ number_format($itemTotal, 0, ',', '.') }}</td>
+                            <td>{{ $order->notes }}</td>
+                            <td>{{ $order->admin_notes }}</td>
+                        </tr>
+                    @endforeach
+                    
+                    <!-- Category Subtotal -->
+                    <tr class="bg-subtotal">
+                        <td colspan="5" class="text-right font-bold pr-2">Cộng:</td>
+                        <td class="text-right font-bold pr-2 text-red-600">{{ number_format($catTotal, 0, ',', '.') }}</td>
+                        <td colspan="2"></td>
                     </tr>
                 @endforeach
-            @endforeach
-            <tr class="total-row">
-                <td colspan="3" class="text-center">Tổng</td>
-                <td class="text-right">{{ $orders->flatten()->sum('quantity') }}</td>
-                <td></td>
-                <td class="text-right">{{ number_format($totalAmount, 0, ',', '.') }}</td>
-            </tr>
-        </tbody>
-    </table>
+                
+                <!-- Grand Total -->
+                <tr class="bg-gold-total">
+                    <td colspan="5" class="text-right uppercase pr-2">TỔNG CỘNG:</td>
+                    <td class="text-right pr-2">{{ number_format($grandTotal, 0, ',', '.') }}</td>
+                    <td colspan="2"></td>
+                </tr>
+            </tbody>
+        </table>
+        
+        <div style="margin-top: 10px;">
+            <p class="font-bold">Tổng số tiền bằng chữ: <span class="italic font-normal">{{ docSoThanhChu($grandTotal) }}</span></p>
+        </div>
 
-    <div class="signatures">
-        <div class="signature-block">
-            <div class="signature-title">Người Lập phiếu</div>
-            <div class="signature-name">Phạm Thị Huỳnh Như</div>
-        </div>
-        <div class="signature-block">
-            <div class="signature-title">Người nhận</div>
-            <div class="signature-name"></div>
-        </div>
-        <div class="signature-block">
-            <div class="signature-title">Người giao</div>
-            <div class="signature-name">Lê Thúy Huỳnh</div>
+        <div class="signature-section">
+            <div class="sig-block">
+                <p class="sig-title">BP.HTDV</p>
+                <p class="sig-name">Nguyễn Thị Thùy Trang</p>
+            </div>
+            <div class="sig-block">
+                <p class="sig-title">TRƯỞNG PHÒNG TCKT</p>
+                <p class="sig-name">Nguyễn Thị Thúy Huỳnh</p>
+            </div>
+            <div class="sig-block">
+                <p class="sig-title">BAN GIÁM ĐỐC</p>
+                <p class="sig-name">Huỳnh Thị Nguyệt</p>
+            </div>
         </div>
     </div>
 </body>

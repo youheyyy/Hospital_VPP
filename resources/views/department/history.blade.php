@@ -243,8 +243,8 @@
                     </div>
 
                     <div class="mt-6 flex justify-end gap-4">
-                        <button onclick="window.print()" type="button"
-                            class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 inline-flex items-center gap-2">
+                        <button onclick="printDirect(this)" type="button"
+                            class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 inline-flex items-center gap-2 transition-colors">
                             <span class="material-symbols-outlined text-sm">print</span>
                             In yêu cầu
                         </button>
@@ -254,7 +254,37 @@
         </main>
     </div>
 
+    <!-- Hidden iframe for printing -->
+    <iframe id="printFrame" style="display:none;"></iframe>
+
     <script>
+        function printDirect(btn) {
+            const month = "{{ $selectedMonth }}";
+            const printUrl = "{{ route('department.history.print') }}?month=" + encodeURIComponent(month);
+            const printFrame = document.getElementById('printFrame');
+            const originalContent = btn.innerHTML;
+
+            // Show loading state
+            btn.innerHTML = '<span class="material-symbols-outlined text-sm animate-spin">sync</span> Đang chuẩn bị...';
+            btn.disabled = true;
+
+            printFrame.onload = function () {
+                try {
+                    printFrame.contentWindow.focus();
+                    printFrame.contentWindow.print();
+                } catch (e) {
+                    console.error("Print failed:", e);
+                    // Fallback to new tab if iframe fails
+                    window.open(printUrl, '_blank');
+                } finally {
+                    btn.innerHTML = originalContent;
+                    btn.disabled = false;
+                }
+            };
+
+            printFrame.src = printUrl;
+        }
+
         let currentEditingCell = null;
 
         function editQuantity(cell) {

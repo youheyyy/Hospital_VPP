@@ -777,7 +777,7 @@ class ConsolidatedExport
         $currentRow += 4; // Space for signatures (Reduced spacing slightly as no sub-headers)
 
         // Signature Names
-        $sheet->setCellValue('A' . $currentRow, 'Phạm Thị Thuỳnh Như'); // Updated name to match Image 2
+        $sheet->setCellValue('A' . $currentRow, 'Phạm Thị Huỳnh Như'); // Updated name to match Image 2
         $sheet->mergeCells('A' . $currentRow . ':B' . $currentRow);
         $sheet->setCellValue('C' . $currentRow, ''); // Dept head signs manually
         $sheet->mergeCells('C' . $currentRow . ':D' . $currentRow);
