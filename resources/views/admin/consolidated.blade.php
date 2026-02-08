@@ -6,78 +6,88 @@
     <meta content="width=device-width, initial-scale=1.0" name="viewport" />
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Tổng hợp yêu cầu - Tháng {{ $selectedMonth }}</title>
-    <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap"
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com" rel="preconnect" />
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap"
         rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
         rel="stylesheet" />
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-    <style>
-        body {
-            font-family: 'Inter', sans-serif;
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        indigo: {
+                            50: '#f5f7ff',
+                            100: '#ebf0fe',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                            900: '#1e1b4b',
+                        },
+                        mint: {
+                            50: '#f0fdfa',
+                            100: '#ccfbf1',
+                            500: '#14b8a6',
+                            600: '#0d9488',
+                        },
+                        slate: {
+                            50: '#f8fafc',
+                            100: '#f1f5f9',
+                            200: '#e2e8f0',
+                            400: '#94a3b8',
+                            500: '#64748b',
+                            900: '#0f172a',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ["Plus Jakarta Sans", "sans-serif"],
+                    },
+                },
+            },
+        };
+    </script>
+    <style type="text/tailwindcss">
+        @layer base {
+            body { @apply bg-slate-50 text-slate-900 antialiased font-sans; }
         }
 
         .excel-table {
-            border-collapse: collapse;
-            width: 100%;
-            font-size: 13px;
+            @apply border-collapse w-full text-[13px];
         }
 
         .excel-table th,
         .excel-table td {
-            border: 1px solid #d1d5db;
-            padding: 6px 8px;
+            @apply border border-slate-200 p-2;
         }
 
         .excel-table th {
-            background: #f3f4f6;
-            font-weight: 600;
-            text-align: center;
+            @apply bg-slate-50 font-bold text-center text-slate-600;
         }
 
         .category-header {
-            background: #3b82f6 !important;
-            color: white;
-            font-weight: bold;
-            text-align: left;
+            @apply bg-indigo-600 text-white font-bold text-left uppercase text-[11px] tracking-wider;
         }
 
         .category-total {
-            background: #fef3c7;
-            font-weight: bold;
+            @apply bg-slate-50 font-bold;
         }
 
         .grand-total {
-            background: #fbbf24;
-            font-weight: bold;
+            @apply bg-amber-50 font-bold text-amber-900;
         }
 
         @media print {
-            .no-print {
-                display: none !important;
-            }
-
-            body {
-                background: white;
-            }
-
-            .print-header {
-                display: block !important;
-            }
-
-            .excel-table {
-                font-size: 11px;
-            }
-
-            .excel-table th,
-            .excel-table td {
-                padding: 4px 6px;
-            }
-
-            @page {
-                margin: 1.5cm;
-            }
+            .no-print { display: none !important; }
+            body { background: white; }
+            .print-header { display: block !important; }
+            .excel-table { font-size: 11px; }
+            .excel-table th, .excel-table td { padding: 4px 6px; }
+            @page { margin: 1.5cm; }
         }
 
         .print-header {
@@ -92,82 +102,92 @@
         }
 
         @media print {
-            .signature-section {
-                display: flex !important;
-            }
+            .signature-section { display: flex !important; }
+        }
+
+        .bento-card {
+            @apply bg-white rounded-[2rem] border border-slate-100 shadow-[0_10px_40px_-15px_rgba(0,0,0,0.05)] p-6 transition-all duration-300 hover:shadow-[0_20px_50px_-12px_rgba(0,0,0,0.08)];
+        }
+
+        .sidebar-item {
+            @apply flex items-center gap-3 px-4 py-3 rounded-2xl text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 transition-all duration-200 cursor-pointer;
+        }
+
+        .sidebar-item.active {
+            @apply bg-indigo-600 text-white shadow-lg shadow-indigo-200;
+        }
+
+        .sidebar-item .material-symbols-outlined {
+            @apply text-2xl;
         }
     </style>
 </head>
 
-<body class="bg-gray-50" x-data="{ showNoteManager: false }">
+<body class="bg-slate-50" x-data="{ showNoteManager: false }">
     <div class="flex h-screen">
         <!-- Hidden Print Iframe -->
         <iframe id="printFrame" style="display:none;"></iframe>
         <!-- Sidebar -->
-        <aside class="w-64 bg-white border-r border-gray-200 flex flex-col no-print">
-            <div class="p-6 border-b">
+        <aside class="w-64 flex-shrink-0 bg-white border-r border-slate-100 flex flex-col py-8 px-4 gap-4 no-print">
+            <div class="mb-8 px-4">
                 <div class="flex items-center gap-3">
-                    <img src="{{ asset('images/logo-tmmc.png') }}" alt="Logo" class="h-12 w-auto">
-                    <div class="flex flex-col">
-                        <h2 class="text-slate-900 text-xl font-black leading-none tracking-tighter">TÂM TRÍ</h2>
-                        <span class="text-[10px] font-bold text-slate-800 uppercase tracking-widest mt-1">CAO
-                            LÃNH</span>
-                        <span class="text-[9px] font-medium text-slate-500 leading-none mt-0.5 uppercase">Hệ Thống Vật
-                            Tư</span>
+                    <div class="w-12 h-12 bg-mint-500 rounded-2xl flex items-center justify-center shadow-lg shadow-mint-100">
+                        <span class="material-symbols-outlined text-white">inventory_2</span>
+                    </div>
+                    <div>
+                        <h2 class="text-lg font-extrabold text-slate-900">VPP Admin</h2>
+                        <p class="text-[10px] text-slate-400 font-medium">Quản trị hệ thống</p>
                     </div>
                 </div>
             </div>
-            <nav class="flex-1 p-4 space-y-2">
-                <a href="{{ route('admin.dashboard') }}"
-                    class="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-gray-100 rounded-lg">
-                    <span class="material-symbols-outlined">dashboard</span>
-                    <span>Dashboard</span>
+            <nav class="flex flex-col gap-2 flex-1">
+                <a class="sidebar-item" href="{{ route('admin.dashboard') }}">
+                    <span class="material-symbols-outlined">grid_view</span>
+                    <span class="text-sm font-bold">Tổng quan</span>
                 </a>
-                <a href="{{ route('admin.consolidated') }}"
-                    class="flex items-center gap-3 px-4 py-3 bg-blue-600 text-white rounded-lg">
-                    <span class="material-symbols-outlined">summarize</span>
-                    <span>Tổng hợp yêu cầu</span>
+                <a class="sidebar-item active" href="{{ route('admin.consolidated') }}">
+                    <span class="material-symbols-outlined">assignment</span>
+                    <span class="text-sm font-bold">Tổng hợp yêu cầu</span>
                 </a>
             </nav>
-            <div class="p-4 border-t">
-                <div class="bg-gray-50 rounded-xl p-3">
-                    <div class="flex items-center gap-3">
-                        <div
-                            class="size-10 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-sm">
-                            AD
+            <div class="mt-auto px-4">
+                <div class="bg-slate-50 rounded-2xl p-4 mb-4">
+                    <div class="flex items-center gap-3 mb-3">
+                        <div class="w-10 h-10 rounded-full bg-indigo-500 flex items-center justify-center text-white font-bold">
+                            {{ strtoupper(substr(auth()->user()->name, 0, 2)) }}
                         </div>
-                        <div class="flex-1 min-w-0">
-                            <p class="text-sm font-bold truncate">Admin</p>
-                            <p class="text-xs text-gray-500 truncate">{{ auth()->user()->name }}</p>
+                        <div class="flex-1 overflow-hidden">
+                            <p class="text-sm font-bold text-slate-900 truncate">{{ auth()->user()->name }}</p>
+                            <p class="text-[10px] text-slate-400 uppercase">{{ auth()->user()->role }}</p>
                         </div>
                     </div>
-                    <form action="{{ route('logout') }}" method="POST" class="mt-3">
-                        @csrf
-                        <button type="submit"
-                            class="w-full text-xs text-gray-500 hover:text-blue-600 text-left px-2 py-1">
-                            Đăng xuất
-                        </button>
-                    </form>
                 </div>
+                <form action="{{ route('logout') }}" method="POST">
+                    @csrf
+                    <button type="submit" class="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 transition-colors text-sm font-bold text-slate-600">
+                        <span class="material-symbols-outlined text-lg">logout</span>
+                        <span>Đăng xuất</span>
+                    </button>
+                </form>
             </div>
         </aside>
 
         <!-- Main Content -->
         <main class="flex-1 flex flex-col overflow-hidden">
             <!-- Header -->
-            <header class="bg-white border-b px-8 py-4 flex justify-between items-center no-print">
-                <div>
-                    <h1 class="text-xl font-bold text-gray-800">Tổng hợp yêu cầu VPP</h1>
-                    <p class="text-sm text-gray-500">Tháng {{ $selectedMonth }}</p>
+            <header class="bg-white border-b border-slate-100 px-6 py-4 flex justify-between items-center gap-3 no-print min-w-0">
+                <div class="flex-shrink-0">
+                    <h1 class="text-xl font-extrabold text-slate-900 tracking-tight">Tổng hợp yêu cầu VPP</h1>
+                    <p class="text-xs text-slate-400 font-medium">Tháng {{ $selectedMonth }} • {{ now()->format('d/m/Y H:i') }}</p>
                 </div>
-                <div class="flex items-center gap-4">
+                <div class="flex items-center gap-3 flex-shrink-0">
                     <!-- Month Filter -->
                     <form method="GET" action="{{ route('admin.consolidated') }}">
                         @if(request('category'))
                             <input type="hidden" name="category" value="{{ request('category') }}">
                         @endif
                         <select name="month" onchange="this.form.submit()"
-                            class="border-gray-300 rounded-lg text-sm px-4 py-2">
+                            class="border-slate-300 rounded-2xl text-sm px-3 py-2 bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
                             @for($i = 0; $i < 12; $i++)
                                 @php
                                     $date = now()->subMonths($i);
@@ -180,17 +200,17 @@
                         </select>
                     </form>
                     <button onclick="printDirect()"
-                        class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2">
+                        class="px-3 py-2 bg-indigo-600 text-white rounded-2xl hover:bg-indigo-700 flex items-center gap-2 transition-colors shadow-sm whitespace-nowrap">
                         <span class="material-symbols-outlined text-sm">print</span>
                         In
                     </button>
                     <a href="{{ route('admin.consolidated.export', ['month' => $selectedMonth]) }}"
-                        class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2">
+                        class="px-3 py-2 bg-emerald-600 text-white rounded-2xl hover:bg-emerald-700 flex items-center gap-2 transition-colors shadow-sm whitespace-nowrap">
                         <span class="material-symbols-outlined text-sm">table_chart</span>
                         Excel
                     </a>
                     <button onclick="exportToPDF()"
-                        class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center gap-2">
+                        class="px-3 py-2 bg-amber-500 text-white rounded-2xl hover:bg-amber-600 flex items-center gap-2 transition-colors shadow-sm whitespace-nowrap">
                         <span class="material-symbols-outlined text-sm">picture_as_pdf</span>
                         PDF
                     </button>
@@ -198,7 +218,7 @@
             </header>
 
             <!-- Content -->
-            <div class="flex-1 overflow-y-auto p-8">
+            <div class="flex-1 overflow-auto p-8">
                 <!-- Tab Navigation -->
                 <div class="bg-white rounded-t-lg shadow-sm border border-b-0 border-gray-200 flex">
                     <button onclick="switchTab('bang-tong')" id="tab-bang-tong"
