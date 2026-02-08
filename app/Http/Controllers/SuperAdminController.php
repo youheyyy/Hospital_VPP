@@ -699,26 +699,103 @@ class SuperAdminController extends Controller
             $pivotMode = false;
             $pivotDeptIds = []; // [colIndex => departmentId]
 
-            // --- STEP 1: DETECT & PARSE "TỔNG HỢP" SHEET (Pivot Mode) ---
+            // --- STEP 1: PARSE MASTER CATALOG FROM "TỔNG HỢP" (Catalog & Pivot Mode) ---
             $masterSheet = $spreadsheet->getSheetByName('TỔNG HỢP') ?? $spreadsheet->getSheetByName('Tong hop');
-
             if ($masterSheet) {
                 $rows = $masterSheet->toArray();
                 $currentCategoryId = null;
 
-                // DETECT PIVOT HEADERS (Scan rows 3-5 for Department Names)
-                $headerRowIndex = -1;
-                for ($r = 2; $r <= 5; $r++) {
+                // 1.1: PRIME CATALOG (Products, Categories, Prices)
+                // Search for the header row containing "Tên" and "ĐVT"
+                $masterHeaderIdx = -1;
+                foreach ($rows as $idx => $row) {
+                    $rStr = implode(' ', array_filter($row));
+                    if (str_contains($rStr, 'Tên') && (str_contains($rStr, 'ĐVT') || str_contains($rStr, 'Đơn vị'))) {
+                        $masterHeaderIdx = $idx;
+                        break;
+                    }
+                }
+
+                if ($masterHeaderIdx != -1) {
+                    $masterHeaderRow = $rows[$masterHeaderIdx];
+                    list($nameCol, $unitCol, $priceCol, $qtyCol, $noteCol) = $this->detectColumnsStrict($rows, $masterHeaderIdx);
+
+                    // Fallback Defaults
+                    if ($nameCol == -1)
+                        $nameCol = 1;
+                    if ($unitCol == -1)
+                        $unitCol = 2;
+                    if ($priceCol == -1)
+                        $priceCol = 4;
+
+                    // FALLBACK PRICE COLUMN DETECTION: Scan first 5 rows
+                    if ($priceCol == -1 || $priceCol == 4) { // Re-check if strict failed or defaulted
+                        for ($scanRow = $masterHeaderIdx + 1; $scanRow < min($masterHeaderIdx + 6, count($rows)); $scanRow++) {
+                            // Check potential columns (typically 3, 4, 5, 6)
+                            for ($pCol = 3; $pCol <= 8; $pCol++) {
+                                $val = $this->parsePrice($rows[$scanRow][$pCol] ?? '');
+                                if ($val > 1000) { // Prices usually > 1000 VND
+                                    $priceCol = $pCol;
+                                    break 2;
+                                }
+                            }
+                        }
+                    }
+
+                    for ($i = $masterHeaderIdx + 1; $i < count($rows); $i++) {
+                        $row = $rows[$i];
+                        $name = trim($row[$nameCol] ?? '');
+                        $unit = trim($row[$unitCol] ?? '');
+                        $priceStr = trim($row[$priceCol] ?? '');
+
+                        if (empty($name) || strlen($name) < 2 || $this->isJunkRow($name))
+                            continue;
+                        if (str_contains($name, 'CỘNG') || str_contains($name, 'Tổng'))
+                            continue;
+
+                        // CATEGORY DETECTION (Row with name but no unit/price)
+                        if (empty($unit) && (empty($priceStr) || $priceStr == '0')) {
+                            if ($this->isDeptName($name, $deptMap))
+                                continue; // Skip dept headers
+
+                            $normCatName = $this->cleanString($name);
+                            $cat = \App\Models\Category::updateOrCreate(['name' => $name], ['is_active' => true]);
+                            $catMap[$normCatName] = $cat->id;
+                            $currentCategoryId = $cat->id;
+                            continue;
+                        }
+
+                        // PRODUCT UPDATE/CREATE (Master Source)
+                        $price = $this->parsePrice($priceStr);
+                        $normName = $this->cleanString($name);
+
+                        $updateData = [
+                            'unit' => $unit,
+                            'category_id' => $currentCategoryId,
+                            'is_active' => true
+                        ];
+                        // Only update price if we actually have a non-zero price in Master
+                        if ($price > 0) {
+                            $updateData['price'] = $price;
+                        }
+
+                        $product = \App\Models\Product::updateOrCreate(
+                            ['name' => $name],
+                            $updateData
+                        );
+                        $productMap[$normName] = $product;
+                    }
+                }
+
+                // 1.2: DETECT PIVOT MODE (Departments as columns in TỔNG HỢP)
+                for ($r = 2; $r <= 7; $r++) {
                     if (!isset($rows[$r]))
                         continue;
-                    $row = $rows[$r];
-                    // Check if > 3 columns look like Departments
                     $deptCount = 0;
-                    for ($c = 3; $c < count($row); $c++) {
-                        $cell = trim($row[$c] ?? '');
-                        if (strlen($cell) > 2 && !str_contains($cell, 'Tổng') && !is_numeric($cell)) {
+                    foreach (array_slice($rows[$r], 3) as $cell) {
+                        $cellChar = trim($cell ?? '');
+                        if (strlen($cellChar) > 2 && !$this->isJunkDept($cellChar) && !is_numeric($cellChar) && !str_contains($cellChar, 'Tổng'))
                             $deptCount++;
-                        }
                     }
                     if ($deptCount > 2) {
                         $headerRowIndex = $r;
@@ -728,155 +805,54 @@ class SuperAdminController extends Controller
                 }
 
                 if ($pivotMode) {
-                    // Process Headers to create/map Departments
-                    $headerRow = $rows[$headerRowIndex];
-                    for ($col = 3; $col < count($headerRow); $col++) {
-                        $deptName = trim($headerRow[$col] ?? '');
-
-                        // --- FILTER JUNK COLUMNS (Sheet2, Sheet3, etc.) ---
-                        if (empty($deptName) || str_contains($deptName, 'Tổng') || str_contains($deptName, 'Ghi chú'))
-                            continue;
-                        if (preg_match('/^Sheet\d+$/i', $deptName) || preg_match('/^Column\d+$/i', $deptName) || str_contains(strtolower($deptName), 'sheet'))
-                            continue;
-
-                        $deptSlug = strtoupper(\Illuminate\Support\Str::slug($deptName));
-                        // Normalize specific common abbreviations
-                        if ($deptName == 'CĐHA' && $deptSlug == 'CDHA')
-                            $deptSlug = 'CDHA';
-
-                        // ROBUST LOOKUP: Check by Code OR Name to prevent "Duplicate entry" error
-                        $dept = \App\Models\Department::where('code', $deptSlug)
-                            ->orWhere('name', $deptName)
-                            ->first();
-
-                        if ($dept) {
-                            $deptMap[$deptSlug] = $dept;
-                        } else {
-                            // DATA RACE / DUPLICATE PROTECTION
-                            try {
-                                $dept = \App\Models\Department::create(['code' => $deptSlug, 'name' => $deptName]);
-                            } catch (\Illuminate\Database\QueryException $e) {
-                                // Error 1062 = Duplicate Entry
-                                if ($e->errorInfo[1] == 1062) {
-                                    // Verify which one caused it. Likely code.
-                                    $dept = \App\Models\Department::where('code', $deptSlug)->first();
-                                    // If not found by code, try name
-                                    if (!$dept) {
-                                        $dept = \App\Models\Department::where('name', $deptName)->first();
-                                    }
-
-                                    // If still null, something is really weird, but we must continue to avoid crash
-                                    if (!$dept) {
-                                        // Resort to finding ANY department to link to, or skip
-                                        // Skipping ensures we don't crash the whole import
-                                        \Illuminate\Support\Facades\Log::error("CRITICAL: Duplicate Dept Error but could not find existing: $deptSlug / $deptName");
-                                        continue;
-                                    }
-                                } else {
-                                    throw $e; // Re-throw if it's another error
-                                }
-                            }
-
-                            $this->ensureDepartmentUser($dept);
-                            $deptMap[$deptSlug] = $dept;
+                    $headerRowContent = $rows[$headerRowIndex];
+                    $pivotStartCol = 3;
+                    // Find exactly where departments start (after Name/Unit/Price)
+                    for ($c = 3; $c < count($headerRowContent); $c++) {
+                        $hVal = trim($headerRowContent[$c] ?? '');
+                        $hValLower = strtolower($hVal);
+                        if (str_contains($hValLower, 'giá') || str_contains($hValLower, 'thành tiền') || str_contains($hValLower, 'ghi chú')) {
+                            $pivotStartCol = $c + 1;
                         }
-
-                        $pivotDeptIds[$col] = $dept->id;
-
-                        // Clear old data for matched departments
-                        \App\Models\MonthlyOrder::where('department_id', $dept->id)
-                            ->where('month', $targetMonth)
-                            ->delete();
                     }
-                    $processedDepartments = count($pivotDeptIds);
 
-                    // Process Data Rows
-                    for ($i = $headerRowIndex + 1; $i < count($rows); $i++) {
-                        $row = $rows[$i];
-                        $colB = trim($row[1] ?? ''); // Name (often in B for Single)
-                        $colC = trim($row[2] ?? ''); // Name (often in C for Pivot) or Unit
-
-                        // Heuristic: If pivot mode, Name is usually C, Unit D. 
-                        // But sometimes B is name if A is empty.
-                        $name = !empty($colC) ? $colC : $colB;
-                        $unit = trim($row[3] ?? '');
-
-                        if (empty($name) || strlen($name) < 2)
+                    for ($col = $pivotStartCol; $col < count($headerRowContent); $col++) {
+                        $deptNameHeader = trim($headerRowContent[$col] ?? '');
+                        if (empty($deptNameHeader) || str_contains($deptNameHeader, 'Tổng') || $this->isJunkDept($deptNameHeader))
                             continue;
 
-                        // Filter junk
-                        if (str_contains($name, 'CỘNG HÒA') || str_contains($name, 'BẢNG') || str_contains($name, 'Tên hàng'))
-                            continue;
-
-                        // Identify Product
-                        $normName = $this->cleanString($name);
-                        $product = $productMap[$normName] ?? null;
-                        $productId = $product ? $product->id : null;
-
-                        // Create if new
-                        if (!$product) {
-                            // Detect Category (No Unit, Name only)
-                            if (empty($unit)) {
-                                // Category Logic
-                                $normCatName = $this->cleanString($name);
-                                if (isset($catMap[$normCatName])) {
-                                    $currentCategoryId = $catMap[$normCatName];
-                                } else {
-                                    $cat = \App\Models\Category::create(['name' => $name, 'is_active' => true]);
-                                    $catMap[$normCatName] = $cat->id;
-                                    $currentCategoryId = $cat->id;
-                                }
-                                continue;
-                            }
-                            // Create Product
-                            else {
-                                if (!$currentCategoryId) {
-                                    $defaultCatName = $this->cleanString('Văn phòng phẩm');
-                                    $currentCategoryId = $catMap[$defaultCatName] ?? \App\Models\Category::firstOrCreate(['name' => 'Văn phòng phẩm'])->id;
-                                    $catMap[$defaultCatName] = $currentCategoryId;
-                                }
-
-                                $product = \App\Models\Product::create([
-                                    'name' => $name,
-                                    'unit' => $unit,
-                                    'category_id' => $currentCategoryId,
-                                    'is_active' => true
-                                ]);
-                                $productMap[$normName] = $product;
-                                $productId = $product->id;
-                            }
+                        $deptSlugHeader = strtoupper(\Illuminate\Support\Str::slug($deptNameHeader));
+                        $deptObj = $this->findOrCreateDept($deptNameHeader, $deptSlugHeader, $deptMap);
+                        if ($deptObj) {
+                            $pivotDeptIds[$col] = $deptObj->id;
+                            \App\Models\MonthlyOrder::where('department_id', $deptObj->id)->where('month', $targetMonth)->delete();
+                            $processedDepartments++;
                         }
+                    }
 
-                        // Add Orders for this row
-                        if ($productId) {
-                            foreach ($pivotDeptIds as $colIndex => $deptId) {
-                                $qty = trim($row[$colIndex] ?? '');
-                                $qty = (float) str_replace([',', '.'], '', $qty);
-                                if ($qty > 0) {
-                                    // --- MERGE LOGIC (In-Memory) ---
-                                    // Check if we already have an entry for this Dept+Product in current batch
-                                    // Use a composite key for quick lookup
-                                    $key = "{$deptId}_{$productId}";
-                                    if (isset($ordersToInsert[$key])) {
-                                        $ordersToInsert[$key]['quantity'] += $qty;
-                                    } else {
-                                        $ordersToInsert[$key] = [
-                                            'department_id' => $deptId,
-                                            'product_id' => $productId,
-                                            'month' => $targetMonth,
-                                            'quantity' => $qty,
-                                            'notes' => '',
-                                            'created_at' => now(),
-                                            'updated_at' => now(),
-                                        ];
-                                    }
-                                    $processedOrders++;
-                                }
+                    // Extract orders from Pivot Table (Using primed products)
+                    for ($i = $masterHeaderIdx + 1; $i < count($rows); $i++) {
+                        $row = $rows[$i];
+                        $pName = trim($row[$nameCol] ?? '');
+                        if (empty($pName))
+                            continue;
+
+                        $prodObj = $productMap[$this->cleanString($pName)] ?? null;
+                        if (!$prodObj)
+                            continue;
+
+                        foreach ($pivotDeptIds as $colIdx => $deptId) {
+                            $orderQty = $this->parsePrice(trim($row[$colIdx] ?? '0'));
+                            if ($orderQty > 0) {
+                                $this->bufferOrder($ordersToInsert, $deptId, $prodObj->id, $targetMonth, $orderQty);
+                                $processedOrders++;
                             }
                         }
                     }
                 }
             }
+
+
 
             // --- STEP 2: FALLBACK TO MULTI-SHEET (If no Pivot Mode detected) ---
             if (!$pivotMode) {
@@ -941,6 +917,29 @@ class SuperAdminController extends Controller
                     $sheet = $spreadsheet->getSheetByName($sheetName);
                     $rows = $sheet->toArray();
 
+                    // DYNAMIC HEADER PARSING (Step 2)
+                    $headerRowIndex = 4; // Default
+                    // Scan first 10 rows for Header
+                    for ($r = 0; $r < 10; $r++) {
+                        $rowStr = mb_strtolower(implode(' ', array_map(fn($x) => (string) $x, $rows[$r] ?? [])));
+                        if (str_contains($rowStr, 'tên hàng') || str_contains($rowStr, 'tên quy cách') || str_contains($rowStr, 'tên')) {
+                            $headerRowIndex = $r;
+                            break;
+                        }
+                    }
+
+                    list($nameCol, $unitCol, $priceCol, $qtyCol, $noteCol) = $this->detectColumnsStrict($rows, $headerRowIndex);
+
+                    // Fallback Defaults if strict failed entirely
+                    if ($nameCol == -1)
+                        $nameCol = 1;
+                    if ($unitCol == -1)
+                        $unitCol = 2;
+                    if ($qtyCol == -1)
+                        $qtyCol = 3;
+                    if ($priceCol == -1)
+                        $priceCol = 4;
+
                     // Buffer for summation: [prod_id => ['quantity' => float, 'notes' => string]]
                     $deptOrdersBuffer = [];
                     // Default fallback category if sheet starts without one
@@ -949,24 +948,28 @@ class SuperAdminController extends Controller
                     $catMap[$defaultCatName] = $currentCategoryId;
 
                     foreach ($rows as $index => $row) {
-                        if ($index < 5)
+                        if ($index <= $headerRowIndex)
                             continue;
 
-                        // Indexes:
-                        // 0: STT, 1: Name (B), 2: Unit (C), 3: Qty (D), 4: Price (E), 6: Note (G)
-                        $name = trim($row[1] ?? '');
-                        $unit = trim($row[2] ?? '');
-                        $qtyStr = trim($row[3] ?? '');
-                        $priceStr = trim($row[4] ?? '');
-                        $note = trim($row[6] ?? '');
+                        // Indexes: Dynamic
+                        $name = trim($row[$nameCol] ?? '');
+                        $unit = trim($row[$unitCol] ?? '');
+                        $qtyStr = trim($row[$qtyCol] ?? '');
+                        $priceStr = trim($row[$priceCol] ?? '');
+                        $note = trim($row[$noteCol] ?? '');
 
                         if (empty($name))
                             continue;
 
                         // --- CATEGORY DETECTION ---
                         if (empty($unit) && empty($qtyStr) && empty($priceStr)) {
-                            if (str_contains($name, 'CỘNG') || str_contains($name, 'Tổng'))
+                            if (str_contains($name, 'CỘNG') || str_contains($name, 'Tổng') || $this->isJunkRow($name))
                                 continue;
+
+                            // Prevent Dept Name as Category
+                            if ($this->isDeptName($name, $deptMap))
+                                continue;
+
                             $normCatName = $this->cleanString($name);
                             if (isset($catMap[$normCatName])) {
                                 $currentCategoryId = $catMap[$normCatName];
@@ -979,7 +982,7 @@ class SuperAdminController extends Controller
                         }
 
                         // --- PRODUCT PROCESSING ---
-                        $qty = (float) str_replace([',', '.'], '', $qtyStr);
+                        $qty = $this->parsePrice($qtyStr);
                         if ($qty <= 0)
                             continue;
                         if (str_contains($name, 'Tên hàng') || str_contains($name, 'ĐVT') || str_contains($name, 'Cộng') || str_contains($name, 'Tổng'))
@@ -990,9 +993,11 @@ class SuperAdminController extends Controller
 
                         // Create if missing
                         if (!$product) {
+                            $price = $this->parsePrice($priceStr);
                             $product = \App\Models\Product::create([
                                 'name' => $name,
                                 'unit' => $unit,
+                                'price' => $price,
                                 'category_id' => $currentCategoryId,
                                 'is_active' => true
                             ]);
@@ -1001,7 +1006,7 @@ class SuperAdminController extends Controller
 
                         // UPDATE PRODUCT PRICE (In-Memory Check to avoid DB writes)
                         if (!empty($priceStr)) {
-                            $price = (float) str_replace([',', '.'], '', $priceStr);
+                            $price = $this->parsePrice($priceStr);
                             if ($price > 0 && abs((float) $product->price - $price) > 0.01) {
                                 $product->update(['price' => $price]);
                             }
@@ -1092,13 +1097,28 @@ class SuperAdminController extends Controller
             switch ($importType) {
                 case 'products':
                     foreach ($rows as $row) {
-                        if (!empty($row[0])) { // Check if name exists
+                        // Detect STT shift (if row[0] is numeric and small, it's likely STT)
+                        $nameIdx = 0;
+                        $unitIdx = 1;
+                        $priceIdx = 2;
+                        $catIdx = 3;
+
+                        if (is_numeric($row[0]) && count($row) > 3) {
+                            $nameIdx = 1;
+                            $unitIdx = 2;
+                            $priceIdx = 3;
+                            $catIdx = 4;
+                        }
+
+                        $name = trim($row[$nameIdx] ?? '');
+                        if (!empty($name) && strlen($name) > 2) {
+                            $price = (float) str_replace([',', '.'], '', $row[$priceIdx] ?? '0');
                             \App\Models\Product::updateOrCreate(
-                                ['name' => $row[0]],
+                                ['name' => $name],
                                 [
-                                    'unit' => $row[1] ?? '',
-                                    'price' => $row[2] ?? 0,
-                                    'category_id' => $row[3] ?? null,
+                                    'unit' => $row[$unitIdx] ?? '',
+                                    'price' => $price,
+                                    'category_id' => $row[$catIdx] ?? null,
                                 ]
                             );
                             $imported++;
@@ -1183,5 +1203,303 @@ class SuperAdminController extends Controller
 
         $writer->save('php://output');
         exit;
+    }
+    // --- HELPERS ---
+
+    private function isDeptName($name, $deptMap)
+    {
+        if (empty($name))
+            return false;
+
+        // 1. Strip leading numbering like "1. ", "II. ", "A. "
+        $clean = preg_replace('/^([0-9]+|[IVXLC]+|[A-Z])[\.\-\:\)]\s*/i', '', trim($name));
+
+        // 2. Normalize
+        $norm = strtoupper(\Illuminate\Support\Str::slug($clean));
+        if (isset($deptMap[$norm]))
+            return true;
+
+        // 3. Check keywords
+        $lower = mb_strtolower($clean);
+        // 3. Check keywords
+        $lower = mb_strtolower($clean);
+        $keywords = [
+            'khoa',
+            'phòng',
+            'ban',
+            'đơn vị',
+            'phòng khám',
+            'nhà thuốc',
+            'chẩn đoán',
+            'xét nghiệm',
+            'trung tâm',
+            'bộ phận',
+            'tổ',
+            'đội',
+            'nhà sách',
+            'cửa hàng',
+            'công ty',
+            'siêu thị' // External suppliers often appear as headers too
+        ];
+
+        foreach ($keywords as $kw) {
+            // Check if starts with OR contains (for things like "II. CHẨN ĐOÁN HÌNH ẢNH")
+            if (str_contains($lower, $kw))
+                return true;
+        }
+
+        return false;
+    }
+
+    private function parsePrice($val)
+    {
+        if (is_numeric($val))
+            return (float) $val;
+        if (empty($val))
+            return 0;
+
+        // Clean currency symbols, spaces, and potential invisible artifacts
+        $val = str_replace(['đ', 'VND', ' ', "\xc2\xa0", "\xa0"], '', trim($val));
+
+        // Remove thousand separators if they are dots (VN standard) and commas are decimals
+        // or if they are just dots/commas consistently
+
+        // Example: 12,000 or 12.000 or 1.234,56
+        if (str_contains($val, ',') && str_contains($val, '.')) {
+            // Mixed: assume dot = thousand, comma = decimal
+            $val = str_replace('.', '', $val);
+            $val = str_replace(',', '.', $val);
+        } elseif (str_contains($val, ',')) {
+            // Only comma: Check if it's likely a decimal (2-3 digits after) or thousand
+            if (preg_match('/,\d{2,3}$/', $val)) {
+                // If the number is small (e.g. 12,00) or looks like decimal, convert to dot
+                $val = str_replace(',', '.', $val);
+            } else {
+                // Otherwise thousand
+                $val = str_replace(',', '', $val);
+            }
+        } elseif (str_contains($val, '.')) {
+            // Only dot: VN standard for 12.000 is thousand
+            // Unless it looks like 12.0 (but prices usually don't have that in these files)
+            if (preg_match('/\.\d{3}$/', $val) || preg_match('/\.\d{3}\./', $val)) {
+                $val = str_replace('.', '', $val);
+            }
+            // However, for single dots, it's ambiguous. But most hospital prices are > 1000.
+            // If we remove dot and it becomes a huge number that makes sense for VND, fine.
+            // Let's assume dot is thousand if it's followed by 3 digits.
+        }
+
+        // Final fallback: remove anything not numeric or dot
+        $val = preg_replace('/[^0-9\.]/', '', $val);
+
+        return (float) $val;
+    }
+
+    private function isJunkRow($name)
+    {
+        if (empty($name))
+            return true;
+
+        // Check if it's just a common Unit Name (e.g. "Cái", "Hộp")
+        if ($this->isCommonUnit($name))
+            return true;
+
+        $h = mb_strtolower(trim($name));
+
+        // Document headers
+        if (str_starts_with($h, 'ngày') || str_contains($h, 'mẫu số') || str_contains($h, 'cty cp'))
+            return true;
+        if (str_contains($h, 'phiếu xuất') || str_contains($h, 'biên bản'))
+            return true;
+        if (str_contains($h, 'bảng kê') || str_contains($h, 'chủ tài khoản'))
+            return true;
+        if (str_contains($h, 'tổng cộng phiếu') || str_contains($h, 'ghi chú'))
+            return true;
+
+        // Technical headers
+        return preg_match('/^sheet\d+$/i', $h) || preg_match('/^column\d+$/i', $h) || str_contains($h, 'sheet');
+    }
+
+    private function isCommonUnit($name)
+    {
+        $units = [
+            'cái',
+            'chiếc',
+            'hộp',
+            'chai',
+            'lọ',
+            'kg',
+            'gam',
+            'gram',
+            'mét',
+            'cây',
+            'cuộn',
+            'xấp',
+            'ram',
+            'ream',
+            'bộ',
+            'đôi',
+            'viên',
+            'liều',
+            'ống',
+            'túi',
+            'gói',
+            'thùng',
+            'bịch',
+            'can',
+            'kít',
+            'hũ',
+            'quyển',
+            'tờ',
+            'cục',
+            'lốc'
+        ];
+        return in_array(mb_strtolower(trim($name)), $units);
+    }
+
+    private function isJunkDept($name)
+    {
+        return $this->isJunkRow($name);
+    }
+
+    /**
+     * Scan first 10 rows to detect columns based on Header AND Content
+     */
+    private function detectColumnsStrict($rows, $headerRowIndex)
+    {
+        $nameCol = -1;
+        $unitCol = -1;
+        $priceCol = -1;
+        $qtyCol = -1; // Only for Step 2
+        $noteCol = -1;
+
+        $headerRow = $rows[$headerRowIndex] ?? [];
+
+        // 1. Initial Guess by Header
+        foreach ($headerRow as $cIdx => $val) {
+            $vLower = mb_strtolower(trim($val ?? ''));
+
+            // Name
+            if (str_contains($vLower, 'tên hàng') || str_contains($vLower, 'tên sản phẩm') || str_contains($vLower, 'tên quy cách') || str_contains($vLower, 'danh mục'))
+                $nameCol = $cIdx;
+            elseif (str_contains($vLower, 'tên') && !str_contains($vLower, 'đơn vị') && !str_contains($vLower, 'khoa'))
+                if ($nameCol == -1)
+                    $nameCol = $cIdx; // weak match
+
+            // Unit
+            if (str_contains($vLower, 'đvt') || str_contains($vLower, 'đơn vị'))
+                $unitCol = $cIdx;
+
+            // Price
+            if (str_contains($vLower, 'đơn giá') || $vLower == 'giá')
+                $priceCol = $cIdx;
+
+            // Quantity (Step 2)
+            if (str_contains($vLower, 'số lượng') || $vLower == 'sl')
+                $qtyCol = $cIdx;
+
+            // Note
+            if (str_contains($vLower, 'ghi chú'))
+                $noteCol = $cIdx;
+        }
+
+        // 2. Validate Content (Scan up to 5 rows)
+        // If Name Col contains Units -> It's wrong!
+        if ($nameCol != -1) {
+            $isInvalidNameCol = false;
+            $unitCount = 0;
+            $checkCount = 0;
+            for ($i = 1; $i <= 5; $i++) {
+                $checkRow = $rows[$headerRowIndex + $i] ?? null;
+                if (!$checkRow)
+                    break;
+                $val = trim($checkRow[$nameCol] ?? '');
+                if (empty($val))
+                    continue;
+
+                $checkCount++;
+                if ($this->isCommonUnit($val) || is_numeric($val))
+                    $unitCount++;
+            }
+            if ($checkCount > 0 && ($unitCount / $checkCount) > 0.5) {
+                // > 50% of "Name" column values are actually Units -> Invalid!
+                $nameCol = -1;
+            }
+        }
+
+        // 3. Fallback Search if Columns Missing
+        if ($nameCol == -1 || $unitCol == -1 || $priceCol == -1) {
+            // Scan 10 columns
+            for ($c = 1; $c < 10; $c++) {
+                $potentialName = 0;
+                $potentialUnit = 0;
+                $potentialPrice = 0;
+
+                for ($i = 1; $i <= 5; $i++) {
+                    $checkRow = $rows[$headerRowIndex + $i] ?? null;
+                    if (!$checkRow)
+                        break;
+                    $val = trim($checkRow[$c] ?? '');
+                    if (empty($val))
+                        continue;
+
+                    if ($this->isCommonUnit($val))
+                        $potentialUnit++;
+                    elseif (is_numeric(str_replace([',', '.'], '', $val)) && strlen($val) > 3)
+                        $potentialPrice++;
+                    elseif (strlen($val) > 3 && !is_numeric($val))
+                        $potentialName++;
+                }
+
+                if ($nameCol == -1 && $potentialName >= 3)
+                    $nameCol = $c;
+                if ($unitCol == -1 && $potentialUnit >= 3)
+                    $unitCol = $c;
+                if ($priceCol == -1 && $potentialPrice >= 3)
+                    $priceCol = $c;
+            }
+        }
+
+        // Final Safety
+        if ($nameCol == $unitCol)
+            $unitCol = -1; // Can't be same
+
+        return [$nameCol, $unitCol, $priceCol, $qtyCol, $noteCol];
+    }
+
+    private function findOrCreateDept($name, $slug, &$deptMap)
+    {
+        if ($name == 'CĐHA' && $slug == 'CDHA')
+            $slug = 'CDHA';
+
+        $dept = \App\Models\Department::where('code', $slug)->orWhere('name', $name)->first();
+        if (!$dept) {
+            try {
+                $dept = \App\Models\Department::create(['code' => $slug, 'name' => $name]);
+                $this->ensureDepartmentUser($dept);
+            } catch (\Exception $e) {
+                return \App\Models\Department::where('code', $slug)->first() ?? \App\Models\Department::where('name', $name)->first();
+            }
+        }
+        $deptMap[$slug] = $dept;
+        return $dept;
+    }
+
+    private function bufferOrder(&$orders, $deptId, $prodId, $month, $qty)
+    {
+        $key = "{$deptId}_{$prodId}";
+        if (isset($orders[$key])) {
+            $orders[$key]['quantity'] += $qty;
+        } else {
+            $orders[$key] = [
+                'department_id' => $deptId,
+                'product_id' => $prodId,
+                'month' => $month,
+                'quantity' => $qty,
+                'notes' => '',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ];
+        }
     }
 }
