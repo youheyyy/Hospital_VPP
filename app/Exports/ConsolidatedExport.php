@@ -150,7 +150,7 @@ class ConsolidatedExport
 
         // Department columns (green background)
         $deptStartCol = 'D';
-        $deptEndCol = chr(ord($deptStartCol) + $this->departments->count() - 1);
+        $deptEndCol = Coordinate::stringFromColumnIndex(Coordinate::columnIndexFromString($deptStartCol) + $this->departments->count() - 1);
         $sheet->getStyle($deptStartCol . $currentRow . ':' . $deptEndCol . $currentRow)->applyFromArray([
             'fill' => [
                 'fillType' => Fill::FILL_SOLID,

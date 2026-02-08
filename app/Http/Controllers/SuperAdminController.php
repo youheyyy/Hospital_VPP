@@ -668,10 +668,13 @@ class SuperAdminController extends Controller
             $spreadsheet = $reader->load($file->getPathname());
 
             // --- PRE-LOAD DATA INTO HASH MAPS (Optimization) ---
-            // Departments: [normalized_code => dept_object]
+            // Departments: [normalized_key => dept_object]
             $existingDepts = \App\Models\Department::all();
             $deptMap = [];
             foreach ($existingDepts as $d) {
+                // Map by Code slug
+                $deptMap[strtoupper(\Illuminate\Support\Str::slug($d->code))] = $d;
+                // Map by Name slug (as backup)
                 $deptMap[strtoupper(\Illuminate\Support\Str::slug($d->name))] = $d;
             }
 
@@ -729,17 +732,53 @@ class SuperAdminController extends Controller
                     $headerRow = $rows[$headerRowIndex];
                     for ($col = 3; $col < count($headerRow); $col++) {
                         $deptName = trim($headerRow[$col] ?? '');
+
+                        // --- FILTER JUNK COLUMNS (Sheet2, Sheet3, etc.) ---
                         if (empty($deptName) || str_contains($deptName, 'Tổng') || str_contains($deptName, 'Ghi chú'))
+                            continue;
+                        if (preg_match('/^Sheet\d+$/i', $deptName) || preg_match('/^Column\d+$/i', $deptName) || str_contains(strtolower($deptName), 'sheet'))
                             continue;
 
                         $deptSlug = strtoupper(\Illuminate\Support\Str::slug($deptName));
+                        // Normalize specific common abbreviations
+                        if ($deptName == 'CĐHA' && $deptSlug == 'CDHA')
+                            $deptSlug = 'CDHA';
 
-                        if (isset($deptMap[$deptSlug])) {
-                            $dept = $deptMap[$deptSlug];
+                        // ROBUST LOOKUP: Check by Code OR Name to prevent "Duplicate entry" error
+                        $dept = \App\Models\Department::where('code', $deptSlug)
+                            ->orWhere('name', $deptName)
+                            ->first();
+
+                        if ($dept) {
+                            $deptMap[$deptSlug] = $dept;
                         } else {
-                            $dept = \App\Models\Department::create(['code' => $deptSlug, 'name' => $deptName]);
+                            // DATA RACE / DUPLICATE PROTECTION
+                            try {
+                                $dept = \App\Models\Department::create(['code' => $deptSlug, 'name' => $deptName]);
+                            } catch (\Illuminate\Database\QueryException $e) {
+                                // Error 1062 = Duplicate Entry
+                                if ($e->errorInfo[1] == 1062) {
+                                    // Verify which one caused it. Likely code.
+                                    $dept = \App\Models\Department::where('code', $deptSlug)->first();
+                                    // If not found by code, try name
+                                    if (!$dept) {
+                                        $dept = \App\Models\Department::where('name', $deptName)->first();
+                                    }
+
+                                    // If still null, something is really weird, but we must continue to avoid crash
+                                    if (!$dept) {
+                                        // Resort to finding ANY department to link to, or skip
+                                        // Skipping ensures we don't crash the whole import
+                                        \Illuminate\Support\Facades\Log::error("CRITICAL: Duplicate Dept Error but could not find existing: $deptSlug / $deptName");
+                                        continue;
+                                    }
+                                } else {
+                                    throw $e; // Re-throw if it's another error
+                                }
+                            }
+
                             $this->ensureDepartmentUser($dept);
-                            $deptMap[$deptSlug] = $dept; // Update map
+                            $deptMap[$deptSlug] = $dept;
                         }
 
                         $pivotDeptIds[$col] = $dept->id;
@@ -814,15 +853,23 @@ class SuperAdminController extends Controller
                                 $qty = trim($row[$colIndex] ?? '');
                                 $qty = (float) str_replace([',', '.'], '', $qty);
                                 if ($qty > 0) {
-                                    $ordersToInsert[] = [
-                                        'department_id' => $deptId,
-                                        'product_id' => $productId,
-                                        'month' => $targetMonth,
-                                        'quantity' => $qty,
-                                        'notes' => '',
-                                        'created_at' => now(),
-                                        'updated_at' => now(),
-                                    ];
+                                    // --- MERGE LOGIC (In-Memory) ---
+                                    // Check if we already have an entry for this Dept+Product in current batch
+                                    // Use a composite key for quick lookup
+                                    $key = "{$deptId}_{$productId}";
+                                    if (isset($ordersToInsert[$key])) {
+                                        $ordersToInsert[$key]['quantity'] += $qty;
+                                    } else {
+                                        $ordersToInsert[$key] = [
+                                            'department_id' => $deptId,
+                                            'product_id' => $productId,
+                                            'month' => $targetMonth,
+                                            'quantity' => $qty,
+                                            'notes' => '',
+                                            'created_at' => now(),
+                                            'updated_at' => now(),
+                                        ];
+                                    }
                                     $processedOrders++;
                                 }
                             }
@@ -840,12 +887,46 @@ class SuperAdminController extends Controller
                     if (in_array($sheetName, $ignoredSheets))
                         continue;
 
+                    // --- FILTER JUNK SHEETS (Sheet2, Sheet3, etc.) ---
+                    if (preg_match('/^Sheet\d+$/i', $sheetName) || preg_match('/^Column\d+$/i', $sheetName) || str_contains(strtolower($sheetName), 'sheet'))
+                        continue;
+
                     // Parse Department from Sheet Name
-                    $deptSlug = strtoupper(\Illuminate\Support\Str::slug($sheetName));
+                    $deptName = $sheetName;
+                    $deptSlug = strtoupper(\Illuminate\Support\Str::slug($deptName));
+
+                    // Normalize specific common abbreviations
+                    if ($deptName == 'CĐHA' && $deptSlug == 'CDHA')
+                        $deptSlug = 'CDHA';
+
                     if (isset($deptMap[$deptSlug])) {
                         $dept = $deptMap[$deptSlug];
                     } else {
-                        $dept = \App\Models\Department::create(['code' => $deptSlug, 'name' => $sheetName]);
+                        // ROBUST LOOKUP: Check by Code OR Name to prevent "Duplicate entry" error
+                        $dept = \App\Models\Department::where('code', $deptSlug)
+                            ->orWhere('name', $deptName)
+                            ->first();
+
+                        if (!$dept) {
+                            // DATA RACE / DUPLICATE PROTECTION
+                            try {
+                                $dept = \App\Models\Department::create(['code' => $deptSlug, 'name' => $deptName]);
+                            } catch (\Illuminate\Database\QueryException $e) {
+                                // Error 1062 = Duplicate Entry
+                                if ($e->errorInfo[1] == 1062) {
+                                    $dept = \App\Models\Department::where('code', $deptSlug)->first()
+                                        ?? \App\Models\Department::where('name', $deptName)->first();
+
+                                    if (!$dept) {
+                                        \Illuminate\Support\Facades\Log::error("CRITICAL: Duplicate Dept Error in Fallback but could not find existing: $deptSlug / $deptName");
+                                        continue;
+                                    }
+                                } else {
+                                    throw $e;
+                                }
+                            }
+                        }
+
                         $this->ensureDepartmentUser($dept);
                         $deptMap[$deptSlug] = $dept;
                     }
@@ -869,11 +950,11 @@ class SuperAdminController extends Controller
 
                     foreach ($rows as $index => $row) {
                         if ($index < 5)
-                            continue; // Skip header mostly
+                            continue;
 
                         // Indexes:
                         // 0: STT, 1: Name (B), 2: Unit (C), 3: Qty (D), 4: Price (E), 6: Note (G)
-                        $name = trim($row[1] ?? ''); // usually Col B
+                        $name = trim($row[1] ?? '');
                         $unit = trim($row[2] ?? '');
                         $qtyStr = trim($row[3] ?? '');
                         $priceStr = trim($row[4] ?? '');
@@ -906,38 +987,28 @@ class SuperAdminController extends Controller
 
                         $normName = $this->cleanString($name);
                         $product = $productMap[$normName] ?? null;
-                        $productId = $product ? $product->id : null;
 
                         // Create if missing
                         if (!$product) {
-                            $newProd = \App\Models\Product::create([
+                            $product = \App\Models\Product::create([
                                 'name' => $name,
                                 'unit' => $unit,
                                 'category_id' => $currentCategoryId,
                                 'is_active' => true
                             ]);
-                            $productMap[$normName] = $newProd; // Cache full object
-                            $product = $newProd;
-                            $productId = $newProd->id;
+                            $productMap[$normName] = $product;
                         }
 
                         // UPDATE PRODUCT PRICE (In-Memory Check to avoid DB writes)
                         if (!empty($priceStr)) {
                             $price = (float) str_replace([',', '.'], '', $priceStr);
-                            if ($price > 0) {
-                                // Only update if price changed
-                                if ((float) $product->price != $price) {
-                                    $product->price = $price;
-                                    // Update unit if missing
-                                    if (empty($product->unit) && !empty($unit)) {
-                                        $product->unit = $unit;
-                                    }
-                                    $product->save(); // Save to DB
-                                }
+                            if ($price > 0 && abs((float) $product->price - $price) > 0.01) {
+                                $product->update(['price' => $price]);
                             }
                         }
 
                         // BUFFER QUANTITY (Summation)
+                        $productId = $product->id;
                         if (isset($deptOrdersBuffer[$productId])) {
                             $deptOrdersBuffer[$productId]['quantity'] += $qty;
                             if (!empty($note)) {

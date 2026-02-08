@@ -89,58 +89,62 @@
         --}}
 
         <!-- Use a separate form for Advanced Import? Or combine? 
-                                 Let's create a separate distinct section for clarity as requested.
-                            -->
+                                                 Let's create a separate distinct section for clarity as requested.
+                                            -->
     </div>
 
-    <!-- Advanced Import Section -->
-    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
-        <h2 class="text-lg font-bold text-slate-900 mb-6 flex items-center gap-2">
-            <span class="material-symbols-outlined text-purple-600">folder_zip</span>
-            Import File Tổng Hợp (Nhiều Sheet)
-        </h2>
-        <div class="alert alert-info">
-            <strong>Hướng dẫn Import Nâng cao:</strong><br>
-            1. <strong>Chế độ Pivot (TỔNG HỢP):</strong> Dành cho sheet có nhiều cột khoa (Khoa A, Khoa B...).<br>
-            2. <strong>Chế độ Đơn lẻ (Nhiều Sheet):</strong> Dành cho file có mỗi sheet là một khoa (như "BẢNG KÊ MUA
-            HÀNG").<br>
-            - Hệ thống tự nhận diện <strong>Danh mục</strong> (dòng đậm, không có ĐVT/Số lượng).<br>
-            - Tự động cập nhật <strong>Đơn giá</strong> (Cột E).<br>
-            - Tự động <strong>cộng dồn số lượng</strong> nếu trùng tên sản phẩm.
-        </div>
-        <form action="{{ route('superadmin.import.advanced') }}" method="POST" enctype="multipart/form-data"
-            id="importAdvancedForm" class="space-y-6">
-            @csrf
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <!-- Grid Layout for Import & Restore -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <!-- Advanced Import Section -->
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
+            <h2 class="text-lg font-bold text-slate-900 mb-6 flex items-center gap-2">
+                <span class="material-symbols-outlined text-purple-600">folder_zip</span>
+                Import File Tổng Hợp
+            </h2>
+            <div class="alert alert-info mb-6 text-xs">
+                <strong>Lưu ý:</strong><br>
+                - Hệ thống tự động bỏ qua các cột "Sheet", "Column".<br>
+                - Tự động cộng dồn số lượng nếu trùng sản phẩm và khoa.<br>
+            </div>
+            <form action="{{ route('superadmin.import.advanced') }}" method="POST" enctype="multipart/form-data"
+                id="importAdvancedForm" class="space-y-6">
+                @csrf
                 <div>
                     <label class="block text-xs font-bold text-gray-400 uppercase mb-2">Chọn Tháng/Năm</label>
                     <input type="month" name="month" required value="{{ date('Y-m') }}"
                         class="w-full border-gray-200 rounded-xl focus:ring-purple-500 font-bold">
-                    <p class="text-[10px] text-gray-400 mt-1">* Dữ liệu trong file sẽ được tính cho tháng này.</p>
                 </div>
                 <div>
                     <label class="block text-xs font-bold text-gray-400 uppercase mb-2">File Excel Tổng Hợp</label>
                     <input type="file" name="excel_file" accept=".xlsx,.xls" required
                         class="w-full border-gray-200 rounded-xl text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100 transition-all">
                 </div>
-            </div>
-            <button type="submit"
-                class="w-full px-8 py-2.5 bg-purple-600 text-white font-bold rounded-xl hover:bg-purple-700 transition-all shadow-lg shadow-purple-100 flex justify-center items-center gap-2"
-                onclick="return confirm('Hệ thống sẽ cập nhật dữ liệu cho tháng đã chọn dựa trên file Excel.\n\nDữ liệu cũ của tháng này sẽ bị thay thế để đảm bảo chính xác.\n\nBạn có chắc chắn muốn tiếp tục?');">
-                <span class="material-symbols-outlined text-[20px]">cloud_upload</span>
-                Tiến hành Import Tổng Hợp
-            </button>
-        </form>
-    </div>
+                <button type="submit"
+                    class="w-full px-6 py-2.5 bg-purple-600 text-white font-bold rounded-xl hover:bg-purple-700 transition-all shadow-lg shadow-purple-100 flex justify-center items-center gap-2"
+                    onclick="return confirm('Hệ thống sẽ cập nhật dữ liệu cho tháng đã chọn dựa trên file Excel.\n\nDữ liệu cũ của tháng này sẽ bị thay thế để đảm bảo chính xác.\n\nBạn có chắc chắn muốn tiếp tục?');">
+                    <span class="material-symbols-outlined text-[20px]">cloud_upload</span>
+                    Tiến hành Import
+                </button>
+            </form>
+        </div>
 
-    <!-- Restore & Config Section -->
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-        <!-- Upload & Restore -->
-        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
-            <h2 class="text-lg font-bold text-slate-900 mb-6 flex items-center gap-2">
-                <span class="material-symbols-outlined text-yellow-600">publish</span>
-                Khôi phục từ file (Restore)
-            </h2>
+        <!-- Restore Section -->
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 h-full">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+                    <span class="material-symbols-outlined text-yellow-600">publish</span>
+                    Khôi phục (Restore)
+                </h2>
+                <form action="{{ route('superadmin.backup.create') }}" method="POST">
+                    @csrf
+                    <button type="submit"
+                        class="px-3 py-1.5 bg-green-100 text-green-700 hover:bg-green-200 rounded-lg text-xs font-bold transition-all flex items-center gap-1 shadow-sm"
+                        title="Tạo bản sao lưu dữ liệu ngay lập tức">
+                        <span class="material-symbols-outlined text-[16px]">add_circle</span>
+                        Tạo Backup
+                    </button>
+                </form>
+            </div>
             <form action="{{ route('superadmin.backup.upload') }}" method="POST" enctype="multipart/form-data"
                 class="space-y-6"
                 onsubmit="return confirm('CẢNH BÁO: Hành động này sẽ XÓA TOÀN BỘ dữ liệu hiện tại và thay thế bằng dữ liệu trong file upload.\n\nBạn có chắc chắn muốn tiếp tục không?');">
@@ -151,147 +155,106 @@
                         class="w-full border-gray-200 rounded-xl text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-yellow-50 file:text-yellow-700 hover:file:bg-yellow-100 transition-all">
                 </div>
                 <button type="submit"
-                    class="w-full px-8 py-2.5 bg-yellow-600 text-white font-bold rounded-xl hover:bg-yellow-700 transition-all shadow-lg shadow-yellow-100 flex justify-center items-center gap-2">
+                    class="w-full px-6 py-2.5 bg-yellow-600 text-white font-bold rounded-xl hover:bg-yellow-700 transition-all shadow-lg shadow-yellow-100 flex justify-center items-center gap-2">
                     <span class="material-symbols-outlined text-[20px]">history</span>
                     Upload & Khôi phục ngay
                 </button>
-                <p class="text-xs text-gray-500 italic mt-2">
-                    * Dùng để khôi phục dữ liệu từ máy tính (ví dụ: file backup tháng trước).
-                </p>
-            </form>
-        </div>
-
-        <!-- Auto Backup Config -->
-        <!-- Auto Backup Config (HIDDEN AS REQUESTED) -->
-        {{--
-        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
-            <h2 class="text-lg font-bold text-slate-900 mb-6 flex items-center gap-2">
-                <span class="material-symbols-outlined text-purple-600">timer</span>
-                Cấu hình Tự động Backup
-            </h2>
-            <form action="{{ route('superadmin.backup.config') }}" method="POST" class="space-y-6">
-                @csrf
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-xs font-bold text-gray-400 uppercase mb-2">Phút</label>
-                        <input type="number" name="interval_minutes" min="0" value="{{ $backupConfig['minutes'] ?? 0 }}"
-                            class="w-full border-gray-200 rounded-xl focus:ring-purple-500 text-center font-bold">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-gray-400 uppercase mb-2">Giây</label>
-                        <input type="number" name="interval_seconds" min="0" max="59"
-                            value="{{ $backupConfig['seconds'] ?? 0 }}"
-                            class="w-full border-gray-200 rounded-xl focus:ring-purple-500 text-center font-bold">
-                    </div>
+                <div class="mt-4 p-4 bg-yellow-50 rounded-xl text-xs text-yellow-800 border border-yellow-100">
+                    <strong>Lưu ý:</strong> Dùng để khôi phục dữ liệu từ máy tính (ví dụ: file backup tháng trước).
                 </div>
-                <button type="submit"
-                    class="w-full px-8 py-2.5 bg-purple-600 text-white font-bold rounded-xl hover:bg-purple-700 transition-all shadow-lg shadow-purple-100 flex justify-center items-center gap-2">
-                    <span class="material-symbols-outlined text-[20px]">save</span>
-                    Lưu cấu hình
-                </button>
-                <p class="text-xs text-gray-500 italic mt-2">
-                    * Hệ thống sẽ tự động tạo bản backup mới nếu có thay đổi và quá thời gian quy định.
-                    (Để 0 để tắt tính năng này).
-                </p>
             </form>
-        </div>
-        --}}
-    </div>
-    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-        <div class="p-8 border-b border-gray-50 flex justify-between items-center">
-            <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
-                <span class="material-symbols-outlined text-green-600">backup</span>
-                Backup Database
-            </h2>
-            <form action="{{ route('superadmin.backup.create') }}" method="POST">
-                @csrf
-                <button type="submit"
-                    class="px-6 py-2.5 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 transition-all flex items-center gap-2 shadow-lg shadow-green-100">
-                    <span class="material-symbols-outlined text-[20px]">add</span>
-                    Tạo bản sao lưu mới
-                </button>
-            </form>
-        </div>
 
-        <div class="overflow-x-auto">
-            <table class="w-full text-left">
-                <thead class="bg-gray-50/50">
-                    <tr>
-                        <th class="px-8 py-4 text-xs font-bold text-gray-400 uppercase">Tên file</th>
-                        <th class="px-8 py-4 text-xs font-bold text-gray-400 uppercase">Kích thước</th>
-                        <th class="px-8 py-4 text-xs font-bold text-gray-400 uppercase">Ngày tạo</th>
-                        <th class="px-8 py-4 text-right text-xs font-bold text-gray-400 uppercase tracking-wider"></th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-50">
-                    @forelse($backups as $backup)
-                        {{-- Hide V2 Backups as requested --}}
-                        @if(str_contains($backup['name'], '_v2.sql')) @continue @endif
-                        <tr
-                            class="hover:bg-gray-50/50 transition-colors {{ str_contains($backup['name'], '_auto_') ? 'bg-blue-50/30' : '' }}">
-                            <td class="px-8 py-4 text-sm font-bold text-slate-900 flex items-center gap-2">
-                                <span
-                                    class="material-symbols-outlined {{ str_contains($backup['name'], '_auto_') ? 'text-blue-500' : 'text-gray-400' }}">
-                                    {{ str_contains($backup['name'], '_auto_') ? 'schedule' : 'description' }}
-                                </span>
-                                {{ $backup['name'] }}
-                                @if(str_contains($backup['name'], '_v1.sql') && str_contains($backup['name'], '_auto_'))
-                                    <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-green-100 text-green-700"
-                                        title="Tự động cập nhật khi tải về">
-                                        Bản chính (Mới nhất)
-                                    </span>
-                                @endif
-                                @if(str_contains($backup['name'], '_v2.sql') && str_contains($backup['name'], '_auto_'))
-                                    <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-700"
-                                        title="Bản gốc lúc đăng nhập - Không thay đổi">
-                                        Dự phòng (Gốc)
-                                    </span>
-                                @endif
-                            </td>
-                            <td class="px-8 py-4 text-sm text-gray-500 font-medium">
-                                {{ number_format($backup['size'] / 1024, 2) }} KB
-                            </td>
-                            <td class="px-8 py-4 text-sm text-gray-500 font-medium">{{ $backup['date'] }}</td>
-                            <td class="px-8 py-4 text-right flex justify-end gap-2">
-                                {{-- Restore Button --}}
-                                <form action="{{ route('superadmin.backup.restore', $backup['name']) }}" method="POST"
-                                    onsubmit="return confirm('CẢNH BÁO: Hành động này sẽ ghi đè toàn bộ dữ liệu hiện tại bằng dữ liệu trong file backup này.\n\nBạn có chắc chắn muốn tiếp tục không?');">
-                                    @csrf
-                                    <button type="submit"
-                                        class="p-2 text-yellow-600 hover:bg-yellow-50 rounded-lg transition-colors"
-                                        title="Khôi phục dữ liệu (Restore)">
-                                        <span class="material-symbols-outlined text-[20px]">history</span>
-                                    </button>
-                                </form>
+            <hr class="my-6 border-gray-100">
 
-                                <a href="{{ route('superadmin.backup.download', $backup['name']) }}"
-                                    class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Tải về">
-                                    <span class="material-symbols-outlined text-[20px]">download</span>
-                                </a>
+            <h3 class="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2">
+                <span class="material-symbols-outlined text-green-600 text-[18px]">dns</span>
+                Danh sách Backup có sẵn trên Server
+            </h3>
 
-                                @if(!str_contains($backup['name'], '_auto_'))
-                                    <form action="{{ route('superadmin.backup.delete', $backup['name']) }}" method="POST"
-                                        onsubmit="return confirm('Bạn có chắc chắn muốn xóa file backup này không?');">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button type="submit" class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                            title="Xóa">
-                                            <span class="material-symbols-outlined text-[20px]">delete</span>
-                                        </button>
-                                    </form>
-                                @endif
-                            </td>
-                        </tr>
-                    @empty
-                        <tr>
-                            <td colspan="4" class="px-8 py-12 text-center text-gray-400 italic">
-                                Chưa có bản sao lưu nào được thực hiện.
-                            </td>
-                        </tr>
-                    @endforelse
-                </tbody>
-            </table>
+            <div class="space-y-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                @forelse($backups as $backup)
+                    {{-- Hide V2 Backups as requested --}}
+                    @if(str_contains($backup['name'], '_v2.sql')) @continue @endif
+
+                    <div
+                        class="p-3 rounded-xl border border-gray-100 bg-gray-50/50 hover:bg-white hover:shadow-sm transition-all flex justify-between items-center group">
+                        <div class="flex items-center gap-3">
+                            <span
+                                class="material-symbols-outlined {{ str_contains($backup['name'], '_auto_') ? 'text-green-500' : 'text-gray-400' }} text-[20px]">
+                                {{ str_contains($backup['name'], '_auto_') ? 'check_circle' : 'description' }}
+                            </span>
+                            <div>
+                                <p class="text-xs font-bold text-slate-700 truncate max-w-[200px]"
+                                    title="{{ $backup['name'] }}">
+                                    {{ $backup['name'] }}
+                                </p>
+                                <p class="text-[10px] text-gray-400">{{ $backup['date'] }} •
+                                    {{ number_format($backup['size'] / 1024, 1) }} KB
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center gap-1 opacity-60 group-hover:opacity-100 transition-opacity">
+                            {{-- Restore Button --}}
+                            <form action="{{ route('superadmin.backup.restore', $backup['name']) }}" method="POST"
+                                onsubmit="return confirm('CẢNH BÁO: Khôi phục từ file này sẽ XÓA dữ liệu hiện tại.\n\nTiếp tục?');">
+                                @csrf
+                                <button type="submit"
+                                    class="p-1.5 text-yellow-600 hover:bg-yellow-50 rounded-lg transition-colors"
+                                    title="Khôi phục ngay">
+                                    <span class="material-symbols-outlined text-[18px]">history</span>
+                                </button>
+                            </form>
+
+                            <a href="{{ route('superadmin.backup.download', $backup['name']) }}"
+                                class="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg" title="Tải về">
+                                <span class="material-symbols-outlined text-[18px]">download</span>
+                            </a>
+                        </div>
+                    </div>
+                @empty
+                    <p class="text-center text-xs text-gray-400 italic py-4">Chưa có file backup nào.</p>
+                @endforelse
+            </div>
         </div>
     </div>
+
+    <!-- Auto Backup Config -->
+    <!-- Auto Backup Config (HIDDEN AS REQUESTED) -->
+    {{--
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
+        <h2 class="text-lg font-bold text-slate-900 mb-6 flex items-center gap-2">
+            <span class="material-symbols-outlined text-purple-600">timer</span>
+            Cấu hình Tự động Backup
+        </h2>
+        <form action="{{ route('superadmin.backup.config') }}" method="POST" class="space-y-6">
+            @csrf
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-bold text-gray-400 uppercase mb-2">Phút</label>
+                    <input type="number" name="interval_minutes" min="0" value="{{ $backupConfig['minutes'] ?? 0 }}"
+                        class="w-full border-gray-200 rounded-xl focus:ring-purple-500 text-center font-bold">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-400 uppercase mb-2">Giây</label>
+                    <input type="number" name="interval_seconds" min="0" max="59"
+                        value="{{ $backupConfig['seconds'] ?? 0 }}"
+                        class="w-full border-gray-200 rounded-xl focus:ring-purple-500 text-center font-bold">
+                </div>
+            </div>
+            <button type="submit"
+                class="w-full px-8 py-2.5 bg-purple-600 text-white font-bold rounded-xl hover:bg-purple-700 transition-all shadow-lg shadow-purple-100 flex justify-center items-center gap-2">
+                <span class="material-symbols-outlined text-[20px]">save</span>
+                Lưu cấu hình
+            </button>
+            <p class="text-xs text-gray-500 italic mt-2">
+                * Hệ thống sẽ tự động tạo bản backup mới nếu có thay đổi và quá thời gian quy định.
+                (Để 0 để tắt tính năng này).
+            </p>
+        </form>
+    </div>
+    --}}
+    </div>
+    {{-- Backup Table Removed from here to move inside Restore Card --}}
     </div>
 @endsection
