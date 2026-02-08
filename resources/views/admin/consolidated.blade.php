@@ -6,78 +6,87 @@
     <meta content="width=device-width, initial-scale=1.0" name="viewport" />
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Tổng hợp yêu cầu - Tháng {{ $selectedMonth }}</title>
-    <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap"
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com" rel="preconnect" />
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap"
         rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
         rel="stylesheet" />
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-    <style>
-        body {
-            font-family: 'Inter', sans-serif;
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        indigo: {
+                            50: '#f5f7ff',
+                            100: '#ebf0fe',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                            900: '#1e1b4b',
+                        },
+                        mint: {
+                            50: '#f0fdfa',
+                            100: '#ccfbf1',
+                            500: '#14b8a6',
+                            600: '#0d9488',
+                        },
+                        slate: {
+                            50: '#f8fafc',
+                            100: '#f1f5f9',
+                            200: '#e2e8f0',
+                            400: '#94a3b8',
+                            500: '#64748b',
+                            900: '#0f172a',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ["Plus Jakarta Sans", "sans-serif"],
+                    },
+                },
+            },
+        };
+    </script>
+    <style type="text/tailwindcss">
+        @layer base {
+            body { @apply bg-slate-50 text-slate-900 antialiased font-sans; }
         }
 
         .excel-table {
-            border-collapse: collapse;
-            width: 100%;
-            font-size: 13px;
+            @apply border-collapse w-full text-[13px];
         }
 
         .excel-table th,
         .excel-table td {
-            border: 1px solid #d1d5db;
-            padding: 6px 8px;
+            @apply border border-slate-200 p-2;
         }
 
         .excel-table th {
-            background: #f3f4f6;
-            font-weight: 600;
-            text-align: center;
+            @apply bg-slate-50 font-bold text-center text-slate-600;
         }
 
         .category-header {
-            background: #3b82f6 !important;
-            color: white;
-            font-weight: bold;
-            text-align: left;
+            @apply bg-indigo-600 text-white font-bold text-left uppercase text-[11px] tracking-wider;
         }
 
         .category-total {
-            background: #fef3c7;
-            font-weight: bold;
+            @apply bg-slate-50 font-bold;
         }
 
         .grand-total {
-            background: #fbbf24;
-            font-weight: bold;
+            @apply bg-amber-50 font-bold text-amber-900;
         }
 
         @media print {
-            .no-print {
-                display: none !important;
-            }
-
-            body {
-                background: white;
-            }
-
-            .print-header {
-                display: block !important;
-            }
-
-            .excel-table {
-                font-size: 11px;
-            }
-
-            .excel-table th,
-            .excel-table td {
-                padding: 4px 6px;
-            }
-
-            @page {
-                margin: 1.5cm;
-            }
+            .no-print { display: none !important; }
+            body { background: white; }
+            .print-header { display: block !important; }
+            .excel-table { font-size: 11px; }
+            .excel-table th, .excel-table td { padding: 4px 6px; }
+            @page { margin: 1.5cm; }
         }
 
         .print-header {
@@ -92,175 +101,97 @@
         }
 
         @media print {
-            .signature-section {
-                display: flex !important;
-            }
+            .signature-section { display: flex !important; }
         }
 
-        /* Sticky Headers & Columns */
-        .excel-table th.sticky-header {
-            position: sticky;
-            top: 0;
-            z-index: 50;
-            box-shadow: 0 1px 0 #d1d5db;
+        .bento-card {
+            @apply bg-white rounded-[2rem] border border-slate-100 shadow-[0_10px_40px_-15px_rgba(0,0,0,0.05)] p-6 transition-all duration-300 hover:shadow-[0_20px_50px_-12px_rgba(0,0,0,0.08)];
         }
 
-        .sticky-col {
-            position: sticky;
-            z-index: 40;
-            background-color: inherit;
-            /* Fallback */
+        .sidebar-item {
+            @apply flex items-center gap-3 px-4 py-3 rounded-2xl text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 transition-all duration-200 cursor-pointer;
         }
 
-        /* Ensure sticky columns have a background so text doesn't overlap */
-        .excel-table tbody tr td.sticky-col,
-        .excel-table thead tr th.sticky-col {
-            background-color: #fff;
-            /* Default white */
+        .sidebar-item.active {
+            @apply bg-indigo-600 text-white shadow-lg shadow-indigo-200;
         }
 
-        /* Specific backgrounds for header/category rows */
-        .excel-table thead tr th.sticky-col {
-            background-color: #f3f4f6;
-            /* Match header bg */
-        }
-
-        /* Higher z-index for intersection of sticky header and sticky col */
-        th.sticky-col.sticky-header {
-            z-index: 60 !important;
-        }
-
-        .sticky-col-1 {
-            left: 0;
-            border-right: 1px solid #e5e7eb;
-        }
-
-        .sticky-col-2 {
-            left: 40px;
-            border-right: 1px solid #e5e7eb;
-        }
-
-        .sticky-col-3 {
-            left: 290px;
-            border-right: 1px solid #e5e7eb;
-        }
-
-        /* Category Header Sticky */
-        .category-header td {
-            position: sticky;
-            left: 0;
-            z-index: 45;
-            box-shadow: 0 1px 0 #d1d5db;
-            /* Separator shadow */
-            background-color: #3b82f6 !important;
-            /* Ensure blue background sticks */
-            color: white;
-        }
-
-        .category-header-text {
-            position: sticky;
-            left: 10px;
-            display: inline-block;
-        }
-
-        #content-bang-tong .category-header td {
-            top: var(--header-height-bang-tong, 50px);
-        }
-
-        #content-tong-hop .category-header td {
-            top: var(--header-height-tong-hop, 50px);
-        }
-
-        /* Prevent wrapping in sticky columns for better alignment */
-        .sticky-col {
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+        .sidebar-item .material-symbols-outlined {
+            @apply text-2xl;
         }
     </style>
 </head>
 
-<body class="bg-gray-50" x-data="{ showNoteManager: false }">
+<body class="bg-slate-50" x-data="{ showNoteManager: false }">
     <div class="flex h-screen">
+        <!-- Hidden Print Iframe -->
+        <iframe id="printFrame" style="display:none;"></iframe>
         <!-- Sidebar -->
-        <aside class="w-64 bg-white border-r border-gray-200 flex flex-col no-print">
-            <div class="p-6 border-b">
+        <aside class="w-64 flex-shrink-0 bg-white border-r border-slate-100 flex flex-col py-8 px-4 gap-4 no-print">
+            <div class="mb-8 px-4">
                 <div class="flex items-center gap-3">
-                    <img src="{{ asset('images/logo-tmmc.png') }}" alt="Logo" class="h-12 w-auto">
-                    <div class="flex flex-col">
-                        <h2 class="text-slate-900 text-xl font-black leading-none tracking-tighter">TÂM TRÍ</h2>
-                        <span class="text-[10px] font-bold text-slate-800 uppercase tracking-widest mt-1">CAO
-                            LÃNH</span>
-                        <span class="text-[9px] font-medium text-slate-500 leading-none mt-0.5 uppercase">Hệ Thống Vật
-                            Tư</span>
+                    <div
+                        class="w-12 h-12 bg-mint-500 rounded-2xl flex items-center justify-center shadow-lg shadow-mint-100">
+                        <span class="material-symbols-outlined text-white">inventory_2</span>
+                    </div>
+                    <div>
+                        <h2 class="text-lg font-extrabold text-slate-900">VPP Admin</h2>
+                        <p class="text-[10px] text-slate-400 font-medium">Quản trị hệ thống</p>
                     </div>
                 </div>
             </div>
-            <nav class="flex-1 p-4 space-y-2">
-                <a href="{{ route('admin.dashboard') }}"
-                    class="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-gray-100 rounded-lg">
-                    <span class="material-symbols-outlined">dashboard</span>
-                    <span>Dashboard</span>
+            <nav class="flex flex-col gap-2 flex-1">
+                <a class="sidebar-item" href="{{ route('admin.dashboard') }}">
+                    <span class="material-symbols-outlined">grid_view</span>
+                    <span class="text-sm font-bold">Tổng quan</span>
                 </a>
-                <a href="{{ route('admin.consolidated') }}"
-                    class="flex items-center gap-3 px-4 py-3 bg-blue-600 text-white rounded-lg">
-                    <span class="material-symbols-outlined">summarize</span>
-                    <span>Tổng hợp yêu cầu</span>
+                <a class="sidebar-item active" href="{{ route('admin.consolidated') }}">
+                    <span class="material-symbols-outlined">assignment</span>
+                    <span class="text-sm font-bold">Tổng hợp yêu cầu</span>
                 </a>
             </nav>
-            <div class="p-4 border-t">
-                <div class="bg-gray-50 rounded-xl p-3">
-                    <div class="flex items-center gap-3">
+            <div class="mt-auto px-4">
+                <div class="bg-slate-50 rounded-2xl p-4 mb-4">
+                    <div class="flex items-center gap-3 mb-3">
                         <div
-                            class="size-10 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-sm">
-                            AD
+                            class="w-10 h-10 rounded-full bg-indigo-500 flex items-center justify-center text-white font-bold">
+                            {{ strtoupper(substr(auth()->user()->name, 0, 2)) }}
                         </div>
-                        <div class="flex-1 min-w-0">
-                            <p class="text-sm font-bold truncate">Admin</p>
-                            <p class="text-xs text-gray-500 truncate">{{ auth()->user()->name }}</p>
+                        <div class="flex-1 overflow-hidden">
+                            <p class="text-sm font-bold text-slate-900 truncate">{{ auth()->user()->name }}</p>
+                            <p class="text-[10px] text-slate-400 uppercase">{{ auth()->user()->role }}</p>
                         </div>
                     </div>
-                    <form action="{{ route('logout') }}" method="POST" class="mt-3">
-                        @csrf
-                        <button type="submit"
-                            class="w-full text-xs text-gray-500 hover:text-blue-600 text-left px-2 py-1">
-                            Đăng xuất
-                        </button>
-                    </form>
                 </div>
+                <form action="{{ route('logout') }}" method="POST">
+                    @csrf
+                    <button type="submit"
+                        class="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 transition-colors text-sm font-bold text-slate-600">
+                        <span class="material-symbols-outlined text-lg">logout</span>
+                        <span>Đăng xuất</span>
+                    </button>
+                </form>
             </div>
         </aside>
 
         <!-- Main Content -->
         <main class="flex-1 flex flex-col overflow-hidden">
             <!-- Header -->
-            <header class="bg-white border-b px-8 py-4 flex justify-between items-center no-print">
-                <div>
-                    <h1 class="text-xl font-bold text-gray-800">Tổng hợp yêu cầu VPP</h1>
-                    <p class="text-sm text-gray-500">Tháng {{ $selectedMonth }}</p>
+            <header
+                class="bg-white border-b border-slate-100 px-6 py-4 flex justify-between items-center gap-3 no-print min-w-0">
+                <div class="flex-shrink-0">
+                    <h1 class="text-xl font-extrabold text-slate-900 tracking-tight">Tổng hợp yêu cầu VPP</h1>
+                    <p class="text-xs text-slate-400 font-medium">Tháng {{ $selectedMonth }} •
+                        {{ now()->format('d/m/Y H:i') }}</p>
                 </div>
-                <div class="flex items-center gap-4">
-                    <!-- Category Filter -->
-                    <form method="GET" action="{{ route('admin.consolidated') }}" class="flex items-center gap-2">
-                        <input type="hidden" name="month" value="{{ $selectedMonth }}">
-                        <select name="category" onchange="this.form.submit()"
-                            class="border-gray-300 rounded-lg text-sm px-4 py-2">
-                            <option value="">Tất cả danh mục</option>
-                            @foreach($allCategories as $cat)
-                                <option value="{{ $cat->id }}" {{ request('category') == $cat->id ? 'selected' : '' }}>
-                                    {{ $cat->name }}
-                                </option>
-                            @endforeach
-                        </select>
-                    </form>
-
+                <div class="flex items-center gap-3 flex-shrink-0">
                     <!-- Month Filter -->
                     <form method="GET" action="{{ route('admin.consolidated') }}">
                         @if(request('category'))
                             <input type="hidden" name="category" value="{{ request('category') }}">
                         @endif
                         <select name="month" onchange="this.form.submit()"
-                            class="border-gray-300 rounded-lg text-sm px-4 py-2">
+                            class="border-slate-300 rounded-2xl text-sm px-3 py-2 bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
                             @for($i = 0; $i < 12; $i++)
                                 @php
                                     $date = now()->subMonths($i);
@@ -272,18 +203,18 @@
                             @endfor
                         </select>
                     </form>
-                    <a href="{{ route('admin.consolidated.print', ['month' => $selectedMonth]) }}" target="_blank"
-                        class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2">
+                    <button onclick="printDirect()"
+                        class="px-3 py-2 bg-indigo-600 text-white rounded-2xl hover:bg-indigo-700 flex items-center gap-2 transition-colors shadow-sm whitespace-nowrap">
                         <span class="material-symbols-outlined text-sm">print</span>
                         In
-                    </a>
+                    </button>
                     <a href="{{ route('admin.consolidated.export', ['month' => $selectedMonth]) }}"
-                        class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2">
+                        class="px-3 py-2 bg-emerald-600 text-white rounded-2xl hover:bg-emerald-700 flex items-center gap-2 transition-colors shadow-sm whitespace-nowrap">
                         <span class="material-symbols-outlined text-sm">table_chart</span>
                         Excel
                     </a>
                     <button onclick="exportToPDF()"
-                        class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center gap-2">
+                        class="px-3 py-2 bg-amber-500 text-white rounded-2xl hover:bg-amber-600 flex items-center gap-2 transition-colors shadow-sm whitespace-nowrap">
                         <span class="material-symbols-outlined text-sm">picture_as_pdf</span>
                         PDF
                     </button>
@@ -291,7 +222,7 @@
             </header>
 
             <!-- Content -->
-            <div class="flex-1 overflow-y-auto p-8">
+            <div class="flex-1 overflow-auto p-8">
                 <!-- Tab Navigation -->
                 <div class="bg-white rounded-t-lg shadow-sm border border-b-0 border-gray-200 flex">
                     <button onclick="switchTab('bang-tong')" id="tab-bang-tong"
@@ -310,19 +241,47 @@
 
                 <!-- BẢNG TỔNG Tab -->
                 <div id="content-bang-tong"
-                    class="tab-content bg-white rounded-b-lg shadow-sm border border-gray-200 overflow-auto max-h-[calc(100vh-200px)]">
-                    <table class="excel-table">
+                    class="tab-content bg-white rounded-b-lg shadow-sm border border-gray-200 overflow-hidden">
+                    <!-- Dropdown Filter for Bảng Tổng -->
+                    <div class="p-4 border-b bg-gray-50 flex items-center gap-4">
+                        <div class="relative flex-1 max-w-sm">
+                            <label for="searchBangTong" class="block text-xs font-medium text-gray-700 mb-1">Lọc theo
+                                sản phẩm:</label>
+                            <select id="searchBangTong" onchange="filterBangTong()"
+                                class="w-full pl-3 pr-10 py-2 border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white">
+                                <option value="">-- Tất cả sản phẩm --</option>
+                                @php
+                                    $allUniqueProducts = collect();
+                                    foreach ($products as $catProducts) {
+                                        foreach ($catProducts as $p) {
+                                            if ($p->monthlyOrders->where('month', $selectedMonth)->sum('quantity') > 0) {
+                                                $allUniqueProducts->push($p->name);
+                                            }
+                                        }
+                                    }
+                                    $allUniqueProducts = $allUniqueProducts->unique()->sort();
+                                @endphp
+                                @foreach($allUniqueProducts as $productName)
+                                    <option value="{{ $productName }}">{{ $productName }}</option>
+                                @endforeach
+                            </select>
+                            <div
+                                class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 pt-5 text-gray-700">
+                                <span class="material-symbols-outlined text-sm">expand_more</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <table class="excel-table" id="tableBangTong">
                         <thead>
                             <tr>
-                                <th class="sticky-header sticky-col sticky-col-1" style="width: 40px;">STT</th>
-                                <th class="sticky-header sticky-col sticky-col-2" style="width: 250px;">TÊN HÀNG</th>
-                                <th class="sticky-header sticky-col sticky-col-3" style="width: 80px;">ĐVT</th>
+                                <th style="width: 40px;">STT</th>
+                                <th style="width: 250px;">TÊN HÀNG</th>
+                                <th style="width: 80px;">ĐVT</th>
                                 @foreach($departments as $dept)
-                                    <th class="sticky-header" style="width: 100px; background: #d4edda;">
-                                        {{ strtoupper($dept->name) }}
-                                    </th>
+                                    <th style="width: 100px; background: #d4edda;">{{ strtoupper($dept->name) }}</th>
                                 @endforeach
-                                <th class="sticky-header" style="width: 120px; background: #fff3cd;">Tổng SL</th>
+                                <th style="width: 120px; background: #fff3cd;">Tổng SL</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -331,27 +290,23 @@
                                 @if(isset($products[$category->id]) && $products[$category->id]->count() > 0)
                                     <!-- Category Header -->
                                     <tr class="category-header">
-                                        <td colspan="{{ 4 + $departments->count() }}">
-                                            <span class="category-header-text">
-                                                {{ strtoupper($category->name) }}
-                                            </span>
-                                        </td>
+                                        <td colspan="{{ 4 + $departments->count() }}">{{ strtoupper($category->name) }}</td>
                                     </tr>
 
                                     <!-- Products -->
                                     @foreach($products[$category->id] as $product)
                                         @php
+                                            $stt++;
                                             // Correctly filter orders for this month only
                                             $monthlyOrders = $product->monthlyOrders->where('month', $selectedMonth);
                                             $hasOrders = $monthlyOrders->sum('quantity') > 0;
                                             $totalQuantity = 0;
                                         @endphp
                                         @if($hasOrders)
-                                            @php $stt++; @endphp
                                             <tr>
-                                                <td class="text-center text-gray-600 sticky-col sticky-col-1">{{ $stt }}</td>
-                                                <td class="font-medium sticky-col sticky-col-2">{{ $product->name }}</td>
-                                                <td class="text-center sticky-col sticky-col-3">{{ $product->unit }}</td>
+                                                <td class="text-center text-gray-600">{{ $stt }}</td>
+                                                <td class="font-medium">{{ $product->name }}</td>
+                                                <td class="text-center">{{ $product->unit }}</td>
                                                 @foreach($departments as $dept)
                                                     @php
                                                         $order = $monthlyOrders->firstWhere('department_id', $dept->id);
@@ -376,7 +331,7 @@
 
                 <!-- TỔNG HỢP Tab -->
                 <div id="content-tong-hop"
-                    class="tab-content hidden bg-white rounded-b-lg shadow-sm border border-gray-200 overflow-auto max-h-[calc(100vh-200px)]">
+                    class="tab-content hidden bg-white rounded-b-lg shadow-sm border border-gray-200 overflow-hidden">
                     <!-- Print Header -->
                     <div class="print-header p-6 text-[14px] leading-relaxed">
                         <div class="flex justify-between mb-4">
@@ -419,16 +374,15 @@
                     <table class="excel-table">
                         <thead>
                             <tr>
-                                <th class="sticky-header sticky-col sticky-col-1" style="width: 40px;">STT</th>
-                                <th class="sticky-header sticky-col sticky-col-2" style="width: 250px;">TÊN VPP - VTTH
-                                </th>
-                                <th class="sticky-header sticky-col sticky-col-3" style="width: 80px;">ĐVT</th>
-                                <th class="sticky-header" style="width: 80px;">SỐ LƯỢNG</th>
-                                <th class="sticky-header" style="width: 120px;">ĐƠN GIÁ</th>
-                                <th class="sticky-header" style="width: 130px;">THÀNH TIỀN</th>
-                                <th class="sticky-header relative group pdf-hide" style="width: 150px;">
+                                <th style="width: 40px;">STT</th>
+                                <th style="width: 250px;">TÊN VPP - VTTH</th>
+                                <th style="width: 80px;">ĐVT</th>
+                                <th style="width: 80px;">SỐ LƯỢNG</th>
+                                <th style="width: 120px;">ĐƠN GIÁ</th>
+                                <th style="width: 130px;">THÀNH TIỀN</th>
+                                <th style="width: 150px;" class="relative group pdf-hide">
                                     <div class="flex items-center justify-between">
-                                        <span>GHI CHÚ</span>
+                                        <span>GHI CHÚ QUẢN LÝ</span>
                                         <button @click.stop="showNoteManager = !showNoteManager"
                                             class="text-gray-400 hover:text-blue-600 p-1 rounded-full"
                                             title="Quản lý ghi chú nhanh">
@@ -500,16 +454,13 @@
                                 @if(isset($products[$category->id]) && $products[$category->id]->count() > 0)
                                     <!-- Category Header -->
                                     <tr class="category-header">
-                                        <td colspan="7">
-                                            <span class="category-header-text">
-                                                {{ strtoupper($category->name) }}
-                                            </span>
-                                        </td>
+                                        <td colspan="7">{{ strtoupper($category->name) }}</td>
                                     </tr>
 
                                     <!-- Products -->
                                     @foreach($products[$category->id] as $product)
                                         @php
+                                            $stt++;
                                             // Correctly filter orders for this month only
                                             $monthlyOrders = $product->monthlyOrders->where('month', $selectedMonth);
                                             $hasOrders = $monthlyOrders->sum('quantity') > 0;
@@ -517,11 +468,10 @@
                                             $totalAmount = 0;
                                         @endphp
                                         @if($hasOrders)
-                                            @php $stt++; @endphp
                                             <tr>
-                                                <td class="text-center font-medium pdf-stt-cell sticky-col sticky-col-1">{{ $stt }}</td>
-                                                <td class="font-medium px-4 sticky-col sticky-col-2">{{ $product->name }}</td>
-                                                <td class="text-center sticky-col sticky-col-3">{{ $product->unit }}</td>
+                                                <td class="text-center font-medium pdf-stt-cell">{{ $stt }}</td>
+                                                <td class="font-medium px-4">{{ $product->name }}</td>
+                                                <td class="text-center">{{ $product->unit }}</td>
                                                 @php
                                                     foreach ($departments as $dept) {
                                                         $order = $monthlyOrders->firstWhere('department_id', $dept->id);
@@ -530,14 +480,14 @@
                                                     }
                                                     $totalAmount = $totalQuantity * $product->price;
                                                 @endphp
-                                                <td class="text-right font-bold">{{ number_format($totalQuantity, 1, ',', '.') }}
+                                                <td class="text-right font-bold">{{ number_format($totalQuantity, 0, ',', '.') }}
                                                 </td>
                                                 <td class="text-right">{{ number_format($product->price, 0, ',', '.') }}</td>
                                                 <td class="text-right font-bold text-red-600">
                                                     {{ number_format($totalAmount, 0, ',', '.') }}
                                                 </td>
                                                 <td class="px-2 py-1 pdf-hide"
-                                                    x-data="smartNote('{{ $product->id }}', '{{ $selectedMonth }}', {{ \Illuminate\Support\Js::from($product->monthlyOrders->first()->notes ?? '') }})">
+                                                    x-data="smartNote('{{ $product->id }}', '{{ $selectedMonth }}', {{ \Illuminate\Support\Js::from($product->monthlyOrders->first()->admin_notes ?? '') }})">
                                                     <div class="relative" @click.away="dropdownOpen = false">
                                                         <div class="relative group">
                                                             <input type="text" x-model="note" @focus="dropdownOpen = true"
@@ -660,7 +610,7 @@
                                             <td class="font-medium border px-3 py-2 text-left" x-text="prod.name"></td>
                                             <td class="text-center border px-3 py-2" x-text="prod.unit"></td>
                                             <td class="text-center font-bold text-red-600 border px-3 py-2"
-                                                x-text="formatNumber(prod.quantity, 1)"></td>
+                                                x-text="formatNumber(prod.quantity, 0)"></td>
                                             <td class="text-right text-green-600 border px-3 py-2"
                                                 x-text="formatNumber(prod.price, 0)"></td>
                                             <td class="text-right font-bold text-green-700 border px-3 py-2"
@@ -726,31 +676,12 @@
             document.getElementById('content-' + tabName).classList.remove('hidden');
 
             // Add active state to selected tab
+            const activeTab = document.getElementById('tab-' + tabName);
             if (activeTab) {
                 activeTab.classList.remove('border-transparent', 'text-gray-500');
                 activeTab.classList.add('border-blue-600', 'text-blue-600');
             }
-
-            // Recalculate sticky header positions after tab switch
-            setTimeout(updateHeaderHeights, 50);
         }
-
-        function updateHeaderHeights() {
-            const bangTongHead = document.querySelector('#content-bang-tong thead');
-            if (bangTongHead && bangTongHead.offsetParent !== null) {
-                // Use -1px to avoid gap
-                document.documentElement.style.setProperty('--header-height-bang-tong', (bangTongHead.offsetHeight - 1) + 'px');
-            }
-
-            const tongHopHead = document.querySelector('#content-tong-hop thead');
-            if (tongHopHead && tongHopHead.offsetParent !== null) {
-                document.documentElement.style.setProperty('--header-height-tong-hop', (tongHopHead.offsetHeight - 1) + 'px');
-            }
-        }
-
-        // Update on load and resize
-        window.addEventListener('load', updateHeaderHeights);
-        window.addEventListener('resize', updateHeaderHeights);
 
         // Initialize tab on load
         document.addEventListener('DOMContentLoaded', function () {
@@ -802,81 +733,132 @@
             return res.trim().charAt(0).toUpperCase() + res.trim().slice(1) + " đồng./.";
         }
 
-        function exportToPDF() {
-            const container = document.querySelector('#content-tong-hop');
-            const element = container.cloneNode(true);
-            element.classList.remove('hidden');
+        async function exportToPDF() {
+            const month = "{{ $selectedMonth }}";
+            const printUrl = "{{ route('admin.consolidated.print') }}?month=" + encodeURIComponent(month);
 
-            // Apply PDF Container Styling (Centered A4 Landscape)
-            element.style.width = '1100px';
-            element.style.margin = '0 auto';
-            element.style.backgroundColor = 'white';
-            element.style.padding = '40px';
-            element.style.fontFamily = "'Times New Roman', serif";
+            // Show loading state
+            const btn = event.currentTarget;
+            const originalContent = btn.innerHTML;
+            btn.innerHTML = '<span class="material-symbols-outlined text-sm animate-spin">sync</span> Đang chuẩn bị PDF...';
+            btn.disabled = true;
 
-            // Set Date Fields
-            const now = new Date();
-            element.querySelectorAll('.print-date-day').forEach(el => el.innerText = now.getDate().toString().padStart(2, '0'));
-            element.querySelectorAll('.print-date-month').forEach(el => el.innerText = (now.getMonth() + 1).toString().padStart(2, '0'));
-            element.querySelectorAll('.print-date-year').forEach(el => el.innerText = now.getFullYear());
+            try {
+                // Fetch the printable HTML content
+                const response = await fetch(printUrl);
+                const html = await response.text();
 
-            // Set Totals
-            const grandTotalValue = {{ (float) $grandTotal }};
-            element.querySelectorAll('.pdf-total-numeric').forEach(el => el.innerText = new Intl.NumberFormat('vi-VN').format(grandTotalValue));
-            element.querySelectorAll('.pdf-total-text').forEach(el => el.innerText = docSoThanhChu(grandTotalValue));
+                // Create a temporary container to hold the HTML
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = html;
 
-            // Setup Header and Sections
-            const h = element.querySelector('.print-header');
-            if (h) {
-                h.classList.remove('hidden');
-                h.style.display = 'block';
-                h.style.marginBottom = '20px';
+                // Extract only the part we want to print (the pages)
+                // In our consolidated-print.blade.php, we have .page elements
+                const pages = tempDiv.querySelectorAll('.page');
+                const container = document.createElement('div');
+                pages.forEach(p => {
+                    // Clone to avoid issues and append to container
+                    const clone = p.cloneNode(true);
+                    // Add some height spacing for the PDF converter if needed
+                    clone.style.marginBottom = '20px';
+                    container.appendChild(clone);
+                });
+
+                const opt = {
+                    margin: [0.2, 0.2, 0.2, 0.2],
+                    filename: 'Tong_hop_VPP_' + month.replace('/', '_') + '.pdf',
+                    image: { type: 'jpeg', quality: 0.98 },
+                    html2canvas: {
+                        scale: 2,
+                        useCORS: true,
+                        letterRendering: true
+                    },
+                    jsPDF: { unit: 'in', format: 'a4', orientation: 'landscape' },
+                    pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+                };
+
+                // Generate PDF
+                await html2pdf().set(opt).from(container).save();
+            } catch (error) {
+                console.error("PDF generation failed:", error);
+                alert("Có lỗi xảy ra khi tạo PDF. Vui lòng thử lại.");
+            } finally {
+                btn.innerHTML = originalContent;
+                btn.disabled = false;
             }
+        }
 
-            const s = element.querySelector('.signature-section');
-            if (s) {
-                s.classList.remove('hidden');
-                s.classList.add('flex');
-                s.style.display = 'flex';
-                s.style.justifyContent = 'space-between';
-                s.style.marginTop = '40px';
-                s.style.paddingBottom = '30px'; // Ensure space before edge
-            }
+        function printDirect() {
+            const month = "{{ $selectedMonth }}";
+            const printUrl = "{{ route('admin.consolidated.print') }}?month=" + encodeURIComponent(month);
 
-            // Remove unwanted columns/elements
-            element.querySelectorAll('.pdf-hide, button, .material-symbols-outlined, #noteManager, [x-show="dropdownOpen"]').forEach(el => el.remove());
+            const printFrame = document.getElementById('printFrame');
 
-            // Explicit Border styling for PDF
-            element.querySelectorAll('table').forEach(t => {
-                t.style.borderCollapse = 'collapse';
-                t.style.width = '100%';
-                t.style.border = '1px solid black';
-                t.style.marginBottom = '0';
-            });
+            // Show a simple loading indicator if needed, but the iframe itself is hidden
+            const btn = event.currentTarget;
+            const originalContent = btn.innerHTML;
+            btn.innerHTML = '<span class="material-symbols-outlined text-sm animate-spin">sync</span> Đang chuẩn bị...';
+            btn.disabled = true;
 
-            element.querySelectorAll('th, td').forEach(cell => {
-                cell.style.border = '1px solid black';
-                cell.style.padding = '6px 4px'; // Slightly smaller padding
-            });
-
-            element.style.paddingBottom = '0px';
-
-            const opt = {
-                margin: [0.4, 0.4, 0.4, 0.4],
-                filename: 'Bang_De_Nghi_Mua_VPP_{{ $selectedMonth }}.pdf',
-                image: { type: 'jpeg', quality: 0.98 },
-                html2canvas: {
-                    scale: 2,
-                    useCORS: true,
-                    letterRendering: true,
-                    width: 1100,
-                    scrollY: 0
-                },
-                jsPDF: { unit: 'in', format: 'a4', orientation: 'landscape' },
-                pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+            printFrame.onload = function () {
+                try {
+                    printFrame.contentWindow.focus();
+                    printFrame.contentWindow.print();
+                } catch (e) {
+                    console.error("Print failed:", e);
+                    // Fallback to new tab if iframe fails
+                    window.open(printUrl, '_blank');
+                } finally {
+                    btn.innerHTML = originalContent;
+                    btn.disabled = false;
+                }
             };
 
-            html2pdf().set(opt).from(element).save();
+            printFrame.src = printUrl;
+        }
+
+        function filterBangTong() {
+            const select = document.getElementById("searchBangTong");
+            const filter = select.value.toUpperCase();
+            const table = document.getElementById("tableBangTong");
+            const tr = table.getElementsByTagName("tr");
+
+            let currentCategoryRow = null;
+            let hasVisibleProductsInCategory = false;
+
+            for (let i = 0; i < tr.length; i++) {
+                const row = tr[i];
+
+                // Skip thead rows
+                if (row.parentElement.tagName === 'THEAD') continue;
+
+                if (row.classList.contains("category-header")) {
+                    // If we had a category row before, hide it if it has no products
+                    if (currentCategoryRow && !hasVisibleProductsInCategory) {
+                        currentCategoryRow.style.display = "none";
+                    }
+
+                    currentCategoryRow = row;
+                    hasVisibleProductsInCategory = false;
+                    row.style.display = ""; // Temporarily show to process
+                } else {
+                    const td = row.getElementsByTagName("td")[1]; // Product name is in the second column
+                    if (td) {
+                        const txtValue = td.textContent || td.innerText;
+                        if (filter === "" || txtValue.toUpperCase() === filter) {
+                            row.style.display = "";
+                            hasVisibleProductsInCategory = true;
+                        } else {
+                            row.style.display = "none";
+                        }
+                    }
+                }
+            }
+
+            // Final check for the last category
+            if (currentCategoryRow && !hasVisibleProductsInCategory) {
+                currentCategoryRow.style.display = "none";
+            }
         }
     </script>
     <script>

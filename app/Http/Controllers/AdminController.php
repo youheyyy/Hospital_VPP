@@ -14,20 +14,20 @@ class AdminController extends Controller
     /**
      * Hiển thị dashboard admin
      */
-    public function dashboard()
+    public function dashboard(Request $request)
     {
-        // Lấy tháng hiện tại
-        $currentMonth = date('m/Y');
+        // Lấy tháng từ request hoặc mặc định là tháng hiện tại
+        $selectedMonth = $request->input('month', date('m/Y'));
 
         // Tổng số yêu cầu trong tháng
-        $totalRequests = MonthlyOrder::where('month', $currentMonth)->count();
+        $totalRequests = MonthlyOrder::where('month', $selectedMonth)->count();
 
         // Tổng chi phí (giả định, cần tính toán thực tế)
         $totalCost = 42850000;
 
         // Sản phẩm được yêu cầu nhiều nhất
         $topProduct = MonthlyOrder::select('product_id', DB::raw('SUM(quantity) as total_quantity'))
-            ->where('month', $currentMonth)
+            ->where('month', $selectedMonth)
             ->groupBy('product_id')
             ->orderBy('total_quantity', 'DESC')
             ->first();
@@ -47,7 +47,7 @@ class AdminController extends Controller
 
         foreach ($departments as $dept) {
             $orderCount = MonthlyOrder::where('department_id', $dept->id)
-                ->where('month', $currentMonth)
+                ->where('month', $selectedMonth)
                 ->sum('quantity');
 
             $departmentStats[] = [
@@ -63,6 +63,7 @@ class AdminController extends Controller
             ->get();
 
         return view('admin.dashboard', compact(
+            'selectedMonth',
             'totalRequests',
             'totalCost',
             'topProductName',
