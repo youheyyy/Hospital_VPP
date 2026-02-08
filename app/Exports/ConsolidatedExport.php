@@ -289,21 +289,41 @@ class ConsolidatedExport
         $currentRow = 1;
 
         // ===== HEADER SECTION =====
-        // Row 1: Company name (left)
+        // ===== HEADER SECTION =====
+        // Row 1: Company name (left) & National Motto (right)
+        // Left Block: A-C
         $sheet->setCellValue('A' . $currentRow, 'CTCP BỆNH VIỆN ĐA KHOA TÂM TRÍ CAO LÃNH');
         $sheet->mergeCells('A' . $currentRow . ':C' . $currentRow);
         $sheet->getStyle('A' . $currentRow)->getFont()->setBold(true);
+        $sheet->getStyle('A' . $currentRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+        // Right Block: D-G
+        $sheet->setCellValue('D' . $currentRow, 'CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM');
+        $sheet->mergeCells('D' . $currentRow . ':G' . $currentRow);
+        $sheet->getStyle('D' . $currentRow)->getFont()->setBold(true);
+        $sheet->getStyle('D' . $currentRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
         $currentRow++;
 
-        // Row 2: Department (left)
+        // Row 2: Department (left) & Motto (right)
+        // Left Block
         $sheet->setCellValue('A' . $currentRow, 'BỘ PHẬN HỖ TRỢ DỊCH VỤ');
         $sheet->mergeCells('A' . $currentRow . ':C' . $currentRow);
         $sheet->getStyle('A' . $currentRow)->getFont()->setBold(true);
+        $sheet->getStyle('A' . $currentRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+        // Right Block
+        $sheet->setCellValue('D' . $currentRow, 'Độc lập - Tự do - Hạnh phúc');
+        $sheet->mergeCells('D' . $currentRow . ':G' . $currentRow);
+        $sheet->getStyle('D' . $currentRow)->getFont()->setBold(true)->setUnderline(true);
+        $sheet->getStyle('D' . $currentRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
         $currentRow++;
 
-        // Row 3: Date (left, italic)
-        $sheet->setCellValue('A' . $currentRow, 'Đồng Tháp, ngày ' . date('d') . ' tháng ' . date('m') . ' năm ' . date('Y'));
-        $sheet->getStyle('A' . $currentRow)->getFont()->setItalic(true);
+        // Row 3: Date (right only)
+        // Right Block
+        $sheet->setCellValue('D' . $currentRow, 'Đồng Tháp, ngày ' . date('d') . ' tháng ' . date('m') . ' năm ' . date('Y'));
+        $sheet->mergeCells('D' . $currentRow . ':G' . $currentRow);
+        $sheet->getStyle('D' . $currentRow)->getFont()->setItalic(true);
+        $sheet->getStyle('D' . $currentRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
         $currentRow++;
 
         $currentRow++; // Empty row

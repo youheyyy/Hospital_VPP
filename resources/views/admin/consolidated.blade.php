@@ -335,15 +335,19 @@
                     class="tab-content hidden bg-white rounded-b-lg shadow-sm border border-gray-200 overflow-hidden">
                     <!-- Print Header -->
                     <div class="print-header p-6 text-[14px] leading-relaxed">
-                        <div class="flex justify-between mb-4">
-                            <div class="text-left">
-                                <div class="font-bold uppercase">CTCP BỆNH VIỆN ĐA KHOA</div>
-                                <div class="font-bold uppercase">TÂM TRÍ CAO LÃNH</div>
-                                <div>Bộ phận hỗ trợ dịch vụ</div>
+                        <div class="flex justify-between items-start mb-4">
+                            <!-- Left Block -->
+                            <div class="text-center w-1/2">
+                                <div class="font-bold uppercase">CTCP BỆNH VIỆN ĐA KHOA TÂM TRÍ CAO LÃNH</div>
+                                <div class="font-bold uppercase">BỘ PHẬN HỖ TRỢ DỊCH VỤ</div>
                             </div>
-                            <div class="text-right">
+                            <!-- Right Block -->
+                            <div class="text-center w-1/2">
                                 <div class="font-bold uppercase">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</div>
-                                <div class="font-semibold">Độc lập - Tự do - Hạnh phúc</div>
+                                <div class="font-semibold flex flex-col items-center justify-center">
+                                    <span>Độc lập - Tự do - Hạnh phúc</span>
+                                    <span class="w-32 h-[1px] bg-black mt-0.5"></span>
+                                </div>
                                 <div class="italic mt-1"> Đồng Tháp, ngày <span class="print-date-day"></span> tháng
                                     <span class="print-date-month"></span> năm <span class="print-date-year"></span>
                                 </div>
