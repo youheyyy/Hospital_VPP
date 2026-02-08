@@ -285,7 +285,7 @@ class SuperAdminController extends Controller
             }
 
             // FLASH SUCCESS MESSAGE FOR REALTIME UPDATE
-            session()->flash('success', 'Hệ thống đã tự động cập nhật dữ liệu mới nhất (Realtime)');
+            // session()->flash('success', 'Hệ thống đã tự động cập nhật dữ liệu mới nhất (Realtime)');
 
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error('Auto refresh V1 failed: ' . $e->getMessage());
@@ -1004,9 +1004,10 @@ class SuperAdminController extends Controller
                             $productMap[$normName] = $product;
                         }
 
-                        // UPDATE PRODUCT PRICE (In-Memory Check to avoid DB writes)
+                        // UPDATE PRODUCT PRICE (Force Update from Detail)
                         if (!empty($priceStr)) {
                             $price = $this->parsePrice($priceStr);
+                            // Always update if we have a valid price > 0, trusting Detail sheet
                             if ($price > 0 && abs((float) $product->price - $price) > 0.01) {
                                 $product->update(['price' => $price]);
                             }
@@ -1307,7 +1308,10 @@ class SuperAdminController extends Controller
         $h = mb_strtolower(trim($name));
 
         // Document headers
-        if (str_starts_with($h, 'ngày') || str_contains($h, 'mẫu số') || str_contains($h, 'cty cp'))
+        if (str_starts_with($h, 'ngày') || str_contains($h, 'mẫu số'))
+            return true;
+        // removing 'cty cp' generally, only block specific hospital header
+        if (str_contains($h, 'bệnh viện đa khoa') || str_contains($h, 'hỗ trợ dịch vụ'))
             return true;
         if (str_contains($h, 'phiếu xuất') || str_contains($h, 'biên bản'))
             return true;
