@@ -328,11 +328,11 @@ class AdminController extends Controller
         foreach ($orders as $order) {
             /** @var \App\Models\MonthlyOrder $order */
 
-            \Log::info("Updating order ID: {$order->id}, current note: '{$order->notes}'");
-            $order->notes = $request->note;
+            \Log::info("Updating order ID: {$order->id}, current note: '{$order->admin_notes}'");
+            $order->admin_notes = $request->note;
             $order->save();
             $affected++;
-            \Log::info("After save, note is: '{$order->notes}'");
+            \Log::info("After save, note is: '{$order->admin_notes}'");
         }
 
         // Log the queries

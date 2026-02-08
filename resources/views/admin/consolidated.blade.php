@@ -182,7 +182,8 @@
                 <div class="flex-shrink-0">
                     <h1 class="text-xl font-extrabold text-slate-900 tracking-tight">Tổng hợp yêu cầu VPP</h1>
                     <p class="text-xs text-slate-400 font-medium">Tháng {{ $selectedMonth }} •
-                        {{ now()->format('d/m/Y H:i') }}</p>
+                        {{ now()->format('d/m/Y H:i') }}
+                    </p>
                 </div>
                 <div class="flex items-center gap-3 flex-shrink-0">
                     <!-- Month Filter -->
@@ -754,12 +755,19 @@
 
                 // Extract only the part we want to print (the pages)
                 // In our consolidated-print.blade.php, we have .page elements
-                const pages = tempDiv.querySelectorAll('.page');
+                // Extract CSS Styles (crucial for colors)
+                const styles = tempDiv.querySelectorAll('style');
                 const container = document.createElement('div');
+
+                // Add styles to container
+                styles.forEach(style => {
+                    container.appendChild(style.cloneNode(true));
+                });
+
+                // Extract only the part we want to print (the pages)
+                const pages = tempDiv.querySelectorAll('.page');
                 pages.forEach(p => {
-                    // Clone to avoid issues and append to container
                     const clone = p.cloneNode(true);
-                    // Add some height spacing for the PDF converter if needed
                     clone.style.marginBottom = '20px';
                     container.appendChild(clone);
                 });
@@ -773,8 +781,8 @@
                         useCORS: true,
                         letterRendering: true
                     },
-                    jsPDF: { unit: 'in', format: 'a4', orientation: 'landscape' },
-                    pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+                    jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' },
+                    pagebreak: { mode: ['css', 'legacy'] }
                 };
 
                 // Generate PDF
