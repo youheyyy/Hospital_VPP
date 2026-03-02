@@ -186,33 +186,69 @@
                     </p>
                 </div>
                 <div class="flex items-center gap-3 flex-shrink-0">
-                    <!-- Month Filter -->
-                    <form method="GET" action="{{ route('admin.consolidated') }}">
-                        @if(request('category'))
-                            <input type="hidden" name="category" value="{{ request('category') }}">
-                        @endif
-                        <select name="month" onchange="this.form.submit()"
-                            class="border-slate-300 rounded-2xl text-sm px-3 py-2 bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
-                            @for($i = 0; $i < 12; $i++)
-                                @php
-                                    $date = now()->subMonths($i);
-                                    $monthValue = $date->format('m/Y');
-                                @endphp
-                                <option value="{{ $monthValue }}" {{ $selectedMonth == $monthValue ? 'selected' : '' }}>
-                                    Tháng {{ $date->format('m/Y') }}
-                                </option>
-                            @endfor
-                        </select>
-                    </form>
+                    <!-- Smart Month Picker -->
+                    <div class="relative" x-data="monthPicker('{{ $selectedMonth }}', '{{ request('category') }}')">
+                        <div
+                            class="flex items-center bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm focus-within:ring-2 focus-within:ring-indigo-500 transition-all">
+                            <input type="text" x-model="displayMonth" @keydown.enter="submitMonth()"
+                                @blur="formatAndSubmit()" placeholder="MM/YYYY"
+                                class="w-24 px-3 py-2 text-xs border-none focus:ring-0 text-center font-bold text-slate-700"
+                                maxlength="7">
+                            <button @click="showPicker = !showPicker"
+                                class="px-2 py-2 hover:bg-slate-50 border-l border-slate-100 flex items-center text-slate-400">
+                                <span class="material-symbols-outlined text-sm">calendar_month</span>
+                            </button>
+                        </div>
+
+                        <!-- Month Picker Dropdown -->
+                        <div x-show="showPicker" @click.away="showPicker = false"
+                            x-transition:enter="transition ease-out duration-200"
+                            x-transition:enter-start="opacity-0 translate-y-2"
+                            x-transition:enter-end="opacity-100 translate-y-0"
+                            class="absolute right-0 mt-2 p-4 bg-white border border-slate-200 shadow-2xl rounded-2xl z-50 w-64"
+                            style="display: none;">
+
+                            <div class="flex justify-between items-center mb-4 pb-2 border-b border-slate-50">
+                                <button @click="changeYear(-1)" class="p-1 hover:bg-slate-100 rounded-lg"><span
+                                        class="material-symbols-outlined text-sm">chevron_left</span></button>
+                                <span class="font-bold text-slate-900" x-text="pickerYear"></span>
+                                <button @click="changeYear(1)" class="p-1 hover:bg-slate-100 rounded-lg"><span
+                                        class="material-symbols-outlined text-sm">chevron_right</span></button>
+                            </div>
+
+                            <div class="grid grid-cols-3 gap-2">
+                                <template x-for="m in 12">
+                                    <button @click="selectMonth(m)" class="py-2 text-xs rounded-xl transition-all"
+                                        :class="parseInt(pickerMonth) == m ? 'bg-indigo-600 text-white font-bold' : 'hover:bg-indigo-50 text-slate-600 font-medium'"
+                                        x-text="'Th ' + (m < 10 ? '0' + m : m)">
+                                    </button>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
                     <button onclick="printDirect()"
                         class="px-3 py-2 bg-indigo-600 text-white rounded-2xl hover:bg-indigo-700 flex items-center gap-2 transition-colors shadow-sm whitespace-nowrap">
                         <span class="material-symbols-outlined text-sm">print</span>
                         In
                     </button>
+                    <!-- Grid Entry Button -->
+                    <a href="{{ route('admin.grid-entry', ['month' => $selectedMonth]) }}"
+                        class="px-3 py-2 bg-indigo-500 text-white rounded-2xl hover:bg-indigo-600 flex items-center gap-2 transition-colors shadow-sm whitespace-nowrap"
+                        title="Nhập liệu nhanh dạng lưới">
+                        <span class="material-symbols-outlined text-sm">grid_on</span>
+                        Nhập lưới
+                    </a>
                     <a href="{{ route('admin.consolidated.export', ['month' => $selectedMonth]) }}"
                         class="px-3 py-2 bg-emerald-600 text-white rounded-2xl hover:bg-emerald-700 flex items-center gap-2 transition-colors shadow-sm whitespace-nowrap">
                         <span class="material-symbols-outlined text-sm">table_chart</span>
                         Excel
+                    </a>
+                    <!-- Historical Export Button -->
+                    <a href="{{ route('admin.consolidated.export-historical', ['month' => $selectedMonth]) }}"
+                        class="px-3 py-2 bg-cyan-600 text-white rounded-2xl hover:bg-cyan-700 flex items-center gap-2 transition-colors shadow-sm whitespace-nowrap"
+                        title="Xuất Excel đa sheet cho quá khứ">
+                        <span class="material-symbols-outlined text-sm">history</span>
+                        Xuất Excel Quá Khứ
                     </a>
                     <button onclick="exportToPDF()"
                         class="px-3 py-2 bg-amber-500 text-white rounded-2xl hover:bg-amber-600 flex items-center gap-2 transition-colors shadow-sm whitespace-nowrap">
@@ -1082,6 +1118,46 @@
                 }
             }));
         });
+        function monthPicker(initialMonth, selectedCategory) {
+            let [m, y] = initialMonth.split('/');
+            return {
+                displayMonth: initialMonth,
+                pickerMonth: m,
+                pickerYear: y,
+                showPicker: false,
+                category: selectedCategory,
+
+                changeYear(dir) {
+                    this.pickerYear = parseInt(this.pickerYear) + dir;
+                },
+
+                selectMonth(m) {
+                    this.pickerMonth = m < 10 ? '0' + m : m;
+                    this.submitMonth();
+                },
+
+                formatAndSubmit() {
+                    if (/^\d{1,2}\/\d{4}$/.test(this.displayMonth)) {
+                        let parts = this.displayMonth.split('/');
+                        let mm = parts[0].padStart(2, '0');
+                        this.displayMonth = mm + '/' + parts[1];
+                        this.submitMonth();
+                    }
+                },
+
+                submitMonth() {
+                    let finalMonth = this.displayMonth;
+                    if (this.showPicker) {
+                        finalMonth = this.pickerMonth + '/' + this.pickerYear;
+                    }
+                    let url = "{{ route('admin.consolidated') }}?month=" + encodeURIComponent(finalMonth);
+                    if (this.category) {
+                        url += "&category=" + encodeURIComponent(this.category);
+                    }
+                    window.location.href = url;
+                }
+            }
+        }
     </script>
 </body>
 

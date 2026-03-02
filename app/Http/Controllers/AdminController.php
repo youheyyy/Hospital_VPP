@@ -316,13 +316,6 @@ class AdminController extends Controller
 
         \Log::info('Found orders: ' . $orders->count());
 
-        // Update admin_notes for all orders of this product in this month
-        $affected = MonthlyOrder::where('product_id', $request->product_id)
-            ->where('month', $request->month)
-            ->get();
-
-        \Log::info('Found orders: ' . $orders->count());
-
         // Update each order individually to ensure it works
         $affected = 0;
         foreach ($orders as $order) {
@@ -345,6 +338,98 @@ class AdminController extends Controller
         \Log::info('Total rows updated: ' . $affected);
 
         return response()->json(['success' => true, 'affected' => $affected]);
+    }
+
+    /**
+     * Giao diện nhập liệu nhanh dạng lưới (Grid Entry)
+     */
+    public function gridEntry(Request $request)
+    {
+        $selectedMonth = $request->input('month', date('m/Y'));
+        $departments = Department::where('is_active', true)->orderBy('name')->get();
+        $categories = Category::orderBy('display_order')->get();
+
+        $products = Product::with([
+            'category',
+            'monthlyOrders' => function ($q) use ($selectedMonth) {
+                $q->where('month', $selectedMonth);
+            }
+        ])
+            ->orderBy('category_id')
+            ->orderBy('display_order')
+            ->get()
+            ->groupBy('category_id');
+
+        return view('admin.grid-entry', compact('departments', 'categories', 'products', 'selectedMonth'));
+    }
+
+    /**
+     * AJAX cập nhật số lượng từ Grid Entry
+     */
+    public function updateGridQuantity(Request $request)
+    {
+        $request->validate([
+            'product_id' => 'required|exists:products,id',
+            'department_id' => 'required|exists:departments,id',
+            'month' => 'required',
+            'quantity' => 'nullable|numeric|min:0',
+        ]);
+
+        $order = MonthlyOrder::updateOrCreate(
+            [
+                'product_id' => $request->product_id,
+                'department_id' => $request->department_id,
+                'month' => $request->month,
+            ],
+            [
+                'quantity' => $request->quantity ?? 0,
+            ]
+        );
+
+        return response()->json(['success' => true, 'order_id' => $order->id]);
+    }
+
+    /**
+     * Xuất Excel Quá Khứ (Multi-sheet, công thức)
+     */
+    public function exportHistorical(Request $request)
+    {
+        $selectedMonth = $request->input('month', date('m/Y'));
+        $departments = Department::where('is_active', true)->orderBy('name')->get();
+        $categories = Category::orderBy('display_order')->get();
+
+        $products = Product::with([
+            'category',
+            'monthlyOrders' => function ($q) use ($selectedMonth) {
+                $q->where('month', $selectedMonth);
+            }
+        ])
+            ->orderBy('category_id')
+            ->orderBy('display_order')
+            ->get()
+            ->groupBy('category_id');
+
+        // Tính tổng cho mỗi category
+        $categoryTotals = [];
+        foreach ($products as $categoryId => $categoryProducts) {
+            $categoryTotal = 0;
+            foreach ($categoryProducts as $product) {
+                $categoryTotal += $product->monthlyOrders->sum('quantity') * $product->price;
+            }
+            $categoryTotals[$categoryId] = $categoryTotal;
+        }
+        $grandTotal = array_sum($categoryTotals);
+
+        $filename = 'Ke_hoach_VPP_HISTORICAL_' . str_replace('/', '_', $selectedMonth) . '.xlsx';
+
+        return (new \App\Exports\HistoricalConsolidatedExport(
+            $selectedMonth,
+            $departments,
+            $categories,
+            $products,
+            $categoryTotals,
+            $grandTotal
+        ))->download($filename);
     }
 }
 

@@ -47,6 +47,13 @@ Route::middleware(['auth', 'role:SuperAdmin,Admin'])->prefix('admin')->name('adm
     Route::get('/consolidated/export', [AdminController::class, 'exportConsolidated'])->name('consolidated.export');
     Route::get('/consolidated/print', [AdminController::class, 'printConsolidated'])->name('consolidated.print');
     Route::post('/consolidated/update-note', [AdminController::class, 'updateNote'])->name('consolidated.update_note');
+
+    // Grid Entry Tool
+    Route::get('/grid-entry', [AdminController::class, 'gridEntry'])->name('grid-entry');
+    Route::post('/grid-entry/update', [AdminController::class, 'updateGridQuantity'])->name('grid-entry.update');
+
+    // Historical Export (Multi-sheet)
+    Route::get('/consolidated/export-historical', [AdminController::class, 'exportHistorical'])->name('consolidated.export-historical');
 });
 
 // Department routes
