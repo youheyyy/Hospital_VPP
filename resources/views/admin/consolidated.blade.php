@@ -236,7 +236,7 @@
                         class="px-3 py-2 bg-indigo-500 text-white rounded-2xl hover:bg-indigo-600 flex items-center gap-2 transition-colors shadow-sm whitespace-nowrap"
                         title="Nhập liệu nhanh dạng lưới">
                         <span class="material-symbols-outlined text-sm">grid_on</span>
-                        Nhập lưới
+                        Nhập dữ liệu cũ
                     </a>
                     <a href="{{ route('admin.consolidated.export', ['month' => $selectedMonth]) }}"
                         class="px-3 py-2 bg-emerald-600 text-white rounded-2xl hover:bg-emerald-700 flex items-center gap-2 transition-colors shadow-sm whitespace-nowrap">

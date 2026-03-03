@@ -51,6 +51,7 @@ Route::middleware(['auth', 'role:SuperAdmin,Admin'])->prefix('admin')->name('adm
     // Grid Entry Tool
     Route::get('/grid-entry', [AdminController::class, 'gridEntry'])->name('grid-entry');
     Route::post('/grid-entry/update', [AdminController::class, 'updateGridQuantity'])->name('grid-entry.update');
+    Route::post('/grid-entry/product', [AdminController::class, 'storeProduct'])->name('grid-entry.product');
 
     // Historical Export (Multi-sheet)
     Route::get('/consolidated/export-historical', [AdminController::class, 'exportHistorical'])->name('consolidated.export-historical');

@@ -5,7 +5,7 @@
     <meta charset="utf-8" />
     <meta content="width=device-width, initial-scale=1.0" name="viewport" />
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>Nhập liệu nhanh dạng lưới - {{ $selectedMonth }}</title>
+    <title>Nhập liệu nhanh Grid - Tháng {{ $selectedMonth }}</title>
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <link href="https://fonts.googleapis.com" rel="preconnect" />
     <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
@@ -19,256 +19,424 @@
             body { @apply bg-slate-50 text-slate-900 antialiased font-sans; }
         }
 
-        .grid-table {
+        .excel-table {
             @apply border-collapse w-full text-[13px];
         }
 
-        .grid-table th,
-        .grid-table td {
-            @apply border border-slate-200;
+        .excel-table th,
+        .excel-table td {
+            @apply border border-slate-200 p-2;
         }
 
-        /* Sticky header */
-        .grid-table thead th {
-            @apply sticky top-0 bg-slate-100 z-20 font-bold p-2 shadow-sm;
+        .excel-table th {
+            @apply bg-slate-100 font-bold text-center text-slate-700 sticky top-0 z-10 shadow-sm;
         }
 
-        /* Sticky first column */
-        .grid-table .sticky-col {
-            @apply sticky left-0 bg-white z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)];
-        }
-
-        /* Intersection of sticky row/col */
-        .grid-table thead th.sticky-col {
-            @apply z-30 bg-slate-200;
+        .category-header {
+            @apply bg-indigo-600 text-white font-bold text-left uppercase text-[11px] tracking-wider;
         }
 
         .cell-input {
-            @apply w-full border-none p-1 text-right focus:ring-2 focus:ring-indigo-500 focus:bg-indigo-50 transition-all outline-none bg-transparent h-full;
+            @apply w-full border-none p-1 text-right focus:ring-2 focus:ring-indigo-500 focus:bg-indigo-50 transition-all outline-none bg-transparent h-full min-w-[80px];
         }
 
-        .product-row:hover .sticky-col {
-            @apply bg-slate-50;
+        .sidebar-item {
+            @apply flex items-center gap-3 px-4 py-3 rounded-2xl text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 transition-all duration-200 cursor-pointer;
         }
 
-        .product-row:hover {
-            @apply bg-slate-50;
-        }
-
-        .saving-indicator {
-            @apply absolute right-0 top-0 text-[10px] p-0.5 pointer-events-none;
+        .sidebar-item.active {
+            @apply bg-indigo-600 text-white shadow-lg shadow-indigo-200;
         }
     </style>
 </head>
 
-<body class="flex flex-col h-screen overflow-hidden">
-    <!-- Header -->
-    <header class="bg-white border-b border-slate-100 px-6 py-4 flex justify-between items-center z-40">
-        <div class="flex items-center gap-4">
-            <a href="{{ route('admin.consolidated', ['month' => $selectedMonth]) }}"
-                class="text-slate-400 hover:text-slate-600 transition-colors">
-                <span class="material-symbols-outlined">arrow_back</span>
-            </a>
-            <div>
-                <h1 class="text-xl font-extrabold text-slate-900 flex items-center gap-2">
-                    Công cụ Nhập liệu Grid
-                    <span
-                        class="px-2 py-0.5 bg-indigo-100 text-indigo-600 text-[10px] rounded-full uppercase tracking-wider">Fast
-                        Entry</span>
-                </h1>
-                <p class="text-xs text-slate-400">Tháng {{ $selectedMonth }} • Nhập nhanh số lượng cho 20 khoa/phòng</p>
+<body class="bg-slate-50 overflow-hidden">
+    <div class="flex h-screen" x-data="gridApp()">
+        <!-- Sidebar -->
+        <aside
+            class="w-64 flex-shrink-0 bg-white border-r border-slate-100 flex flex-col py-8 px-4 gap-4 no-print shadow-[4px_0_24px_rgba(0,0,0,0.02)] z-20 relative">
+            <div class="mb-8 px-4">
+                <div class="flex items-center gap-3">
+                    <div
+                        class="w-12 h-12 bg-mint-500 rounded-2xl flex items-center justify-center shadow-lg shadow-mint-100">
+                        <span class="material-symbols-outlined text-white"
+                            style="background-color: #10b981; border-radius: 9999px; padding: 4px;">inventory_2</span>
+                    </div>
+                    <div>
+                        <h2 class="text-lg font-extrabold text-slate-900">VPP Admin</h2>
+                        <p class="text-[10px] text-slate-400 font-medium">Quản trị hệ thống</p>
+                    </div>
+                </div>
             </div>
-        </div>
+            <nav class="flex flex-col gap-2 flex-1">
+                <a class="sidebar-item" href="{{ route('admin.dashboard') }}">
+                    <span class="material-symbols-outlined">grid_view</span>
+                    <span class="text-sm font-bold">Tổng quan</span>
+                </a>
+                <a class="sidebar-item active" href="{{ route('admin.consolidated') }}">
+                    <span class="material-symbols-outlined">assignment</span>
+                    <span class="text-sm font-bold">Tổng hợp yêu cầu</span>
+                </a>
+            </nav>
+            <div class="mt-auto px-4">
+                <div class="bg-slate-50 rounded-2xl p-4 mb-4">
+                    <div class="flex items-center gap-3 mb-3">
+                        <div
+                            class="w-10 h-10 rounded-full bg-indigo-500 flex items-center justify-center text-white font-bold">
+                            {{ strtoupper(substr(auth()->user()->name, 0, 2)) }}
+                        </div>
+                        <div class="flex-1 overflow-hidden">
+                            <p class="text-sm font-bold text-slate-900 truncate">{{ auth()->user()->name }}</p>
+                            <p class="text-[10px] text-slate-400 uppercase">{{ auth()->user()->role }}</p>
+                        </div>
+                    </div>
+                </div>
+                <form action="{{ route('logout') }}" method="POST">
+                    @csrf
+                    <button type="submit"
+                        class="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 transition-colors text-sm font-bold text-slate-600">
+                        <span class="material-symbols-outlined text-lg">logout</span>
+                        <span>Đăng xuất</span>
+                    </button>
+                </form>
+            </div>
+        </aside>
 
-        <div class="flex items-center gap-3" x-data="monthPicker('{{ $selectedMonth }}')">
-            <!-- Smart Month Picker -->
-            <div class="relative">
-                <div
-                    class="flex items-center bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm focus-within:ring-2 focus-within:ring-indigo-500 transition-all">
-                    <input type="text" x-model="displayMonth" @keydown.enter="submitMonth()" @blur="formatAndSubmit()"
-                        placeholder="MM/YYYY"
-                        class="w-24 px-3 py-1.5 text-xs border-none focus:ring-0 text-center font-bold text-slate-700"
-                        maxlength="7">
-                    <button @click="showPicker = !showPicker"
-                        class="px-2 py-1.5 hover:bg-slate-50 border-l border-slate-100 flex items-center text-slate-400">
-                        <span class="material-symbols-outlined text-sm">calendar_month</span>
+        <!-- Main Content -->
+        <main class="flex-1 flex flex-col overflow-hidden bg-white relative z-10">
+            <!-- Header -->
+            <header
+                class="bg-white px-6 py-4 flex justify-between items-center gap-3 z-30 shadow-sm border-b border-slate-100">
+                <div class="flex items-center gap-4">
+                    <div class="flex-shrink-0">
+                        <h1 class="text-xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
+                            Nhập liệu: <span x-text="getDeptName()" class="text-indigo-600"></span>
+                        </h1>
+                        <p class="text-xs text-slate-500 font-medium">Tháng {{ $selectedMonth }} • Tự động tính Thành
+                            tiền ngay khi nhập</p>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-4 flex-shrink-0">
+                    <!-- Khoa Selector -->
+                    <div class="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200">
+                        <span class="material-symbols-outlined text-slate-400 text-sm">domain</span>
+                        <select x-model="selectedDept"
+                            class="bg-transparent border-none text-sm font-bold text-slate-700 py-1 pr-8 focus:ring-0 cursor-pointer">
+                            @foreach($departments as $dept)
+                                <option value="{{ $dept->id }}">{{ $dept->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <!-- Search Box -->
+                    <div class="relative">
+                        <input type="text" x-model="searchQuery" placeholder="Tìm kiếm sản phẩm..."
+                            class="pl-9 pr-4 py-2 border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 w-64 shadow-sm">
+                        <span
+                            class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[18px]">search</span>
+                    </div>
+
+                    <!-- Add Product Button -->
+                    <button @click="showAddModal = true"
+                        class="px-4 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 flex items-center gap-2 transition-colors shadow-sm font-bold text-sm">
+                        <span class="material-symbols-outlined text-[18px]">add</span>
+                        Thêm sản phẩm mới
+                    </button>
+                </div>
+            </header>
+
+            <!-- Table Area -->
+            <div class="flex-1 overflow-auto bg-slate-50/50 p-6 relative">
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                    <table class="excel-table w-full relative">
+                        <thead>
+                            <tr>
+                                <th class="w-[50px] text-center">STT</th>
+                                <th class="text-left">Tên sản phẩm</th>
+                                <th class="w-[80px] text-center">ĐVT</th>
+                                <th class="w-[120px] text-center text-indigo-700 bg-indigo-50/50">Số lượng</th>
+                                <th class="w-[120px] text-right">Đơn giá</th>
+                                <th class="w-[150px] text-right text-emerald-700 bg-emerald-50/50">Thành tiền</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @php $stt = 0; @endphp
+                            @foreach($categories as $category)
+                                @if(isset($products[$category->id]) && count($products[$category->id]) > 0)
+                                    <!-- Category Row -->
+                                    <tr class="category-header category-row" data-cat-id="{{ $category->id }}">
+                                        <td colspan="6" class="px-3 py-2">
+                                            {{ strtoupper($category->name) }}
+                                        </td>
+                                    </tr>
+
+                                    <!-- Products in Category -->
+                                    @foreach($products[$category->id] as $product)
+                                        @php $stt++; @endphp
+                                        <tr class="hover:bg-slate-50 transition-colors product-row"
+                                            x-show="matchSearch($el.dataset.name)" data-name="{{ $product->name }}"
+                                            data-cat-id="{{ $category->id }}">
+                                            <td class="text-center text-slate-400 text-xs">{{ $stt }}</td>
+                                            <td class="font-medium text-slate-700 px-3 py-2">{{ $product->name }}</td>
+                                            <td class="text-center text-slate-500">{{ $product->unit }}</td>
+                                            <td class="p-0 bg-indigo-50/10 relative group">
+                                                <input type="number" step="0.1"
+                                                    x-model="data['{{ $product->id }}'].orders[selectedDept]"
+                                                    @change="saveQuantity('{{ $product->id }}', $event.target.value)"
+                                                    class="cell-input font-bold text-indigo-700 bg-transparent placeholder-slate-300"
+                                                    placeholder="0" :class="{ 'opacity-50': saving['{{ $product->id }}'] }">
+                                                <div x-show="saving['{{ $product->id }}']"
+                                                    class="absolute right-1 top-1/2 -translate-y-1/2 pointer-events-none">
+                                                    <span
+                                                        class="material-symbols-outlined text-[14px] text-indigo-500 animate-spin">sync</span>
+                                                </div>
+                                                <div x-show="saved['{{ $product->id }}']"
+                                                    class="absolute right-1 top-1/2 -translate-y-1/2 pointer-events-none">
+                                                    <span
+                                                        class="material-symbols-outlined text-[14px] text-emerald-500">check_circle</span>
+                                                </div>
+                                            </td>
+                                            <td class="text-right text-slate-500 px-3 py-2">
+                                                {{ number_format($product->price, 0, ',', '.') }}
+                                            </td>
+                                            <td class="text-right font-bold text-emerald-600 px-3 py-2 bg-emerald-50/10"
+                                                x-text="formatNumber(calculateTotal('{{ $product->id }}'))">
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                @endif
+                            @endforeach
+                        </tbody>
+                        <tfoot class="sticky bottom-0 z-10 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+                            <tr class="bg-white border-t-2 border-slate-200">
+                                <td colspan="5" class="text-right font-bold text-slate-700 px-3 py-4 text-base">TỔNG
+                                    THÀNH TIỀN (KHOA ĐANG CHỌN):</td>
+                                <td class="text-right font-extrabold text-emerald-600 px-3 py-4 text-lg bg-emerald-50/30"
+                                    x-text="formatNumber(departmentSubtotal)"></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </main>
+
+        <!-- Add Product Modal -->
+        <div x-show="showAddModal" style="display: none;"
+            class="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm"
+            x-transition.opacity>
+
+            <div class="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col"
+                @click.away="showAddModal = false" x-transition:enter="transition ease-out duration-300"
+                x-transition:enter-start="opacity-0 translate-y-8 scale-95"
+                x-transition:enter-end="opacity-100 translate-y-0 scale-100">
+
+                <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                    <h3 class="font-extrabold text-lg text-slate-800 flex items-center gap-2">
+                        <span class="material-symbols-outlined text-indigo-500">add_box</span>
+                        Thêm Sản Phẩm Mới
+                    </h3>
+                    <button @click="showAddModal = false"
+                        class="text-slate-400 hover:text-slate-600 transition-colors p-1 rounded-full hover:bg-slate-200">
+                        <span class="material-symbols-outlined">close</span>
                     </button>
                 </div>
 
-                <!-- Month Picker Dropdown -->
-                <div x-show="showPicker" @click.away="showPicker = false"
-                    x-transition:enter="transition ease-out duration-200"
-                    x-transition:enter-start="opacity-0 translate-y-2"
-                    x-transition:enter-end="opacity-100 translate-y-0"
-                    class="absolute right-0 mt-2 p-4 bg-white border border-slate-200 shadow-2xl rounded-2xl z-50 w-64"
-                    style="display: none;">
+                <div class="p-6">
+                    <div class="grid gap-4">
+                        <div>
+                            <label class="block text-sm font-bold text-slate-700 mb-1">Danh mục (*)</label>
+                            <select x-model="newProduct.category_id"
+                                class="w-full rounded-xl border-slate-200 focus:ring-2 focus:ring-indigo-500 shadow-sm text-sm">
+                                <option value="">-- Chọn danh mục --</option>
+                                @foreach($categories as $cat)
+                                    <option value="{{ $cat->id }}">{{ $cat->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
 
-                    <div class="flex justify-between items-center mb-4 pb-2 border-b border-slate-50">
-                        <button @click="changeYear(-1)" class="p-1 hover:bg-slate-100 rounded-lg"><span
-                                class="material-symbols-outlined text-sm">chevron_left</span></button>
-                        <span class="font-bold text-slate-900" x-text="pickerYear"></span>
-                        <button @click="changeYear(1)" class="p-1 hover:bg-slate-100 rounded-lg"><span
-                                class="material-symbols-outlined text-sm">chevron_right</span></button>
-                    </div>
+                        <div>
+                            <label class="block text-sm font-bold text-slate-700 mb-1">Tên sản phẩm (*)</label>
+                            <input type="text" x-model="newProduct.name"
+                                class="w-full rounded-xl border-slate-200 focus:ring-2 focus:ring-indigo-500 shadow-sm text-sm"
+                                placeholder="Nhập tên chính xác...">
+                        </div>
 
-                    <div class="grid grid-cols-3 gap-2">
-                        <template x-for="m in 12">
-                            <button @click="selectMonth(m)" class="py-2 text-xs rounded-xl transition-all"
-                                :class="parseInt(pickerMonth) == m ? 'bg-indigo-600 text-white font-bold' : 'hover:bg-indigo-50 text-slate-600 font-medium'"
-                                x-text="'Th ' + (m < 10 ? '0' + m : m)">
-                            </button>
-                        </template>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-bold text-slate-700 mb-1">Đơn vị tính</label>
+                                <input type="text" x-model="newProduct.unit"
+                                    class="w-full rounded-xl border-slate-200 focus:ring-2 focus:ring-indigo-500 shadow-sm text-sm"
+                                    placeholder="Cái, hộp, hộp...">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-bold text-slate-700 mb-1">Đơn giá</label>
+                                <input type="number" x-model.number="newProduct.price"
+                                    class="w-full rounded-xl border-slate-200 focus:ring-2 focus:ring-indigo-500 shadow-sm text-sm"
+                                    placeholder="0">
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <div class="relative">
-                <input type="text" id="searchProduct" placeholder="Tìm sản phẩm..."
-                    class="pl-9 pr-4 py-1.5 border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-indigo-500 w-64"
-                    onkeyup="filterRows()">
-                <span
-                    class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">search</span>
+                <div class="px-6 py-4 border-t border-slate-100 bg-slate-50/50 flex justify-end gap-3">
+                    <button @click="showAddModal = false"
+                        class="px-4 py-2 rounded-xl font-bold text-slate-600 hover:bg-slate-200 transition-colors">Hủy</button>
+                    <button @click="submitNewProduct"
+                        class="px-5 py-2 rounded-xl font-bold text-white bg-indigo-600 hover:bg-indigo-700 shadow-md shadow-indigo-200 flex items-center gap-2 transition-all relative overflow-hidden"
+                        :class="{ 'opacity-70 cursor-not-allowed': isSubmittingProduct }">
+                        <span x-show="!isSubmittingProduct">Lưu Sản Phẩm</span>
+                        <span x-show="isSubmittingProduct" class="flex items-center gap-2">
+                            <span class="material-symbols-outlined text-[16px] animate-spin">sync</span>
+                            Đang lưu...
+                        </span>
+                    </button>
+                </div>
             </div>
         </div>
-    </header>
 
-    <!-- Matrix Table Container -->
-    <div class="flex-1 overflow-auto bg-white" x-data="gridApp()">
-        <table class="grid-table min-w-max" id="mainGrid">
-            <thead>
-                <tr>
-                    <th class="sticky-col w-[40px] text-center">STT</th>
-                    <th class="sticky-col left-[40px] w-[300px] text-left">Tên sản phẩm</th>
-                    <th class="w-[60px] text-center">ĐVT</th>
-                    @foreach($departments as $dept)
-                        <th class="w-[100px] text-center bg-indigo-50/50 min-w-[80px]">{{ $dept->name }}</th>
-                    @endforeach
-                </tr>
-            </thead>
-            <tbody>
-                @php $stt = 0; @endphp
-                @foreach($products as $categoryId => $catProducts)
-                    @php $category = $categories->firstWhere('id', $categoryId); @endphp
-                    <tr class="bg-indigo-600 text-white font-bold uppercase text-[11px] tracking-widest category-row">
-                        <td colspan="{{ 3 + $departments->count() }}" class="px-4 py-2 sticky-col bg-indigo-600">
-                            {{ $category->name ?? 'CHUNG' }}
-                        </td>
-                    </tr>
-                    @foreach($catProducts as $product)
-                        @php $stt++; @endphp
-                        <tr class="product-row" data-name="{{ strtolower($product->name) }}">
-                            <td class="text-center text-slate-400 sticky-col">{{ $stt }}</td>
-                            <td class="sticky-col left-[40px] font-medium px-4 py-2">{{ $product->name }}</td>
-                            <td class="text-center text-slate-400">{{ $product->unit }}</td>
-                            @foreach($departments as $dept)
-                                @php
-                                    $order = $product->monthlyOrders->firstWhere('department_id', $dept->id);
-                                    $qty = $order ? $order->quantity : '';
-                                @endphp
-                                <td class="relative">
-                                    <input type="number" step="0.1" value="{{ $qty }}"
-                                        @change="saveQuantity($event, '{{ $product->id }}', '{{ $dept->id }}')" class="cell-input"
-                                        placeholder="0">
-                                    <div class="saving-indicator hidden">
-                                        <span class="material-symbols-outlined text-[14px] text-emerald-500">check_circle</span>
-                                    </div>
-                                </td>
-                            @endforeach
-                        </tr>
-                    @endforeach
-                @endforeach
-            </tbody>
-        </table>
     </div>
 
     <script>
-        function filterRows() {
-            let query = document.getElementById('searchProduct').value.toLowerCase();
-            let rows = document.querySelectorAll('.product-row');
-            rows.forEach(row => {
-                let name = row.getAttribute('data-name');
-                row.style.display = name.includes(query) ? '' : 'none';
-            });
-        }
-
         function gridApp() {
-            return {
-                saveQuantity(event, productId, deptId) {
-                    let input = event.target;
-                    let value = input.value;
-                    let cell = input.closest('td');
-                    let indicator = cell.querySelector('.saving-indicator');
-
-                    // Animation feedback
-                    input.classList.add('bg-indigo-50');
-
-                    fetch('{{ route("admin.grid-entry.update") }}', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-                        },
-                        body: JSON.stringify({
-                            product_id: productId,
-                            department_id: deptId,
-                            month: '{{ $selectedMonth }}',
-                            quantity: value
-                        })
-                    })
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.success) {
-                                indicator.classList.remove('hidden');
-                                setTimeout(() => {
-                                    indicator.classList.add('hidden');
-                                    input.classList.remove('bg-indigo-50');
-                                }, 1000);
-                            }
-                        })
-                        .catch(error => {
-                            console.error('Error:', error);
-                            input.classList.add('bg-red-50');
-                            alert('Lỗi lưu dữ liệu. Vui lòng thử lại.');
-                        });
+            // Khởi tạo data state
+            @php
+                $initDataArray = [];
+                foreach ($products as $catProducts) {
+                    foreach ($catProducts as $p) {
+                        $orders = [];
+                        foreach ($departments as $d) {
+                            $orderObj = $p->monthlyOrders->where('department_id', $d->id)->first();
+                            $orders[$d->id] = $orderObj ? $orderObj->quantity : "";
+                        }
+                        $initDataArray[$p->id] = [
+                            'price' => (float) $p->price,
+                            'orders' => $orders
+                        ];
+                    }
                 }
+            @endphp
+const initData = {!! json_encode($initDataArray) !!};
+            
+            const deptNames = {!! json_encode($departments->pluck('name', 'id')->toArray()) !!};
+
+                return {
+                data: initData,
+                selectedDept: '{{ $departments->first()->id ?? "" }}',
+                searchQuery: '',
+                saving: {},
+            saved: {},
+    
+                // Modal Add Product state
+                showAddModal: false,
+                isSubmittingProduct: false,
+                newProduct: {
+                    name: '',
+                    unit: '',
+                    price: '',
+                    category_id: ''
+            },
+    
+            getDeptName() {
+                    return deptNames[this.selectedDept] || 'Đang chọn...';
+            },
+
+            matchSearch(prodName) {
+                    if (!this.searchQuery) return true;
+                    return prodName.toLowerCase().includes(this.searchQuery.toLowerCase());
+            },
+   
+            calculateTotal(productId) {
+                let qty = parseFloat(this.data[productId].orders[this.selectedDept]) || 0;
+                return qty * this.data[productId].price;
+            },
+
+            get departmentSubtotal() {
+                let sum = 0;
+                for (let pId in this.data) {
+                    let qty = parseFloat(this.data[pId].orders[this.selectedDept]) || 0;
+                    sum += qty * this.data[pId].price;
+                }
+                return sum;
+            },
+
+            formatNumber(num) {
+                if (!num || num === 0) return '0';
+                return num.toLocaleString('vi-VN');
+            },
+
+            saveQuantity(productId, value) {
+                let qty = value === '' ? null : parseFloat(value);
+                
+                this.saving[productId] = true;
+                
+                fetch('{{ route("admin.grid-entry.update") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                    },
+                    body: JSON.stringify({
+                        product_id: productId,
+                        department_id: this.selectedDept,
+                        month: '{{ $selectedMonth }}',
+                        quantity: qty
+                    })
+                })
+                .then(response => response.json())
+                .then(res => {
+                    this.saving[productId] = false;
+                    if (res.success) {
+                        this.saved[productId] = true;
+                        setTimeout(() => { this.saved[productId] = false; }, 1500);
+                    } else {
+                        alert('Lỗi lưu dữ liệu!');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    this.saving[productId] = false;
+                    alert('Lỗi kết nối khi lưu!');
+                });
+            },
+            
+            submitNewProduct() {
+                if (!this.newProduct.name || !this.newProduct.category_id) {
+                    alert('Vui lòng điền Danh mục và Tên sản phẩm!');
+                    return;
+                }
+                
+                this.isSubmittingProduct = true;
+                
+                fetch('{{ route("admin.grid-entry.product") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                    },
+                    body: JSON.stringify({
+                        name: this.newProduct.name,
+                        unit: this.newProduct.unit,
+                        price: this.newProduct.price || 0,
+                        category_id: this.newProduct.category_id
+                    })
+                })
+                .then(res => res.json())
+                .then(res => {
+                    this.isSubmittingProduct = false;
+                    if (res.success) {
+                        alert('Thêm sản phẩm thành công! Trang sẽ tải lại để hiển thị sản phẩm mới.');
+                        window.location.reload();
+                    } else {
+                        alert('Lỗi khi thêm sản phẩm: ' + (res.message || 'Unknown error'));
+                    }
+                })
+                .catch(err => {
+                    this.isSubmittingProduct = false;
+                    alert('Lỗi kết nối mạng!');
+                });
             }
         }
-
-        function monthPicker(initialMonth) {
-            let [m, y] = initialMonth.split('/');
-            return {
-                displayMonth: initialMonth,
-                pickerMonth: m,
-                pickerYear: y,
-                showPicker: false,
-
-                changeYear(dir) {
-                    this.pickerYear = parseInt(this.pickerYear) + dir;
-                },
-
-                selectMonth(m) {
-                    this.pickerMonth = m < 10 ? '0' + m : m;
-                    this.submitMonth();
-                },
-
-                formatAndSubmit() {
-                    // Basic validation for MM/YYYY
-                    if (/^\d{1,2}\/\d{4}$/.test(this.displayMonth)) {
-                        let parts = this.displayMonth.split('/');
-                        let mm = parts[0].padStart(2, '0');
-                        this.displayMonth = mm + '/' + parts[1];
-                        this.submitMonth();
-                    }
-                },
-
-                submitMonth() {
-                    let finalMonth = this.displayMonth;
-                    if (this.showPicker) {
-                        finalMonth = this.pickerMonth + '/' + this.pickerYear;
-                    }
-                    window.location.href = "{{ route('admin.grid-entry') }}?month=" + encodeURIComponent(finalMonth);
-                }
-            }
         }
     </script>
 </body>
