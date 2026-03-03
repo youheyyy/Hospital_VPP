@@ -771,6 +771,13 @@ class SuperAdminController extends Controller
                         continue;
 
                     $name = trim((string) ($row[$nameCol] ?? ''));
+                    $stt = trim((string) ($row[0] ?? ''));
+
+                    // Nếu Tên rỗng nhưng STT có chữ thì có thể đây là dòng danh mục gộp
+                    if ((empty($name) || strlen($name) < 2) && !empty($stt) && !is_numeric($stt) && strlen($stt) > 3) {
+                        $name = $stt;
+                    }
+
                     if (empty($name) || strlen($name) < 2)
                         continue;
 
@@ -904,6 +911,13 @@ class SuperAdminController extends Controller
 
 
             $name = trim((string) ($row[$nameCol] ?? ''));
+            $stt = trim((string) ($row[0] ?? ''));
+
+            // Nếu Tên rỗng nhưng STT có chữ thì có thể đây là dòng danh mục gộp
+            if ((empty($name) || strlen($name) < 2) && !empty($stt) && !is_numeric($stt) && strlen($stt) > 3) {
+                $name = $stt;
+            }
+
             if (empty($name) || strlen($name) < 2)
                 continue;
 
