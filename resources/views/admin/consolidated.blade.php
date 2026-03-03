@@ -363,6 +363,27 @@
                                 @endif
                             @endforeach
                         </tbody>
+                        <tfoot>
+                            <tr class="grand-total">
+                                <td colspan="3" class="text-right">TỔNG CỘNG SỐ LƯỢNG:</td>
+                                @php $overallQty = 0; @endphp
+                                @foreach($departments as $dept)
+                                    @php 
+                                        $deptQty = 0;
+                                        foreach($categories as $cat) {
+                                            if(isset($products[$cat->id])) {
+                                                foreach($products[$cat->id] as $p) {
+                                                    $deptQty += $p->monthlyOrders->where('month', $selectedMonth)->where('department_id', $dept->id)->sum('quantity');
+                                                }
+                                            }
+                                        }
+                                        $overallQty += $deptQty;
+                                    @endphp
+                                    <td class="text-right">{{ $deptQty > 0 ? number_format($deptQty, 0, ',', '.') : '' }}</td>
+                                @endforeach
+                                <td class="text-right">{{ number_format($overallQty, 0, ',', '.') }}</td>
+                            </tr>
+                        </tfoot>
                     </table>
                 </div>
 
@@ -570,16 +591,39 @@
                                         <!-- Category Total -->
                                     <tr class="category-total">
                                         <td colspan="5" class="text-right">Cộng:</td>
+                                        @php
+                                            $catTotalAmount = 0;
+                                            foreach($products[$category->id] as $p) {
+                                                $catTotalAmount += $p->monthlyOrders->where('month', $selectedMonth)->sum('quantity') * $p->price;
+                                            }
+                                        @endphp
                                         <td class="text-right font-bold text-red-600">
-                                            {{ number_format($products[$category->id]->sum(fn($p) => $p->monthlyOrders->where('month', $selectedMonth)->sum('quantity') * $p->price), 0, ',', '.') }}
+                                            {{ number_format($catTotalAmount, 0, ',', '.') }}
                                         </td>
                                     </tr>
                                 @endif
                             @endforeach
 
+                            <!-- Total Quantity Row -->
+                            @php 
+                                $totalOverallQty = 0;
+                                foreach($categories as $cat) {
+                                    if(isset($products[$cat->id])) {
+                                        foreach($products[$cat->id] as $p) {
+                                            $totalOverallQty += $p->monthlyOrders->where('month', $selectedMonth)->sum('quantity');
+                                        }
+                                    }
+                                }
+                            @endphp
+                            <tr class="category-total bg-amber-50">
+                                <td colspan="3" class="text-right font-bold">TỔNG CỘNG SỐ LƯỢNG:</td>
+                                <td class="text-right font-extrabold text-blue-700">{{ number_format($totalOverallQty, 0, ',', '.') }}</td>
+                                <td colspan="2"></td>
+                            </tr>
+
                             <!-- Grand Total -->
                             <tr class="grand-total">
-                                <td colspan="5" class="text-right text-lg">TỔNG CỘNG:</td>
+                                <td colspan="5" class="text-right text-lg">TỔNG CỘNG SỐ TIỀN:</td>
                                 <td class="text-right text-lg">{{ number_format($grandTotal, 0, ',', '.') }}</td>
                             </tr>
                         </tbody>
@@ -1020,21 +1064,22 @@
                 $catProducts = [];
                 if (isset($products[$cat->id])) {
                     foreach ($products[$cat->id] as $product) {
-                        // Filter orders for CURRENT MONTH AND THIS DEPARTMENT ONLY (matching Excel export)
-                        $order = $product->monthlyOrders
+                        // AGGREGATE orders for CURRENT MONTH AND THIS DEPARTMENT (matching aggregated import)
+                        $matchingOrders = $product->monthlyOrders
                             ->where('department_id', $dept->id)
-                            ->where('month', $selectedMonth)
-                            ->first();
+                            ->where('month', $selectedMonth);
 
-                        if ($order && $order->quantity > 0) {
+                        $totalQty = $matchingOrders->sum('quantity');
+
+                        if ($totalQty > 0) {
                             $catProducts[] = [
                                 'id' => $product->id,
                                 'name' => $product->name,
                                 'unit' => $product->unit,
-                                'quantity' => $order->quantity,
+                                'quantity' => $totalQty,
                                 'price' => $product->price,
-                                'total' => $order->quantity * $product->price,
-                                'note' => $order->notes ?? ''
+                                'total' => $totalQty * $product->price,
+                                'note' => $matchingOrders->pluck('notes')->filter()->implode('; ')
                             ];
                         }
                     }
@@ -1042,16 +1087,6 @@
                 if (count($catProducts) > 0) {
                     // Map category names to include Supplier
                     $displayName = $cat->name;
-                    if ($cat->id == 1 || stripos($cat->name, 'Văn phòng phẩm') !== false) {
-                        if (stripos($displayName, 'Thành Vân') === false) {
-                            $displayName = "VĂN PHÒNG PHẨM - NHÀ SÁCH THÀNH VÂN";
-                        }
-                    }
-                    if ($cat->id == 3 || stripos($cat->name, 'Văn phòng phẩm khác') !== false || stripos($cat->name, 'Vật tư tiêu hao') !== false) {
-                        if (stripos($displayName, 'Quốc Nam') === false) {
-                            $displayName = "VẬT TƯ TIÊU HAO - NHÀ SÁCH QUỐC NAM";
-                        }
-                    }
 
                     $deptCats[] = [
                         'id' => $cat->id,

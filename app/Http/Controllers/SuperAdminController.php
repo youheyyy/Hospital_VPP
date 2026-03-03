@@ -98,34 +98,7 @@ class SuperAdminController extends Controller
         }
     }
 
-    /**
-     * Remove accents and spaces from string
-     */
-    private function cleanString($str)
-    {
-        $unicode = array(
-            'a' => 'á|à|ả|ã|ạ|ă|ắ|ặ|ằ|ẳ|ẵ|â|ấ|ầ|ẩ|ẫ|ậ',
-            'd' => 'đ',
-            'e' => 'é|è|ẻ|ẽ|ẹ|ê|ế|ề|ể|ễ|ệ',
-            'i' => 'í|ì|ỉ|ĩ|ị',
-            'o' => 'ó|ò|ỏ|õ|ọ|ô|ố|ồ|ổ|ỗ|ộ|ơ|ớ|ờ|ở|ỡ|ợ',
-            'u' => 'ú|ù|ủ|ũ|ụ|ư|ứ|ừ|ử|ữ|ự',
-            'y' => 'ý|ỳ|ỷ|ỹ|ỵ',
-            'A' => 'Á|À|Ả|Ã|Ạ|Ă|Ắ|Ặ|Ằ|Ẳ|Ẵ|Â|Ấ|Ầ|Ẩ|Ẫ|Ậ',
-            'D' => 'Đ',
-            'E' => 'É|È|Ẻ|Ẽ|Ẹ|Ê|Ế|Ề|Ể|Ễ|Ệ',
-            'I' => 'Í|Ì|Ỉ|Ĩ|Ị',
-            'O' => 'Ó|Ò|Ỏ|Õ|Ọ|Ô|Ố|Ồ|Ổ|Ỗ|Ộ|Ơ|Ớ|Ờ|Ở|Ỡ|Ợ',
-            'U' => 'Ú|Ù|Ủ|Ũ|Ụ|Ư|Ứ|Ừ|Ử|Ữ|Ự',
-            'Y' => 'Ý|Ỳ|Ỷ|Ỹ|Ỵ',
-        );
 
-        foreach ($unicode as $nonUnicode => $uni) {
-            $str = preg_replace("/($uni)/i", $nonUnicode, $str);
-        }
-        $str = str_replace(' ', '', $str); // Remove spaces
-        return $str;
-    }
 
     /**
      * Display user management page
@@ -645,7 +618,13 @@ class SuperAdminController extends Controller
     }
 
     /**
-     * Import Advanced (Multi-sheet)
+     * Import Advanced (Multi-sheet) — Two-Pass Strategy
+     *
+     * PASS 1: Read TỔNG HỢP sheet only → extract products, prices, categories (suppliers)
+     *         Row-by-row, top-to-bottom: colored row = supplier/category, white row = product
+     *
+     * PASS 2: Read each department sheet → extract quantities only
+     *         Match product by name, create MonthlyOrder records
      */
     public function importAdvanced(Request $request)
     {
@@ -656,341 +635,350 @@ class SuperAdminController extends Controller
 
         try {
             set_time_limit(0);
-            ini_set('memory_limit', '1024M'); // Increase memory for large batch processing
+            ini_set('memory_limit', '1024M');
 
             $file = $request->file('excel_file');
             $monthInput = $request->input('month');
             $monthParts = explode('-', $monthInput);
-            $targetMonth = "{$monthParts[1]}/{$monthParts[0]}";
+            $targetMonth = "{$monthParts[1]}/{$monthParts[0]}"; // e.g. "03/2026"
 
+            // Read styles AND data (do NOT use setReadDataOnly(true) or colors won't be readable)
             $reader = \PhpOffice\PhpSpreadsheet\IOFactory::createReaderForFile($file->getPathname());
-            $reader->setReadDataOnly(true);
+            $reader->setReadDataOnly(false);
             $spreadsheet = $reader->load($file->getPathname());
 
-            // --- PRE-LOAD DATA INTO HASH MAPS (Optimization) ---
-            // Departments: [normalized_key => dept_object]
-            $existingDepts = \App\Models\Department::all();
+            // ── Wipe old orders for this month (prevents "ghost" data) ──────────────
+            \App\Models\MonthlyOrder::where('month', $targetMonth)->delete();
+            Log::info("Import: Wiped all orders for $targetMonth.");
+
+            // ── Pre-load departments into a hash map ─────────────────────────────────
             $deptMap = [];
-            foreach ($existingDepts as $d) {
-                // Map by Code slug
+            foreach (\App\Models\Department::all() as $d) {
                 $deptMap[strtoupper(\Illuminate\Support\Str::slug($d->code))] = $d;
-                // Map by Name slug (as backup)
                 $deptMap[strtoupper(\Illuminate\Support\Str::slug($d->name))] = $d;
             }
 
-            // Products: [normalized_name => product_object] - LOADING FULL OBJECTS TO AVOID "Find()"
-            $existingProducts = \App\Models\Product::all();
-            $productMap = [];
-            foreach ($existingProducts as $p) {
-                $uniqueKey = $this->cleanString($p->name);
-                $productMap[$uniqueKey] = $p;
-            }
-
-            // Categories: [normalized_name => id]
-            $existingCats = \App\Models\Category::all();
-            $catMap = [];
-            foreach ($existingCats as $c) {
-                $catMap[$this->cleanString($c->name)] = $c->id;
-            }
-
-            $ordersToInsert = [];
-            $processedDepartments = 0;
-            $processedOrders = 0;
-            $pivotMode = false;
-            $pivotDeptIds = []; // [colIndex => departmentId]
-
-            // --- STEP 1: PARSE MASTER CATALOG FROM "TỔNG HỢP" (Catalog Only) ---
-            $masterSheet = $spreadsheet->getSheetByName('TỔNG HỢP') ?? $spreadsheet->getSheetByName('Tong hop');
-            if ($masterSheet) {
-                $rows = $masterSheet->toArray();
-                $currentCategoryId = null;
-
-                // 1.1: PRIME CATALOG (Products, Categories, Prices)
-                // Search for the header row containing "Tên" and "ĐVT"
-                $masterHeaderIdx = -1;
-                foreach ($rows as $idx => $row) {
-                    $rStr = mb_strtolower(implode(' ', array_filter($row)));
-                    if (str_contains($rStr, 'tên') && (str_contains($rStr, 'đvt') || str_contains($rStr, 'đơn vị'))) {
-                        $masterHeaderIdx = $idx;
-                        break;
-                    }
-                }
-
-                if ($masterHeaderIdx != -1) {
-                    $masterHeaderRow = $rows[$masterHeaderIdx];
-                    list($nameCol, $unitCol, $priceCol, $qtyCol, $noteCol) = $this->detectColumnsStrict($rows, $masterHeaderIdx);
-
-                    // Fallback Defaults
-                    if ($nameCol == -1)
-                        $nameCol = 1;
-                    if ($unitCol == -1)
-                        $unitCol = 2;
-                    if ($priceCol == -1)
-                        $priceCol = 4;
-
-                    // FALLBACK PRICE COLUMN DETECTION: Scan first 5 rows
-                    if ($priceCol == -1 || $priceCol == 4) { // Re-check if strict failed or defaulted
-                        for ($scanRow = $masterHeaderIdx + 1; $scanRow < min($masterHeaderIdx + 6, count($rows)); $scanRow++) {
-                            // Check potential columns (typically 3, 4, 5, 6)
-                            for ($pCol = 3; $pCol <= 10; $pCol++) {
-                                $val = $this->parsePrice($rows[$scanRow][$pCol] ?? '');
-                                if ($val > 1000) { // Prices usually > 1000 VND
-                                    $priceCol = $pCol;
-                                    break 2;
-                                }
-                            }
-                        }
-                    }
-
-                    Log::info("Import Debug: Master Header Found at Row $masterHeaderIdx");
-                    Log::info("Import Debug: Columns Detected - Name: $nameCol, Unit: $unitCol, Price: $priceCol");
-
-                    for ($i = $masterHeaderIdx + 1; $i < count($rows); $i++) {
-                        $row = $rows[$i];
-                        $name = trim($row[$nameCol] ?? '');
-                        $unit = trim($row[$unitCol] ?? '');
-                        $priceStr = trim($row[$priceCol] ?? '');
-
-                        if ($i < $masterHeaderIdx + 6) {
-                            Log::info("Import Debug Row $i: Name='$name', PriceStr='$priceStr', ParsedPrice=" . $this->parsePrice($priceStr));
-                        }
-
-                        if (empty($name) || strlen($name) < 2 || $this->isJunkRow($name))
-                            continue;
-                        if (str_contains($name, 'CỘNG') || str_contains($name, 'Tổng'))
-                            continue;
-
-                        // CATEGORY DETECTION (Row with name but no unit/price)
-                        // Note: Some catalogs have categories with just a name row.
-                        if (empty($unit) && (empty($priceStr) || $priceStr == '0')) {
-                            // We treat ALL group headers in Master Sheet as Categories (Suppliers, Types, etc.)
-                            // Removed isDeptName check because it was filtering out Suppliers (Cửa hàng, Công ty...)
-
-                            $normCatName = $this->cleanString($name);
-                            $cat = \App\Models\Category::updateOrCreate(['name' => $name], ['is_active' => true]);
-                            $catMap[$normCatName] = $cat->id;
-                            $currentCategoryId = $cat->id;
-                            continue;
-                        }
-
-                        // PRODUCT UPDATE/CREATE (Master Source)
-                        $price = $this->parsePrice($priceStr);
-                        $normName = $this->cleanString($name);
-
-                        // If no category yet, create a default one
-                        if (!$currentCategoryId) {
-                            $defCat = \App\Models\Category::firstOrCreate(['name' => 'Chung']);
-                            $currentCategoryId = $defCat->id;
-                        }
-
-                        $updateData = [
-                            'unit' => $unit,
-                            'category_id' => $currentCategoryId,
-                            'is_active' => true
-                        ];
-                        // Only update price if we actually have a non-zero price in Master
-                        if ($price > 0) {
-                            $updateData['price'] = $price;
-                        }
-
-                        $product = \App\Models\Product::updateOrCreate(
-                            ['name' => $name],
-                            $updateData
-                        );
-                        $productMap[$normName] = $product;
-                    }
-                }
-                // PIVOT MODE REMOVED per user request.
-                // We will now strictly use individual sheets for orders.
-            }
-
-            // --- STEP 2: MULTI-SHEET PROCESSING (Orders Source) ---
             $sheetNames = $spreadsheet->getSheetNames();
-            $ignoredSheets = ['BẢNG TỔNG', 'TỔNG HỢP', 'Highlights', 'Sheet1', 'Tong hop', 'Ghi chu'];
+            $masterName = null; // will be set to the TỔNG HỢP sheet name
+            $deptSheets = [];   // [sheetName => Department object]
+
+            Log::info("Import: All sheets in file: " . implode(', ', $sheetNames));
 
             foreach ($sheetNames as $sheetName) {
-                if (in_array($sheetName, $ignoredSheets))
+                $cleanName = $this->cleanStringForMatch($sheetName);
+
+                // Identify master/summary sheet
+                if (str_contains($cleanName, 'TONGHOP')) {
+                    $masterName = $sheetName;
+                    Log::info("Import: Matched MASTER sheet -> '{$sheetName}' (Clean: {$cleanName})");
                     continue;
+                }
 
-                // --- FILTER JUNK SHEETS (Sheet2, Sheet3, etc.) ---
-                if (preg_match('/^Sheet\d+$/i', $sheetName) || preg_match('/^Column\d+$/i', $sheetName))
+                // Skip known non-data sheets
+                if (
+                    str_contains($cleanName, 'BANGTONG') ||
+                    str_contains($cleanName, 'CONSOLIDATED') ||
+                    in_array($cleanName, ['HIGHLIGHTS', 'GHICHU', 'SUMMARY']) ||
+                    preg_match('/^SHEET\d+$/', $cleanName)
+                ) {
+                    Log::info("Import: Explicitly SKIPPING non-department sheet -> '{$sheetName}'");
                     continue;
-
-                // Use Sheet Name AS Dept Name
-                $deptName = $sheetName;
-                $deptSlug = strtoupper(\Illuminate\Support\Str::slug($deptName));
-
-                // Normalize specific common abbreviations
-                if ($deptName == 'CĐHA' && $deptSlug == 'CDHA')
-                    $deptSlug = 'CDHA';
-
-                if (isset($deptMap[$deptSlug])) {
-                    $dept = $deptMap[$deptSlug];
-                } else {
-                    // Create new Department from Sheet Name
-                    // Check by Code OR Name to prevent "Duplicate entry" error
-                    $dept = \App\Models\Department::where('code', $deptSlug)
-                        ->orWhere('name', $deptName)
-                        ->first();
-
+                }
+                // Map sheet to department
+                $slug = strtoupper(\Illuminate\Support\Str::slug($sheetName));
+                $dept = $deptMap[$slug] ?? null;
+                if (!$dept) {
+                    $dept = \App\Models\Department::where('code', $slug)
+                        ->orWhere('name', $sheetName)->first();
                     if (!$dept) {
                         try {
-                            $dept = \App\Models\Department::create(['code' => $deptSlug, 'name' => $deptName]);
-                        } catch (\Illuminate\Database\QueryException $e) {
-                            // Duplicate handling
-                            $dept = \App\Models\Department::where('code', $deptSlug)->first();
+                            $dept = \App\Models\Department::create(['code' => $slug, 'name' => $sheetName]);
+                            $this->ensureDepartmentUser($dept);
+                        } catch (\Exception $e) {
+                            $dept = \App\Models\Department::where('code', $slug)->first();
                         }
                     }
-                    $this->ensureDepartmentUser($dept);
-                    $deptMap[$deptSlug] = $dept;
+                    if ($dept) {
+                        $deptMap[$slug] = $dept;
+                    }
                 }
+                if ($dept) {
+                    $deptSheets[$sheetName] = $dept;
+                }
+            }
 
-                // Reset data for this dept for this month
-                \App\Models\MonthlyOrder::where('department_id', $dept->id)
-                    ->where('month', $targetMonth)
-                    ->delete();
+            // ════════════════════════════════════════════════════════════════════════
+            // PASS 1 — Master sheet (TỔNG HỢP)
+            //   Read row by row, top → bottom, left → right:
+            //   • Colored cell in name column AND no ĐVT/Qty/Price → Supplier/Category row
+            //   • Otherwise → Product row (save name, unit, price, category)
+            // ════════════════════════════════════════════════════════════════════════
+            // [productCleanKey => Product model]
+            $productMap = [];
 
-                $processedDepartments++;
+            if ($masterName) {
+                $masterSheet = $spreadsheet->getSheetByName($masterName);
+                if ($masterSheet) {
+                    $this->parseSheetForProducts($masterSheet, $deptMap, $productMap);
+                    Log::info("Import PASS 1: Processed master sheet '{$masterName}', found " . count($productMap) . " products.");
+                } else {
+                    Log::error("Import ERROR: Master sheet '{$masterName}' found by name but could not be loaded!");
+                }
+            } else {
+                Log::warning("Import WARNING: NO MASTER SHEET (TONG HOP) FOUND! Products will default to 'Khoa đề xuất' and categorisation will fail.");
+            }
 
+            // ════════════════════════════════════════════════════════════════════════
+            // PASS 2 — Department sheets
+            //   Read row by row, top → bottom, left → right:
+            //   • Same supplier/category detection (sets context for this sheet)
+            //   • Product row: match by name, read Qty, create MonthlyOrder
+            //   • Prices from department sheets are IGNORED (master is authoritative)
+            // ════════════════════════════════════════════════════════════════════════
+            $ordersToInsert = [];
+            $processedDepts = count($deptSheets);
+            $processedOrders = 0;
+
+            foreach ($deptSheets as $sheetName => $dept) {
+                Log::info("DEBUG IMPORT: Starting PASS 2 for sheet '{$sheetName}' (Dept ID: {$dept->id})");
                 $sheet = $spreadsheet->getSheetByName($sheetName);
-                $rows = $sheet->toArray();
-
-                // DYNAMIC HEADER PARSING (Step 2)
-                $headerRowIndex = 4; // Default
-                // Scan first 20 rows for Header
-                for ($r = 0; $r < 20; $r++) {
-                    $rowStr = mb_strtolower(implode(' ', array_map(fn($x) => (string) $x, $rows[$r] ?? [])));
-                    if (str_contains($rowStr, 'tên hàng') || str_contains($rowStr, 'tên quy cách') || str_contains($rowStr, 'tên')) {
-                        $headerRowIndex = $r;
-                        break;
-                    }
+                if (!$sheet) {
+                    Log::error("DEBUG IMPORT: Sheet '{$sheetName}' not found in spreadsheet!");
+                    continue;
                 }
 
-                list($nameCol, $unitCol, $priceCol, $qtyCol, $noteCol) = $this->detectColumnsStrict($rows, $headerRowIndex);
+                // formatData = false (3rd param) ensure raw numeric values for quantities
+                $rows = $sheet->toArray(null, true, false, false);
+                Log::info("DEBUG IMPORT: Sheet '{$sheetName}' loaded with " . count($rows) . " rows.");
 
-                // Fallbacks if detection failed
-                if ($nameCol == -1)
-                    $nameCol = 1;
-                if ($unitCol == -1)
-                    $unitCol = 2;
-                if ($qtyCol == -1)
-                    $qtyCol = 3; // Start assuming col 3
-                if ($priceCol == -1)
-                    $priceCol = 4;
+                // Locate header row
+                $headerIdx = $this->findHeaderRow($rows);
 
-                // Refined Quantity Column Search if default failed or seems wrong
-                if ($rows[$headerRowIndex][$qtyCol] ?? '' == '') {
-                    // Try to find a column with "Số lượng" explicitly
-                    foreach ($rows[$headerRowIndex] as $ix => $val) {
-                        if (str_contains(mb_strtolower($val), 'số lượng')) {
-                            $qtyCol = $ix;
-                            break;
+                // HARD-CODED COLUMNS for Hospital Format:
+                $nameCol = 1;
+                $unitCol = 2;
+                $qtyCol = 3;
+                $priceCol = 4;
+                $noteCol = 6;
+
+                Log::info("Importing sheet: {$sheetName}");
+
+                $aggregatedOrders = []; // [product_id => ['qty' => X, 'notes' => Y]]
+                $currentSheetCatId = null;
+
+                foreach ($rows as $idx => $row) {
+                    if ($idx <= $headerIdx)
+                        continue;
+
+                    $name = trim((string) ($row[$nameCol] ?? ''));
+                    if (empty($name) || strlen($name) < 2)
+                        continue;
+
+                    $nameLower = mb_strtolower($name);
+                    if ($this->isJunkRow($name))
+                        continue;
+
+                    $unit = trim((string) ($row[$unitCol] ?? ''));
+                    $qty = $this->parsePrice($row[$qtyCol] ?? '');
+                    $price = $this->parsePrice($row[$priceCol] ?? '');
+
+                    Log::info("DEBUG ROW [{$sheetName}][Row {$idx}]: RawName='{$name}', RawQty='" . ($row[$qtyCol] ?? '') . "', RawPrice='" . ($row[$priceCol] ?? '') . "', ParsedQty={$qty}, ParsedPrice={$price}");
+
+                    // ── Supplier/Category logic in PASS 2 (Dynamic Grouping) ──
+                    $stt = trim((string) ($row[0] ?? ''));
+                    // Consistent with PASS 1: empty units/price/qty often indicates a header
+                    $isSupplier = empty($unit) && $price == 0 && $qty == 0 && (!is_numeric($stt) || empty($stt));
+
+                    if ($isSupplier) {
+                        if (!$this->isJunkRow($name) && strlen($name) > 3) {
+                            $cat = \App\Models\Category::firstOrCreate(
+                                ['name' => $name],
+                                ['is_active' => true]
+                            );
+                            $currentSheetCatId = $cat->id;
+                            Log::info("Import PASS 2 [{$sheetName}]: Detected Category Header -> '{$name}' (ID: {$currentSheetCatId})");
+                            continue;
+                        } else {
+                            continue; // skip junk/summary row
                         }
                     }
-                }
 
-                // Buffer for summation: [prod_id => ['quantity' => float, 'notes' => string]]
-                $deptOrdersBuffer = [];
-
-                foreach ($rows as $index => $row) {
-                    if ($index <= $headerRowIndex)
-                        continue;
-
-                    // Indexes
-                    $name = trim($row[$nameCol] ?? '');
-                    $qtyStr = trim($row[$qtyCol] ?? '');
-                    // We don't really trust Price/Unit in these sheets as much as Master, but we use them to find product
-
-                    if (empty($name))
-                        continue;
-
-                    // SKIP JUNK
-                    if (str_contains($name, 'CỘNG') || str_contains($name, 'Tổng') || $this->isJunkRow($name))
-                        continue;
-                    if ($this->isDeptName($name, $deptMap))
-                        continue; // Skip header section in middle of sheet
-
-                    // --- QUANTITY CHECK ---
-                    $qty = $this->parsePrice($qtyStr);
                     if ($qty <= 0)
                         continue;
 
-                    // Find Product
-                    $normName = $this->cleanString($name);
-                    $product = $productMap[$normName] ?? null;
+                    // Match product by clean name
+                    $cleanKey = $this->cleanString($this->normalizeProductName($name));
+                    $product = $productMap[$cleanKey] ?? null;
 
-                    // If missing in Master, we can optionally create it, 
-                    // but it's better to rely on Master. User said "chính xác tất cả như excel".
-                    // So if it's in the Excel sheet and has quantity, we SHOULD import it.
                     if (!$product) {
-                        // Infer details from this row
-                        $unit = trim($row[$unitCol] ?? '');
-                        $price = $this->parsePrice(trim($row[$priceCol] ?? '0'));
-                        // Try to match a default category or fallback
-                        $defCat = \App\Models\Category::firstOrCreate(['name' => 'Khác']);
+                        // NEW REQUIREMENT: Create product if it's new from a department
+                        $catId = $currentSheetCatId ?: \App\Models\Category::firstOrCreate(['name' => 'Khoa đề xuất'])->id;
 
                         $product = \App\Models\Product::create([
-                            'name' => $name,
-                            'unit' => $unit,
+                            'name' => $this->normalizeProductName($name),
+                            'unit' => $unit ?: '',
+                            'category_id' => $catId,
                             'price' => $price,
-                            'category_id' => $defCat->id,
                             'is_active' => true
                         ]);
-                        $productMap[$normName] = $product;
+                        $productMap[$cleanKey] = $product;
+                        Log::warning("Import PASS 2 [{$sheetName}]: NEW PRODUCT CREATED (Not found in MASTER) -> '{$name}' (Key: {$cleanKey}) | Category ID: {$catId} | Price: {$price}");
+                    } else {
+                        // Existing product: Only update price if database has 0 and sheet has value
+                        if ($product->price == 0 && $price > 0) {
+                            $product->update(['price' => $price]);
+                            Log::info("Import PASS 2 [{$sheetName}]: Updated price for '{$name}' (0 -> {$price})");
+                        }
                     }
 
-                    // BUFFER QUANTITY
-                    $productId = $product->id;
-                    $note = trim($row[$noteCol] ?? '');
+                    Log::info("Import PASS 2 [{$sheetName}]: Product '{$name}' -> Qty: {$qty}");
 
-                    if (isset($deptOrdersBuffer[$productId])) {
-                        $deptOrdersBuffer[$productId]['quantity'] += $qty;
-                        if (!empty($note)) {
-                            $deptOrdersBuffer[$productId]['notes'] .= '; ' . $note;
+                    // AGGREGATE by product_id to handle duplicates in the SAME sheet
+                    if (isset($aggregatedOrders[$product->id])) {
+                        $aggregatedOrders[$product->id]['quantity'] += $qty;
+                        if (!empty(trim((string) ($row[$noteCol] ?? '')))) {
+                            $aggregatedOrders[$product->id]['notes'] .= '; ' . trim((string) ($row[$noteCol] ?? ''));
                         }
                     } else {
-                        $deptOrdersBuffer[$productId] = [
+                        $aggregatedOrders[$product->id] = [
+                            'department_id' => $dept->id,
+                            'product_id' => $product->id,
+                            'month' => $targetMonth,
                             'quantity' => $qty,
-                            'notes' => $note
+                            'notes' => trim((string) ($row[$noteCol] ?? '')),
+                            'created_at' => now(),
+                            'updated_at' => now(),
                         ];
                     }
                 }
 
-                // Convert Buffer to Insert Array
-                foreach ($deptOrdersBuffer as $pId => $data) {
-                    $ordersToInsert[] = [
-                        'department_id' => $dept->id,
-                        'product_id' => $pId,
-                        'month' => $targetMonth,
-                        'quantity' => $data['quantity'],
-                        'notes' => trim($data['notes'], '; '),
-                        'created_at' => now(),
-                        'updated_at' => now(),
-                    ];
+                // Push aggregated items for this department
+                foreach ($aggregatedOrders as $order) {
+                    $ordersToInsert[] = $order;
                     $processedOrders++;
                 }
             }
 
-            // --- STEP 3: BATCH INSERT ---
-            if (count($ordersToInsert) > 0) {
-                // Chunk to verify memory limits
-                $chunks = array_chunk($ordersToInsert, 1000);
-                foreach ($chunks as $chunk) {
-                    \App\Models\MonthlyOrder::insert($chunk);
+            // ── Batch insert orders ───────────────────────────────────────────────
+            foreach (array_chunk($ordersToInsert, 500) as $chunk) {
+                \App\Models\MonthlyOrder::insert($chunk);
+            }
+
+            $this->logActivity('Import Excel', "Import {$processedOrders} dòng cho {$processedDepts} khoa, tháng {$targetMonth}");
+            return redirect()->route('superadmin.data-management')
+                ->with('success', "Import thành công! {$processedDepts} khoa, {$processedOrders} sản phẩm.");
+
+        } catch (\Exception $e) {
+            Log::error('Advanced Import failed: ' . $e->getMessage() . ' at ' . $e->getFile() . ':' . $e->getLine());
+            return redirect()->route('superadmin.data-management')
+                ->with('error', 'Lỗi Import: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * PASS 1: Parse master sheet (TỔNG HỢP) for products, prices, and categories.
+     * This is the SOLE source of truth for creating products and categories.
+     */
+    private function parseSheetForProducts($sheet, array $deptMap, array &$productMap): void
+    {
+        // formatData = false (3rd param) ensure raw numeric values for prices
+        $rows = $sheet->toArray(null, true, false, false);
+
+        $headerIdx = $this->findHeaderRow($rows);
+
+        // HARD-CODED COLUMNS for Hospital Format:
+        // STT (0) | Tên (1) | ĐVT (2) | SL (3) | Đơn giá (4) | Thành tiền (5) | Ghi chú (6)
+        $nameCol = 1;
+        $unitCol = 2;
+        $qtyCol = 3;
+        $priceCol = 4;
+        $noteCol = 6;
+
+        Log::info("PASS 1 Processing: " . count($rows) . " rows found.");
+
+        $currentCatId = null;
+
+        foreach ($rows as $idx => $row) {
+            if ($idx <= $headerIdx)
+                continue;
+
+
+            $name = trim((string) ($row[$nameCol] ?? ''));
+            if (empty($name) || strlen($name) < 2)
+                continue;
+
+            $nameLower = mb_strtolower($name);
+            if ($this->isJunkRow($name))
+                continue;
+
+            $unit = trim((string) ($row[$unitCol] ?? ''));
+            $qty = $this->parsePrice($row[$qtyCol] ?? '');
+            $price = $this->parsePrice($row[$priceCol] ?? '');
+
+            // ── Supplier/Category logic ──
+            // Criteria: No unit AND price = 0 AND qty = 0 AND STT is not a number
+            $stt = trim((string) ($row[0] ?? ''));
+            // Refined check: empty units/price/qty often indicates a header
+            $isSupplier = empty($unit) && $price == 0 && $qty == 0 && (!is_numeric($stt) || empty($stt));
+
+            if ($isSupplier) {
+                // DON'T treat summary rows as suppliers
+                if (!$this->isJunkRow($name) && strlen($name) > 3) {
+                    $cat = \App\Models\Category::updateOrCreate(
+                        ['name' => $name],
+                        ['is_active' => true]
+                    );
+                    $currentCatId = $cat->id;
+                    Log::info("PASS 1 [MASTER]: Detected Supplier/Category Header -> '{$name}' (ID: {$currentCatId})");
+                    continue;
+                } else {
+                    continue; // skip junk/summary row
                 }
             }
 
-            $mode = 'Đa Sheet (Chính xác)';
-            $this->logActivity('Import HighPerf', "Import {$processedOrders} dòng cho {$processedDepartments} khoa. Mode: {$mode}");
+            // ── Product logic ──
+            if (!$currentCatId) {
+                $def = \App\Models\Category::firstOrCreate(['name' => 'Chung']);
+                $currentCatId = $def->id;
+            }
 
-            return redirect()->route('superadmin.data-management')
-                ->with('success', "Đã import xong! ({$mode}): {$processedDepartments} khoa, {$processedOrders} sản phẩm.");
+            $cleanName = $this->normalizeProductName($name);
+            $cleanKey = $this->cleanString($cleanName);
 
-        } catch (\Exception $e) {
-            Log::error('Advanced Import failed: ' . $e->getMessage());
-            return redirect()->route('superadmin.data-management')->with('error', 'Lỗi Import: ' . $e->getMessage());
+            $product = \App\Models\Product::updateOrCreate(
+                ['name' => $cleanName],
+                [
+                    'unit' => $unit ?: '',
+                    'category_id' => $currentCatId,
+                    'price' => $price,
+                    'is_active' => true
+                ]
+            );
+            $productMap[$cleanKey] = $product;
+
+            Log::info("PASS 1: Product '{$cleanName}' | ParsedPrice: {$price} | Cat: {$currentCatId}");
         }
     }
+
+    /**
+     * Find the header row index (0-based) in the given rows array.
+     * Looks for a row containing both "tên" and ("đvt" or "đơn vị").
+     */
+    private function findHeaderRow(array $rows): int
+    {
+        for ($r = 0; $r < min(30, count($rows)); $r++) {
+            $rowStr = mb_strtolower(implode(' ', array_filter($rows[$r] ?? [])));
+            if (
+                str_contains($rowStr, 'tên') &&
+                (str_contains($rowStr, 'đvt') || str_contains($rowStr, 'đơn vị'))
+            ) {
+                return $r;
+            }
+        }
+        return 0; // fallback: assume row 0 is header
+    }
+
+
 
     /**
      * Import data from Excel (Simple)
@@ -1140,35 +1128,20 @@ class SuperAdminController extends Controller
             return false;
 
         // 1. Strip leading numbering like "1. ", "II. ", "A. "
-        $clean = preg_replace('/^([0-9]+|[IVXLC]+|[A-Z])[\.\-\:\)]\s*/i', '', trim($name));
+        $clean = preg_replace('/^([0-9]+|[IVXLC]+|[A-Z])[\.\ \-\:\)]\s*/i', '', trim($name));
 
-        // 2. Normalize
+        // 2. Match against known departments
         $norm = strtoupper(\Illuminate\Support\Str::slug($clean));
         if (isset($deptMap[$norm]))
             return true;
 
-        // 3. Check keywords
+        // 3. Only match dept keywords at the START of the name
+        //    ("PHÒNG MỔ" starts with "phòng" → dept)
+        //    ("VĂN PHÒNG PHẨM" also starts with "văn" not "phòng" → NOT dept)
         $lower = mb_strtolower($clean);
-        // 3. Check keywords
-        $lower = mb_strtolower($clean);
-        $keywords = [
-            'khoa',
-            'phòng',
-            'ban',
-            'đơn vị',
-            'phòng khám',
-            'nhà thuốc',
-            'chẩn đoán',
-            'xét nghiệm',
-            'trung tâm',
-            'bộ phận',
-            'tổ',
-            'đội'
-        ];
-
-        foreach ($keywords as $kw) {
-            // Check if starts with OR contains (for things like "II. CHẨN ĐOÁN HÌNH ẢNH")
-            if (str_contains($lower, $kw))
+        $deptKeywordsAtStart = ['khoa ', 'phòng ', 'ban ', 'phòng khám', 'nhà thuốc', 'trung tâm', 'bộ phận'];
+        foreach ($deptKeywordsAtStart as $kw) {
+            if (str_starts_with($lower, $kw))
                 return true;
         }
 
@@ -1177,46 +1150,56 @@ class SuperAdminController extends Controller
 
     private function parsePrice($val)
     {
-        if (is_numeric($val))
-            return (float) $val;
-        if (empty($val))
+        if ($val === null || $val === '')
             return 0;
 
+        // If it's already a number (from toArray with formatData=false)
+        if (is_int($val) || is_float($val))
+            return (float) $val;
+
         // Clean currency symbols, spaces, and potential invisible artifacts
-        $val = str_replace(['đ', 'VND', ' ', "\xc2\xa0", "\xa0"], '', trim($val));
+        $original = (string) $val;
+        $val = str_replace(['đ', 'VND', ' ', "\xc2\xa0", "\xa0"], '', trim($original));
 
-        // Remove thousand separators if they are dots (VN standard) and commas are decimals
-        // or if they are just dots/commas consistently
+        // Logic for Vietnamese format: thousands are dots, decimals are commas
+        // "50.000" -> 50000
+        // "1.234.567,89" -> 1234567.89
+        $val = str_replace(['đ', 'VND', ' ', "\xc2\xa0", "\xa0"], '', $val);
 
-        // Example: 12,000 or 12.000 or 1.234,56
         if (str_contains($val, ',') && str_contains($val, '.')) {
-            // Mixed: assume dot = thousand, comma = decimal
-            $val = str_replace('.', '', $val);
-            $val = str_replace(',', '.', $val);
-        } elseif (str_contains($val, ',')) {
-            // Only comma: Check if it's likely a decimal (2-3 digits after) or thousand
-            if (preg_match('/,\d{2,3}$/', $val)) {
-                // If the number is small (e.g. 12,00) or looks like decimal, convert to dot
-                $val = str_replace(',', '.', $val);
-            } else {
-                // Otherwise thousand
-                $val = str_replace(',', '', $val);
-            }
+            $val = str_replace('.', '', $val); // Remove thousands separator
+            $val = str_replace(',', '.', $val); // Replace decimal comma with dot
         } elseif (str_contains($val, '.')) {
-            // Only dot: VN standard for 12.000 is thousand
-            // Unless it looks like 12.0 (but prices usually don't have that in these files)
-            if (preg_match('/\.\d{3}$/', $val) || preg_match('/\.\d{3}\./', $val)) {
+            // "50.000" -> remove dot if it's a thousand separator
+            // If it has 3 digits after the dot, it's definitely a thousand separator.
+            if (preg_match('/\.\d{3}$/', $val)) {
                 $val = str_replace('.', '', $val);
             }
-            // However, for single dots, it's ambiguous. But most hospital prices are > 1000.
-            // If we remove dot and it becomes a huge number that makes sense for VND, fine.
-            // Let's assume dot is thousand if it's followed by 3 digits.
+        } elseif (str_contains($val, ',')) {
+            // "50,000" (comma thousand) or "50,5" (decimal comma)
+            // If it has 3 digits after the comma, it's likely a thousand separator.
+            if (preg_match('/,\d{3}($|[^0-9])/', $val)) {
+                $val = str_replace(',', '', $val);
+            } else {
+                $val = str_replace(',', '.', $val);
+            }
         }
 
-        // Final fallback: remove anything not numeric or dot
-        $val = preg_replace('/[^0-9\.]/', '', $val);
+        $result = (float) (is_numeric($val) ? $val : 0);
 
-        return (float) $val;
+        // Safety: If numeric string '50.000' was incorrectly seen by PHP as 50.0
+        // and we know procurement prices for things like "Bìa còng" are > 1000
+        if ($result > 0 && $result < 100 && str_contains($original, '.')) {
+            // Potential 1000x error
+            if (preg_match('/\.\d{3}/', $original))
+                $result *= 1000;
+        }
+
+        if ($result > 0) {
+            \Log::debug("DEBUG PARSE: '{$original}' -> '{$val}' -> {$result}");
+        }
+
+        return $result;
     }
 
     private function isJunkRow($name)
@@ -1224,23 +1207,32 @@ class SuperAdminController extends Controller
         if (empty($name))
             return true;
 
+        $h = mb_strtolower(trim($name));
+
+        // Skip summary keywords (Crucial for fixing quantity sums)
+        if ($h === 'cộng' || $h === 'tổng' || $h === 'tổng cộng')
+            return true;
+        if (str_contains($h, 'tổng nhóm') || str_contains($h, 'cộng nhóm'))
+            return true;
+        if (str_contains($h, 'tổng cộng phiếu'))
+            return true;
+
         // Check if it's just a common Unit Name (e.g. "Cái", "Hộp")
         if ($this->isCommonUnit($name))
             return true;
 
-        $h = mb_strtolower(trim($name));
-
         // Document headers
         if (str_starts_with($h, 'ngày') || str_contains($h, 'mẫu số'))
             return true;
-        // removing 'cty cp' generally, only block specific hospital header
         if (str_contains($h, 'bệnh viện đa khoa') || str_contains($h, 'hỗ trợ dịch vụ'))
             return true;
         if (str_contains($h, 'phiếu xuất') || str_contains($h, 'biên bản'))
             return true;
         if (str_contains($h, 'bảng kê') || str_contains($h, 'chủ tài khoản'))
             return true;
-        if (str_contains($h, 'tổng cộng phiếu') || str_contains($h, 'ghi chú'))
+        if (str_contains($h, 'ghi chú'))
+            return true;
+        if (str_contains($h, 'người lập') || str_contains($h, 'trưởng phòng') || str_contains($h, 'ban giám đốc'))
             return true;
 
         // Technical headers
@@ -1412,21 +1404,57 @@ class SuperAdminController extends Controller
         return $dept;
     }
 
-    private function bufferOrder(&$orders, $deptId, $prodId, $month, $qty)
+    private function normalizeProductName($name)
     {
-        $key = "{$deptId}_{$prodId}";
-        if (isset($orders[$key])) {
-            $orders[$key]['quantity'] += $qty;
-        } else {
-            $orders[$key] = [
-                'department_id' => $deptId,
-                'product_id' => $prodId,
-                'month' => $month,
-                'quantity' => $qty,
-                'notes' => '',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ];
+        if (empty($name))
+            return '';
+        // Strip leading numbering/special chars: "1. Product", "1/ Product", "11 Bọc trắng"
+        $name = preg_replace('/^\d+[\.\/\-\s]*/', '', trim($name));
+        return trim($name);
+    }
+
+    private function cleanString($str)
+    {
+        if (empty($str))
+            return '';
+        $str = $this->normalizeProductName($str);
+
+        $unicode = array(
+            'a' => 'á|à|ả|ã|ạ|ă|ắ|ặ|ằ|ẳ|ẵ|â|ấ|ầ|ẩ|ẫ|ậ',
+            'd' => 'đ',
+            'e' => 'é|è|ẻ|ẽ|ẹ|ê|ế|ề|ể|ễ|ệ',
+            'i' => 'í|ì|ỉ|ĩ|ị',
+            'o' => 'ó|ò|ỏ|õ|ọ|ô|ố|ồ|ổ|ỗ|ộ|ơ|ớ|ờ|ở|ỡ|ợ',
+            'u' => 'ú|ù|ủ|ũ|ụ|ư|ứ|ừ|ử|ữ|ự',
+            'y' => 'ý|ỳ|ỷ|ỹ|ỵ',
+            'A' => 'Á|À|Ả|Ã|Ạ|Ă|Ắ|Ặ|Ằ|Ẳ|Ẵ|Â|Ấ|Ầ|Ẩ|Ẫ|Ậ',
+            'D' => 'Đ',
+            'E' => 'É|È|Ẻ|Ẽ|Ẹ|Ê|Ế|Ề|Ể|Ễ|Ệ',
+            'I' => 'Í|Ì|Ỉ|Ĩ|Ị',
+            'O' => 'Ó|Ò|Ỏ|Õ|Ọ|Ô|Ố|Ồ|Ổ|Ỗ|Ộ|Ơ|Ớ|Ờ|Ở|Ỡ|Ợ',
+            'U' => 'Ú|Ù|Ủ|Ũ|Ụ|Ư|Ứ|Ừ|Ử|Ữ|Ự',
+            'Y' => 'Ý|Ỳ|Ỷ|Ỹ|Ỵ',
+        );
+
+        foreach ($unicode as $nonUnicode => $uni) {
+            $str = preg_replace("/($uni)/i", $nonUnicode, $str);
         }
+        $str = mb_strtolower(trim($str));
+        $str = preg_replace('/[^a-z0-9]/', '', $str); // Strict alphanumeric for matching
+        return $str;
+    }
+
+    private function cleanStringForMatch($str)
+    {
+        if (empty($str))
+            return '';
+
+        // Normalize Unicode (NFC)
+        if (class_exists('Normalizer')) {
+            $str = \Normalizer::normalize($str, \Normalizer::FORM_C);
+        }
+
+        $str = $this->cleanString($str); // Uses existing alphanumeric cleaner
+        return strtoupper($str);
     }
 }
