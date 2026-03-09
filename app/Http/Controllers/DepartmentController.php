@@ -98,9 +98,14 @@ class DepartmentController extends Controller
             ])->withInput();
         }
 
-        // Kiểm tra ngày hiện tại
-        $currentDay = now()->day;
-        $canEdit = $currentDay < 5;
+        // Tính hạn chót: Ngày 5 của tháng tiếp theo
+        try {
+            $orderMonth = \Carbon\Carbon::createFromFormat('m/Y', $validated['month'])->startOfMonth();
+            $deadline = $orderMonth->copy()->addMonth()->day(5)->endOfDay();
+            $canEdit = now()->lte($deadline);
+        } catch (\Exception $e) {
+            $canEdit = false;
+        }
 
         // Debug: Write to log file to see what's being received
         \Log::info('=== NOTES DEBUG ===', ['validated_orders' => $validated['orders']]);
@@ -122,7 +127,7 @@ class DepartmentController extends Controller
             // Lưu nếu có số lượng > 0 hoặc có ghi chú
             $hasNotes = !empty($order['notes']);
             $hasQuantity = $order['quantity'] > 0;
-            
+
             if ($hasQuantity || $hasNotes) {
                 // Cho phép tạo mới hoặc cập nhật nếu trước ngày 5
                 MonthlyOrder::updateOrCreate(
@@ -144,7 +149,7 @@ class DepartmentController extends Controller
             }
         }
 
-        $message = $canEdit ? 'Đã lưu yêu cầu thành công!' : 'Đã lưu yêu cầu mới thành công! (Không thể chỉnh sửa yêu cầu cũ sau ngày 5)';
+        $message = $canEdit ? 'Đã lưu yêu cầu thành công!' : 'Đã lưu yêu cầu mới thành công! (Không thể chỉnh sửa yêu cầu cũ sau ngày 5 của tháng tiếp theo)';
         return redirect()->back()->with('success', $message);
     }
 
@@ -175,11 +180,29 @@ class DepartmentController extends Controller
                 return $order->quantity * $order->product->price;
             });
 
+        // Tính toán quyền chỉnh sửa
+        try {
+            $orderMonth = \Carbon\Carbon::createFromFormat('m/Y', $selectedMonth)->startOfMonth();
+            $deadline = $orderMonth->copy()->addMonth()->day(5)->endOfDay();
+            $canEdit = now()->lte($deadline);
+
+            // Debug info
+            // dd([
+            //     'selectedResult' => $selectedMonth,
+            //     'deadline' => $deadline->toDateTimeString(),
+            //     'now' => now()->toDateTimeString(),
+            //     'canEdit' => $canEdit
+            // ]);
+        } catch (\Exception $e) {
+            $canEdit = false;
+        }
+
         return view('department.history', compact(
             'department',
             'orders',
             'selectedMonth',
-            'totalAmount'
+            'totalAmount',
+            'canEdit'
         ));
     }
 
@@ -233,6 +256,23 @@ class DepartmentController extends Controller
             ], 403);
         }
 
+        // Kiểm tra hạn chót
+        try {
+            $orderMonth = \Carbon\Carbon::createFromFormat('m/Y', $order->month)->startOfMonth();
+            $deadline = $orderMonth->copy()->addMonth()->day(5)->endOfDay();
+            if (now()->gt($deadline)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Đã quá hạn chỉnh sửa (Sau ngày 5 của tháng tiếp theo).'
+                ], 403);
+            }
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Lỗi xác định thời gian.'
+            ], 403);
+        }
+
         // Validate
         $validated = $request->validate([
             'quantity' => 'required|numeric|min:0',
@@ -267,6 +307,23 @@ class DepartmentController extends Controller
             ], 403);
         }
 
+        // Kiểm tra hạn chót
+        try {
+            $orderMonth = \Carbon\Carbon::createFromFormat('m/Y', $order->month)->startOfMonth();
+            $deadline = $orderMonth->copy()->addMonth()->day(5)->endOfDay();
+            if (now()->gt($deadline)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Đã quá hạn chỉnh sửa (Sau ngày 5 của tháng tiếp theo).'
+                ], 403);
+            }
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Lỗi xác định thời gian.'
+            ], 403);
+        }
+
         // Validate
         $validated = $request->validate([
             'notes' => 'nullable|string|max:500',
@@ -292,11 +349,28 @@ class DepartmentController extends Controller
     {
         $order = MonthlyOrder::findOrFail($id);
 
-        // Kiểm tra quyền
+        // Kiểm tra quyền sở hữu
         if ($order->department_id !== Auth::user()->department_id) {
             return response()->json([
                 'success' => false,
                 'message' => 'Bạn không có quyền xóa yêu cầu này.'
+            ], 403);
+        }
+
+        // Kiểm tra hạn chót
+        try {
+            $orderMonth = \Carbon\Carbon::createFromFormat('m/Y', $order->month)->startOfMonth();
+            $deadline = $orderMonth->copy()->addMonth()->day(5)->endOfDay();
+            if (now()->gt($deadline)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Đã quá hạn xóa (Sau ngày 5 của tháng tiếp theo).'
+                ], 403);
+            }
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Lỗi xác định thời gian.'
             ], 403);
         }
 

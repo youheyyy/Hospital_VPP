@@ -156,14 +156,31 @@
 
             <!-- Content -->
             <div class="flex-1 overflow-y-auto p-8">
+                @if(isset($canEdit) && !$canEdit)
+                    <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6 mx-auto max-w-7xl animate-pulse">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0">
+                                <span class="material-symbols-outlined text-yellow-600">lock_clock</span>
+                            </div>
+                            <div class="ml-3">
+                                <p class="text-sm font-medium text-yellow-700">
+                                    Đã quá hạn chỉnh sửa cho tháng này (Sau ngày 5 của tháng tiếp theo). Bạn chỉ có thể xem lịch sử.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                @endif
+
                 @if($orders->isEmpty())
                     <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
                         <span class="material-symbols-outlined text-6xl text-gray-300">inbox</span>
                         <p class="mt-4 text-gray-500">Chưa có yêu cầu nào trong tháng này</p>
-                        <a href="{{ route('department.index') }}"
-                            class="mt-4 inline-block px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-                            Tạo yêu cầu mới
-                        </a>
+                        @if($canEdit ?? true)
+                            <a href="{{ route('department.index') }}"
+                                class="mt-4 inline-block px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                                Tạo yêu cầu mới
+                            </a>
+                        @endif
                     </div>
                 @else
                     <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
@@ -198,22 +215,26 @@
                                             <td class="text-center text-sm text-gray-600">{{ $stt }}</td>
                                             <td class="text-sm font-medium">{{ $order->product->name }}</td>
                                             <td class="text-center text-sm">{{ $order->product->unit }}</td>
-                                            <td class="text-right text-sm editable-quantity" 
+                                            <td class="text-right text-sm {{ ($canEdit ?? true) ? 'editable-quantity' : '' }}" 
                                                 data-order-id="{{ $order->id }}" 
                                                 data-current-quantity="{{ $order->quantity }}"
-                                                ondblclick="editQuantity(this)"
-                                                title="Double click để chỉnh sửa">
+                                                @if($canEdit ?? true)
+                                                    ondblclick="editQuantity(this)"
+                                                    title="Double click để chỉnh sửa"
+                                                @endif>
                                                 <span class="quantity-display">{{ number_format($order->quantity, 0, ',', '.') }}</span>
                                             </td>
                                             <td class="text-right text-sm">{{ number_format($order->product->price, 0, ',', '.') }}
                                             </td>
                                             <td class="text-right text-sm font-semibold total-cell">
                                                 {{ number_format($order->quantity * $order->product->price, 0, ',', '.') }}</td>
-                                            <td class="text-sm text-gray-600 editable-notes"
+                                            <td class="text-sm text-gray-600 {{ ($canEdit ?? true) ? 'editable-notes' : '' }}"
                                                 data-order-id="{{ $order->id }}"
                                                 data-current-notes="{{ $order->notes ?? '' }}"
-                                                ondblclick="editNotes(this)"
-                                                title="Double click để chỉnh sửa">
+                                                @if($canEdit ?? true)
+                                                    ondblclick="editNotes(this)"
+                                                    title="Double click để chỉnh sửa"
+                                                @endif>
                                                 <span class="notes-display">{{ $order->notes ?? '' }}</span>
                                             </td>
                                             <td class="text-sm text-blue-700 bg-blue-50">{{ $order->admin_notes ?? '' }}</td>
@@ -222,11 +243,15 @@
                                             <td class="text-center text-sm text-gray-600">
                                                 {{ $order->updated_at->format('d/m/Y H:i') }}</td>
                                             <td class="text-center">
-                                                <button onclick="deleteOrder({{ $order->id }})" 
-                                                    class="px-3 py-1 text-xs text-red-600 hover:text-white hover:bg-red-600 border border-red-600 rounded transition-colors"
-                                                    title="Xóa dòng này">
-                                                    <span class="material-symbols-outlined text-sm" style="font-size: 16px;">delete</span>
-                                                </button>
+                                                @if($canEdit ?? true)
+                                                    <button onclick="deleteOrder({{ $order->id }})" 
+                                                        class="px-3 py-1 text-xs text-red-600 hover:text-white hover:bg-red-600 border border-red-600 rounded transition-colors"
+                                                        title="Xóa dòng này">
+                                                        <span class="material-symbols-outlined text-sm" style="font-size: 16px;">delete</span>
+                                                    </button>
+                                                @else
+                                                    <span class="material-symbols-outlined text-gray-400 text-sm" title="Đã khóa">lock</span>
+                                                @endif
                                             </td>
                                         </tr>
                                     @endforeach
