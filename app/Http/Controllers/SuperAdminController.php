@@ -709,8 +709,8 @@ class SuperAdminController extends Controller
                 // Search for the header row containing "Tên" and "ĐVT"
                 $masterHeaderIdx = -1;
                 foreach ($rows as $idx => $row) {
-                    $rStr = implode(' ', array_filter($row));
-                    if (str_contains($rStr, 'Tên') && (str_contains($rStr, 'ĐVT') || str_contains($rStr, 'Đơn vị'))) {
+                    $rStr = mb_strtolower(implode(' ', array_filter($row)));
+                    if (str_contains($rStr, 'tên') && (str_contains($rStr, 'đvt') || str_contains($rStr, 'đơn vị'))) {
                         $masterHeaderIdx = $idx;
                         break;
                     }
@@ -732,7 +732,7 @@ class SuperAdminController extends Controller
                     if ($priceCol == -1 || $priceCol == 4) { // Re-check if strict failed or defaulted
                         for ($scanRow = $masterHeaderIdx + 1; $scanRow < min($masterHeaderIdx + 6, count($rows)); $scanRow++) {
                             // Check potential columns (typically 3, 4, 5, 6)
-                            for ($pCol = 3; $pCol <= 8; $pCol++) {
+                            for ($pCol = 3; $pCol <= 10; $pCol++) {
                                 $val = $this->parsePrice($rows[$scanRow][$pCol] ?? '');
                                 if ($val > 1000) { // Prices usually > 1000 VND
                                     $priceCol = $pCol;
@@ -742,11 +742,18 @@ class SuperAdminController extends Controller
                         }
                     }
 
+                    Log::info("Import Debug: Master Header Found at Row $masterHeaderIdx");
+                    Log::info("Import Debug: Columns Detected - Name: $nameCol, Unit: $unitCol, Price: $priceCol");
+
                     for ($i = $masterHeaderIdx + 1; $i < count($rows); $i++) {
                         $row = $rows[$i];
                         $name = trim($row[$nameCol] ?? '');
                         $unit = trim($row[$unitCol] ?? '');
                         $priceStr = trim($row[$priceCol] ?? '');
+
+                        if ($i < $masterHeaderIdx + 6) {
+                            Log::info("Import Debug Row $i: Name='$name', PriceStr='$priceStr', ParsedPrice=" . $this->parsePrice($priceStr));
+                        }
 
                         if (empty($name) || strlen($name) < 2 || $this->isJunkRow($name))
                             continue;
