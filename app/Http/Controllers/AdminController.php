@@ -349,15 +349,12 @@ class AdminController extends Controller
         $departments = Department::where('is_active', true)->orderBy('name')->get();
         $categories = Category::orderBy('display_order')->get();
 
-        $products = Product::where('is_active', true)
-            ->whereNotNull('price')
-            ->where('price', '>', 0)
-            ->with([
-                'category',
-                'monthlyOrders' => function ($q) use ($selectedMonth) {
-                    $q->where('month', $selectedMonth);
-                }
-            ])
+        $products = Product::with([
+            'category',
+            'monthlyOrders' => function ($q) use ($selectedMonth) {
+                $q->where('month', $selectedMonth);
+            }
+        ])
             ->orderBy('category_id')
             ->orderBy('display_order')
             ->get()
@@ -390,31 +387,6 @@ class AdminController extends Controller
         );
 
         return response()->json(['success' => true, 'order_id' => $order->id]);
-    }
-
-    /**
-     * AJAX thêm sản phẩm mới từ Grid Entry
-     */
-    public function storeProduct(Request $request)
-    {
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'unit' => 'nullable|string|max:50',
-            'price' => 'nullable|numeric|min:0',
-            'category_id' => 'required|exists:categories,id',
-        ]);
-
-        $product = \App\Models\Product::create([
-            'name' => $request->name,
-            'unit' => $request->unit ?? '',
-            'price' => $request->price ?? 0,
-            'category_id' => $request->category_id,
-            'is_active' => true,
-        ]);
-
-        $product->load('category');
-
-        return response()->json(['success' => true, 'product' => $product]);
     }
 
     /**

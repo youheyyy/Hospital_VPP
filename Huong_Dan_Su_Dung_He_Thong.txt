@@ -1,0 +1,75 @@
+HƯỚNG DẪN BÀN GIAO VÀ SỬ DỤNG HỆ THỐNG VẬT TƯ (TỰ ĐỘNG HÓA LINK 4G BẰNG REBRANDLY)
+====================================================================================
+Tài liệu này là cẩm nang chi tiết nhất 100% để bất kỳ ai cũng có thể tự cài đặt, vận hành và bàn giao hệ thống sang máy chủ mới mà không bỏ sót bất kỳ cấu hình nào.
+
+------------------------------------------------------------------------------------
+PHẦN A: CÁCH SỬ DỤNG HẰNG NGÀY CHO NGƯỜI VẬN HÀNH HIỆN TẠI
+------------------------------------------------------------------------------------
+
+1. ĐỐI VỚI CÁC KHOA/PHÒNG (Chỉ cần làm 1 lần trên máy tính của họ)
+- Bạn gửi cho họ một link đường dẫn cố định, ví dụ: https://rebrand.ly/nhapvattu
+- Dặn họ mở trang web lên, bấm "Dấu Sao" (Bookmark) để lưu lại, hoặc xịn hơn là kéo thả cái link đó ra ngoài Desktop làm thành một cái Icon.
+- Hàng ngày đến làm, họ chỉ việc bấm đúp vào cái Icon đó là vô thẳng hệ thống, không cần xin link mới.
+
+2. ĐỐI VỚI NGƯỜI QUẢN TRỊ MÁY CHỦ (Bật máy là phải làm)
+Có 2 sự lựa chọn khởi động mạng mỗi sáng:
+
+* [Cách 1] Chạy Tự Động Hoàn Toàn (Khuyên Dùng)
+- Sáng tới: Bấm đúp file [Bat_Ngam_He_Thong.bat]. File này sẽ tự bật cả XAMPP (MySQL), Server PHP, Cloudflare và tự lấy link mới úp lên Rebrandly luôn.
+- Chiều về: Bấm đúp file [Tat_Ngam_He_Thong.bat] để đóng toàn bộ sập cửa.
+
+* [Cách 2] Tự Bật XAMPP Thủ Công (Dành cho máy chia sẻ nhiều phần mềm khác)
+- Sáng tới: Dùng phần mềm XAMPP Control Panel bật tay [Apache] và [MySQL]. Xong bấm đúp file [Bat_Ngam_Khong_XAMPP.bat].
+- Chiều về: Bấm đúp file [Tat_Ngam_Khong_XAMPP.bat].
+
+
+------------------------------------------------------------------------------------
+PHẦN B: CHUYỂN GIAO CÀI ĐẶT SANG MÁY TÍNH MỚI TỪ A ĐẾN Z
+------------------------------------------------------------------------------------
+
+BƯỚC 1: CÀI ĐẶT PHẦN MỀM GỐC VÀ DỊCH VỤ ĐÍNH KÈM
+1. Cài Đặt XAMPP (Môi trường Web Server)
+   - Tải bản PHP 8.x cài mặc định vô ổ C:\xampp
+2. Cài Đặt Composer (Phần mềm bổ trợ PHP)
+   - Tải từ getcomposer.org, bấm Next liên tục qua các vòng.
+3. Cài Đặt Cloudflared (Tạo link Tunnel miễn phí)
+   - Tải "cloudflared-windows-amd64.exe" từ trang Cloudflare.
+   - Bắt buộc đổi chữ tên file ngắn lại thành "cloudflared.exe".
+   - Copy quẳng vào thư mục: C:\Windows\System32
+
+BƯỚC 2: THIẾT LẬP TÀI KHOẢN RÚT GỌN LINK REBRANDLY (Chỉ làm 1 lần để lấy API)
+(Nếu máy cũ bị mất tài khoản hoặc người mới muốn tự tạo)
+   - Vào web: https://app.rebrandly.com/ (Nên bấm "Đăng nhập bằng Google Gmail").
+   - Vô đó tạo đại một cái link rút gọn cho bệnh viện, ví dụ: "rebrand.ly/nhapvattu".
+   - Bấm vào khung Avata hình tròn (Góc phải trên cùng) -> Chọn "API Keys".
+   - Bấm "Add a new API key". Chép cái mã code loằng ngoằng dài dằng dặc đó lại.
+
+BƯỚC 3: SAO CHÉP MÃ NGUỒN VÀ KẾT NỐI API
+   - Copy toàn bộ cái thư mục dự án [hospital-purchase] quẳng vô địa chỉ: C:\xampp\htdocs\
+   - Vào C:\xampp\htdocs\hospital-purchase\, mở file có tên [update_rebrandly.php] bằng Notepad. Không có file này thì phần mềm không tự cập nhật Link được.
+   - Sửa 2 dòng trên cùng:
+      $rebrandlyKey = 'Dán MÃ API KEY BƯỚC 2 VÀO ĐÂY';
+      $shortLink = 'rebrand.ly/nhapvattu'; 
+   - Đóng file lại và bấm Save.
+
+BƯỚC 4: THIẾT LẬP CƠ SỞ DỮ LIỆU BỊ TRÙNG CỔNG (CỰC QUAN TRỌNG)
+Trường hợp này 99% xảy ra: Cái XAMPP bị lỗi đỏ đèn MySQL do máy tính đó đã xài cổng 3306 cho phần mềm khác. Bắt buộc phải làm 2 chỗ:
+
+Sửa Chỗ 1: File cấu hình XAMPP
+   - Vào C:\xampp\mysql\bin\ tìm file [my.ini] mở bằng Notepad.
+   - Tìm dòng chữ [port=3306] đổi sạch sẽ thành [port=3307]. Xong Save lại. Khởi động lại XAMPP là MySQL xanh lè lên ngay!
+
+Sửa Chỗ 2: File cấu hình Phần mềm
+   - Vào C:\xampp\htdocs\hospital-purchase\ mở file có tên là [.env] (Mở bằng Notepad).
+   - Dò tới đoạn cấu hình DB, sửa số 3306 thành 3307:
+      DB_PORT=3307
+      DB_DATABASE=hospital_purchase2
+   - Xong Save lại.
+
+BƯỚC 5: NẠP DỮ LIỆU ĐỂ HOÀN TẤT
+   - Vẫn đang ở C:\xampp\htdocs\hospital-purchase\, bấm chuột lên thanh địa chỉ thư mục, gõ chữ "cmd" rồi Enter hiện bảng đen ra.
+   - Gõ lần thứ nhất: composer install
+   - Mở trình duyệt web gõ http://localhost/phpmyadmin tạo rỗng 1 cái CSDL trùng tên là: hospital_purchase2.
+   - Quay lại bảng đen lúc nãy gõ lần thứ hai: php artisan migrate. Báo màu xanh ầm ầm là xong!
+   
+=> CHÚC MỪNG ANH CHỊ ĐÃ CÀI XONG HỆ THỐNG MỘT CÁCH SẠCH ĐẸP NHẤT! BÂY GIỜ QUA PHẦN A SỬ DỤNG.
