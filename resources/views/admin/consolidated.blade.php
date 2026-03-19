@@ -232,24 +232,24 @@
                         In
                     </button>
                     <!-- Grid Entry Button -->
-                    <a href="{{ route('admin.grid-entry', ['month' => $selectedMonth]) }}"
+                    <!-- <a href="{{ route('admin.grid-entry', ['month' => $selectedMonth]) }}"
                         class="px-3 py-2 bg-indigo-500 text-white rounded-2xl hover:bg-indigo-600 flex items-center gap-2 transition-colors shadow-sm whitespace-nowrap"
                         title="Nhập liệu nhanh dạng lưới">
                         <span class="material-symbols-outlined text-sm">grid_on</span>
                         Nhập dữ liệu cũ
-                    </a>
+                    </a> -->
                     <a href="{{ route('admin.consolidated.export', ['month' => $selectedMonth]) }}"
                         class="px-3 py-2 bg-emerald-600 text-white rounded-2xl hover:bg-emerald-700 flex items-center gap-2 transition-colors shadow-sm whitespace-nowrap">
                         <span class="material-symbols-outlined text-sm">table_chart</span>
                         Excel
                     </a>
                     <!-- Historical Export Button -->
-                    <a href="{{ route('admin.consolidated.export-historical', ['month' => $selectedMonth]) }}"
+                    <!-- <a href="{{ route('admin.consolidated.export-historical', ['month' => $selectedMonth]) }}"
                         class="px-3 py-2 bg-cyan-600 text-white rounded-2xl hover:bg-cyan-700 flex items-center gap-2 transition-colors shadow-sm whitespace-nowrap"
                         title="Xuất Excel đa sheet cho quá khứ">
                         <span class="material-symbols-outlined text-sm">history</span>
                         Xuất Excel Quá Khứ
-                    </a>
+                    </a> -->
                     <button onclick="exportToPDF()"
                         class="px-3 py-2 bg-amber-500 text-white rounded-2xl hover:bg-amber-600 flex items-center gap-2 transition-colors shadow-sm whitespace-nowrap">
                         <span class="material-symbols-outlined text-sm">picture_as_pdf</span>

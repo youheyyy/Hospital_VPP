@@ -360,7 +360,7 @@ class ConsolidatedExport
         $sheet->getStyle('A' . $currentRow . ':B' . $currentRow)->getFont()->setBold(true);
         $currentRow++;
 
-        $sheet->setCellValue('A' . $currentRow, 'Số tiền bằng chữ:  Mười ba triệu không trăm bốn mươi một nghìn bảy trăm năm mươi đồng');
+        $sheet->setCellValue('A' . $currentRow, 'Số tiền bằng chữ:  ' . $this->numberToWords($this->grandTotal));
         $sheet->mergeCells('A' . $currentRow . ':G' . $currentRow);
         $currentRow++;
 
@@ -815,6 +815,62 @@ class ConsolidatedExport
         $sheet->getColumnDimension('E')->setWidth(15); // ĐG
         $sheet->getColumnDimension('F')->setWidth(18); // TT
         // G removed
+    }
+
+    protected function numberToWords(int $number): string
+    {
+        $chuSo = ['không', 'một', 'hai', 'ba', 'bốn', 'năm', 'sáu', 'bảy', 'tám', 'chín'];
+
+        $docBlock = function (int $n) use ($chuSo): string {
+            $tram  = intdiv($n, 100);
+            $chuc  = intdiv($n % 100, 10);
+            $donvi = $n % 10;
+            $res   = '';
+
+            if ($tram > 0) {
+                $res .= $chuSo[$tram] . ' trăm ';
+            }
+
+            if ($chuc > 1) {
+                $res .= $chuSo[$chuc] . ' mươi ';
+            } elseif ($chuc === 1) {
+                $res .= 'mười ';
+            } elseif ($tram > 0 && $donvi > 0) {
+                $res .= 'lẻ ';
+            }
+
+            if ($donvi === 5 && $chuc >= 1) {
+                $res .= 'lăm';
+            } elseif ($donvi === 1 && $chuc > 0) {
+                $res .= 'mốt';
+            } elseif ($donvi > 0) {
+                $res .= $chuSo[$donvi];
+            }
+
+            return $res;
+        };
+
+        $hangDonVi = ['', ' nghìn', ' triệu', ' tỷ', ' nghìn tỷ', ' triệu tỷ'];
+
+        if ($number === 0) {
+            return 'Không đồng';
+        }
+
+        $res = '';
+        $i   = 0;
+        $num = $number;
+
+        do {
+            $block = $num % 1000;
+            if ($block > 0) {
+                $s   = $docBlock($block);
+                $res = trim($s) . $hangDonVi[$i] . ($res !== '' ? ' ' : '') . $res;
+            }
+            $i++;
+            $num = intdiv($num, 1000);
+        } while ($num > 0);
+
+        return ucfirst(trim($res)) . ' đồng';
     }
 
     protected function romanize($num)

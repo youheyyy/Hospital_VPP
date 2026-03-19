@@ -49,9 +49,11 @@ class DepartmentController extends Controller
             ->get();
 
 
-        // Không load yêu cầu cũ - trang này chỉ dùng để tạo yêu cầu mới
-        // Nếu muốn xem/sửa yêu cầu cũ, dùng trang "Lịch sử yêu cầu"
-        $monthlyOrders = collect(); // Empty collection
+        // Load existing orders for this month to pre-fill quantities
+        $monthlyOrders = MonthlyOrder::where('department_id', $department->id)
+            ->where('month', $selectedMonth)
+            ->get()
+            ->keyBy('product_id'); // keyed by product_id for easy lookup
 
         return view('department.index', compact(
             'department',
@@ -74,7 +76,7 @@ class DepartmentController extends Controller
             'month' => 'required|string',
             'orders' => 'required|array',
             'orders.*.product_id' => 'required|exists:products,id',
-            'orders.*.quantity' => 'required|numeric|min:0',
+            'orders.*.quantity' => 'required|integer|min:0',
             'orders.*.notes' => 'nullable|string|max:500',
         ]);
 

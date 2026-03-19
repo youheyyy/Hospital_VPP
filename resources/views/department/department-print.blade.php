@@ -1,36 +1,56 @@
 @php
     function docSoThanhChu($number) {
-        $chuSo = ["không", "một", "hai", "ba", "bốn", "năm", "sáu", "bảy", "tám", "chín"];
-        $docBlock = function ($number) use ($chuSo, &$docBlock) {
-            $tram = floor($number / 100);
-            $chuc = floor(($number % 100) / 10);
-            $donvi = $number % 10;
-            $res = "";
-            if ($tram > 0) $res .= $chuSo[$tram] . " trăm ";
-            else if ($res !== "") $res .= "không trăm ";
-            if ($chuc > 1) $res .= $chuSo[$chuc] . " mươi ";
-            else if ($chuc === 1) $res .= "mười ";
-            else if ($tram > 0 && $donvi > 0) $res .= "lẻ ";
-            if ($donvi === 5 && $chuc >= 1) $res .= "lăm";
-            else if ($donvi > 1 || ($donvi === 1 && $chuc === 0)) $res .= $chuSo[$donvi];
-            else if ($donvi === 1 && $chuc > 0) $res .= "mốt";
+        $number = (int) round($number);
+        $chuSo  = ['không', 'một', 'hai', 'ba', 'bốn', 'năm', 'sáu', 'bảy', 'tám', 'chín'];
+
+        $docBlock = function (int $n) use ($chuSo): string {
+            $tram  = intdiv($n, 100);
+            $chuc  = intdiv($n % 100, 10);
+            $donvi = $n % 10;
+            $res   = '';
+
+            if ($tram > 0) {
+                $res .= $chuSo[$tram] . ' trăm ';
+            }
+
+            if ($chuc > 1) {
+                $res .= $chuSo[$chuc] . ' mươi ';
+            } elseif ($chuc === 1) {
+                $res .= 'mười ';
+            } elseif ($tram > 0 && $donvi > 0) {
+                $res .= 'lẻ ';
+            }
+
+            if ($donvi === 5 && $chuc >= 1) {
+                $res .= 'lăm';
+            } elseif ($donvi === 1 && $chuc > 0) {
+                $res .= 'mốt';
+            } elseif ($donvi > 0) {
+                $res .= $chuSo[$donvi];
+            }
+
             return $res;
         };
-        $hangDonVi = ["", " nghìn", " triệu", " tỷ", " nghìn tỷ", " triệu tỷ"];
-        if ($number == 0) return "Không đồng";
-        $res = "";
-        $i = 0;
-        $num = (float) $number;
+
+        $hangDonVi = ['', ' nghìn', ' triệu', ' tỷ', ' nghìn tỷ', ' triệu tỷ'];
+
+        if ($number === 0) return 'Không đồng';
+
+        $res = '';
+        $i   = 0;
+        $num = $number;
+
         do {
             $block = $num % 1000;
             if ($block > 0) {
-                $s = $docBlock($block);
-                $res = $s . $hangDonVi[$i] . ($res !== "" ? " " : "") . $res;
+                $s   = $docBlock($block);
+                $res = trim($s) . $hangDonVi[$i] . ($res !== '' ? ' ' : '') . $res;
             }
             $i++;
-            $num = floor($num / 1000);
+            $num = intdiv($num, 1000);
         } while ($num > 0);
-        return ucfirst(trim($res)) . " đồng./.";
+
+        return ucfirst(trim($res)) . ' đồng./.';
     }
 @endphp
 <!DOCTYPE html>

@@ -186,7 +186,8 @@
                                                 <input type="checkbox" 
                                                     class="product-checkbox w-4 h-4 text-blue-600 rounded"
                                                     data-product-id="{{ $product->id }}"
-                                                    onchange="toggleProductRow(this)">
+                                                    onchange="toggleProductRow(this)"
+                                                    {{ isset($monthlyOrders[$product->id]) ? 'checked' : '' }}>
                                             </td>
                                             <td class="text-center text-sm text-gray-600">{{ $stt }}</td>
                                             <td class="text-sm font-medium">{{ $product->name }}</td>
@@ -198,13 +199,13 @@
                                                     class="quantity-input w-full border-gray-300 rounded text-sm px-2 py-1 text-right"
                                                     data-price="{{ $product->price }}"
                                                     data-product-id="{{ $product->id }}"
-                                                    value="0"
+                                                     value="{{ isset($monthlyOrders[$product->id]) ? (int)$monthlyOrders[$product->id]->quantity : 0 }}"
                                                     min="0"
                                                     step="1"
                                                     oninput="calculateTotal(this)">
                                             </td>
                                             <td class="text-right text-sm price-cell">{{ number_format($product->price, 0, ',', '.') }}</td>
-                                            <td class="text-right text-sm font-semibold total-cell">0</td>
+                                            <td class="text-right text-sm font-semibold total-cell">{{ number_format(($monthlyOrders[$product->id]->quantity ?? 0) * $product->price, 0, ',', '.') }}</td>
                                         </tr>
                                     @endforeach
                                 @endforeach
@@ -242,17 +243,25 @@
         }
 
         function filterProducts() {
-            const searchValue = document.getElementById('filterSearch').value.toLowerCase();
+            const searchValue = document.getElementById('filterSearch').value.toLowerCase().trim();
             const filterOptions = document.querySelectorAll('.filter-option');
-            
+
             filterOptions.forEach(option => {
                 const productName = option.dataset.productName;
-                if (productName.includes(searchValue)) {
-                    option.style.display = 'flex';
+                const matches = productName.includes(searchValue);
+                option.style.display = matches ? 'flex' : 'none';
+
+                const cb = option.querySelector('.product-filter-checkbox');
+                if (searchValue !== '') {
+                    // If searching, auto-check if matches, uncheck if not
+                    cb.checked = matches;
                 } else {
-                    option.style.display = 'none';
+                    // If clear search, show all (check all filter checkboxes)
+                    cb.checked = true;
                 }
             });
+
+            applyFilter();
         }
 
         function toggleAllFilters(selectAllCheckbox) {
@@ -324,7 +333,12 @@
         function calculateTotal(input) {
             const row = input.closest('tr');
             const price = parseFloat(input.dataset.price);
-            const quantity = parseFloat(input.value) || 0;
+            
+            // Enforce positive integer: floor the value and ensure it's at least 0
+            let quantity = Math.floor(parseFloat(input.value) || 0);
+            if (quantity < 0) quantity = 0;
+            input.value = quantity; // Update input field with sanitized value
+
             const total = price * quantity;
             
             const totalCell = row.querySelector('.total-cell');
@@ -355,6 +369,28 @@
         // Calculate initial total on page load
         document.addEventListener('DOMContentLoaded', function() {
             updateGrandTotal();
+
+            // Prevent Enter key from submitting the form accidentally
+            document.getElementById('requestForm').addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    const tag = e.target.tagName.toLowerCase();
+                    if (tag === 'input' && e.target.type !== 'submit') {
+                        e.preventDefault();
+                    }
+                }
+            });
+
+            // Before submitting: disable inputs in hidden rows so they don't overwrite existing orders
+            document.getElementById('requestForm').addEventListener('submit', function() {
+                document.querySelectorAll('.product-row').forEach(function(row) {
+                    // If row is hidden by filter, disable all its inputs so they are NOT sent to server
+                    if (row.style.display === 'none') {
+                        row.querySelectorAll('input').forEach(function(input) {
+                            input.disabled = true;
+                        });
+                    }
+                });
+            });
         });
     </script>
 </body>

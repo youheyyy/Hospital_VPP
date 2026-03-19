@@ -4,7 +4,7 @@
 
 // ===== PHAN CAI DAT (Ban can dien thong tin vao day) =====
 $rebrandlyKey = 'c4bd73eab7f34680a1e8376a73cd396b'; // API Key Rebrandly cua ban
-$shortLink = 'rebrand.ly/nhapvattu'; // Link rut gon ban da tao tren Rebrandly
+$shortLink = 'rebrand.ly/vanphongpham-vpp'; // Link rut gon ban da tao tren Rebrandly
 // =========================================================
 
 if ($argc < 2) {
@@ -67,7 +67,8 @@ curl_close($ch2);
 
 if ($httpCode >= 200 && $httpCode < 300) {
     echo "SUCCESS: Da cap nhat Rebrandly [$shortLink] thanh cong voi link moi: " . $newUrl . "\n";
-} else {
+}
+else {
     echo "ERROR: Cap nhat Rebrandly that bai (HTTP $httpCode).\n";
     echo "Chi tiet Loi: " . $updateResponse . "\n";
 }

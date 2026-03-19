@@ -1,46 +1,59 @@
 @php
     function docSoThanhChu($number)
     {
-        $chuSo = ["không", "một", "hai", "ba", "bốn", "năm", "sáu", "bảy", "tám", "chín"];
-        $docBlock = function ($number) use ($chuSo, &$docBlock) {
-            $tram = floor($number / 100);
-            $chuc = floor(($number % 100) / 10);
-            $donvi = $number % 10;
-            $res = "";
-            if ($tram > 0)
-                $res .= $chuSo[$tram] . " trăm ";
-            else if ($res !== "")
-                $res .= "không trăm ";
-            if ($chuc > 1)
-                $res .= $chuSo[$chuc] . " mươi ";
-            else if ($chuc === 1)
-                $res .= "mười ";
-            else if ($tram > 0 && $donvi > 0)
-                $res .= "lẻ ";
-            if ($donvi === 5 && $chuc >= 1)
-                $res .= "lăm";
-            else if ($donvi > 1 || ($donvi === 1 && $chuc === 0))
+        $number = (int) round($number);
+        $chuSo  = ['không', 'một', 'hai', 'ba', 'bốn', 'năm', 'sáu', 'bảy', 'tám', 'chín'];
+
+        $docBlock = function (int $n) use ($chuSo): string {
+            $tram  = intdiv($n, 100);
+            $chuc  = intdiv($n % 100, 10);
+            $donvi = $n % 10;
+            $res   = '';
+
+            if ($tram > 0) {
+                $res .= $chuSo[$tram] . ' trăm ';
+            }
+
+            if ($chuc > 1) {
+                $res .= $chuSo[$chuc] . ' mươi ';
+            } elseif ($chuc === 1) {
+                $res .= 'mười ';
+            } elseif ($tram > 0 && $donvi > 0) {
+                $res .= 'lẻ ';
+            }
+
+            if ($donvi === 5 && $chuc >= 1) {
+                $res .= 'lăm';
+            } elseif ($donvi === 1 && $chuc > 0) {
+                $res .= 'mốt';
+            } elseif ($donvi > 0) {
                 $res .= $chuSo[$donvi];
-            else if ($donvi === 1 && $chuc > 0)
-                $res .= "mốt";
+            }
+
             return $res;
         };
-        $hangDonVi = ["", " nghìn", " triệu", " tỷ", " nghìn tỷ", " triệu tỷ"];
-        if ($number == 0)
-            return "Không đồng";
-        $res = "";
-        $i = 0;
-        $num = (float) $number;
+
+        $hangDonVi = ['', ' nghìn', ' triệu', ' tỷ', ' nghìn tỷ', ' triệu tỷ'];
+
+        if ($number === 0) {
+            return 'Không đồng';
+        }
+
+        $res = '';
+        $i   = 0;
+        $num = $number;
+
         do {
             $block = $num % 1000;
             if ($block > 0) {
-                $s = $docBlock($block);
-                $res = $s . $hangDonVi[$i] . ($res !== "" ? " " : "") . $res;
+                $s   = $docBlock($block);
+                $res = trim($s) . $hangDonVi[$i] . ($res !== '' ? ' ' : '') . $res;
             }
             $i++;
-            $num = floor($num / 1000);
+            $num = intdiv($num, 1000);
         } while ($num > 0);
-        return ucfirst(trim($res)) . " đồng./.";
+
+        return ucfirst(trim($res)) . ' đồng./.';
     }
 @endphp
 <!DOCTYPE html>
@@ -97,14 +110,14 @@
             }
 
             @page {
-                margin: 5mm 15mm 10mm 15mm; /* Reduced top margin to 5mm */
+                margin: 0;
                 size: A4 portrait;
             }
-            
+
             .page {
-                padding: 0 !important; /* Remove page padding in print */
+                padding: 10mm 15mm !important;
             }
-            
+
             /* Ensure table headers repeat */
             thead { display: table-header-group; }
             tfoot { display: table-footer-group; }
@@ -190,15 +203,33 @@
         .header-section {
             display: flex;
             justify-content: space-between;
+            align-items: flex-start;
             margin-bottom: 20px;
         }
 
         .company-info {
-            text-align: left;
+            text-align: center;
+            flex: 1;
+        }
+
+        .company-info p {
+            margin: 1px 0;
         }
 
         .national-info {
             text-align: center;
+            flex: 1;
+        }
+
+        .national-info .underline-motto {
+            display: inline-block;
+            border-bottom: 1px solid black;
+            padding-bottom: 1px;
+            margin-bottom: 2px;
+        }
+
+        .national-info p {
+            margin: 1px 0;
         }
 
         /* Signatures */
@@ -250,22 +281,18 @@
     <div class="page">
         <div class="header-section">
             <div class="company-info">
-                <p class="font-bold uppercase">CTCP BỆNH VIỆN ĐA KHOA</p>
-                <p class="font-bold uppercase">TÂM TRÍ CAO LÃNH</p>
-                <p>Bộ phận hỗ trợ dịch vụ</p>
+                <p class="font-bold uppercase">CTCP BỆNH VIỆN ĐA KHOA TÂM TRÍ CAO LÃNH</p>
+                <p class="font-bold uppercase">BỘ PHẬN HỖ TRỢ DỊCH VỤ</p>
             </div>
             <div class="national-info">
                 <p class="font-bold uppercase">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</p>
-                <p class="font-bold">Độc lập - Tự do - Hạnh phúc</p>
-                <p class="italic" style="margin-top: 5px;">Đồng Tháp, ngày {{ date('d') }} tháng {{ date('m') }} năm
-                    {{ date('Y') }}
-                </p>
+                <p class="font-bold"><span class="underline-motto">Độc lập - Tự do - Hạnh phúc</span></p>
+                <p class="italic" style="margin-top: 3px;">Đồng Tháp, ngày {{ date('d') }} tháng {{ date('m') }} năm {{ date('Y') }}</p>
             </div>
         </div>
 
         <div class="text-center" style="margin: 20px 0;">
-            <p class="font-bold" style="font-size: 14pt; text-transform: uppercase;">BẢNG ĐỀ NGHỊ MUA VĂN PHÒNG PHẨM -
-                VẬT TƯ TIÊU HAO</p>
+            <p class="font-bold" style="font-size: 14pt; text-transform: uppercase;">BẢNG ĐỀ NGHỊ MUA VĂN PHÒNG PHẨM - VẬT TƯ TIÊU HAO</p>
             <p class="font-bold">Tháng {{ $selectedMonth }}</p>
         </div>
 

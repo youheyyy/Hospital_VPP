@@ -66,6 +66,18 @@ Sửa Chỗ 2: File cấu hình Phần mềm
       DB_DATABASE=hospital_purchase2
    - Xong Save lại.
 
+Sửa Chỗ 3: File cấu hình phpMyAdmin (Nếu mở http://localhost/phpmyadmin bị lỗi "Không thể kết nối: cài đặt sai")
+   - Nguyên nhân: phpMyAdmin mặc định kết nối cổng 3306, nhưng máy này MySQL đang chạy cổng 3307 nên bị từ chối.
+   - Vào C:\xampp\phpMyAdmin\ mở file [config.inc.php] bằng Notepad.
+   - Tìm đoạn:
+        $cfg['Servers'][$i]['host'] = '127.0.0.1';
+        $cfg['Servers'][$i]['connect_type'] = 'tcp';
+   - Thêm 1 dòng vào giữa thành:
+        $cfg['Servers'][$i]['host'] = '127.0.0.1';
+        $cfg['Servers'][$i]['port'] = 3307;
+        $cfg['Servers'][$i]['connect_type'] = 'tcp';
+   - Xong Save lại. Tải lại trang phpMyAdmin là vào được ngay!
+
 BƯỚC 5: NẠP DỮ LIỆU ĐỂ HOÀN TẤT
    - Vẫn đang ở C:\xampp\htdocs\hospital-purchase\, bấm chuột lên thanh địa chỉ thư mục, gõ chữ "cmd" rồi Enter hiện bảng đen ra.
    - Gõ lần thứ nhất: composer install
