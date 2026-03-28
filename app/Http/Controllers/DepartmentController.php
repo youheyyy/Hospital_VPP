@@ -34,7 +34,8 @@ class DepartmentController extends Controller
                 return redirect()->route('department.index', ['month' => date('m/Y')])
                     ->with('error', $errorMessage);
             }
-        } catch (\Exception $e) {
+        }
+        catch (\Exception $e) {
             // Nếu định dạng tháng không hợp lệ, chuyển về tháng hiện tại
             return redirect()->route('department.index', ['month' => date('m/Y')]);
         }
@@ -94,7 +95,8 @@ class DepartmentController extends Controller
                     'month' => $errorMessage
                 ])->withInput();
             }
-        } catch (\Exception $e) {
+        }
+        catch (\Exception $e) {
             return redirect()->back()->withErrors([
                 'month' => 'Định dạng tháng không hợp lệ.'
             ])->withInput();
@@ -105,13 +107,60 @@ class DepartmentController extends Controller
             $orderMonth = \Carbon\Carbon::createFromFormat('m/Y', $validated['month'])->startOfMonth();
             $deadline = $orderMonth->copy()->addMonth()->day(5)->endOfDay();
             $canEdit = now()->lte($deadline);
-        } catch (\Exception $e) {
+        }
+        catch (\Exception $e) {
             $canEdit = false;
         }
 
         // Debug: Write to log file to see what's being received
         \Log::info('=== NOTES DEBUG ===', ['validated_orders' => $validated['orders']]);
 
+        // Tính tổng giá trị đơn hàng mới để kiểm tra ngân sách
+        $totalNewOrderValue = 0;
+        $products = \App\Models\Product::whereIn('id', array_column($validated['orders'], 'product_id'))->get()->keyBy('id');
+
+        foreach ($validated['orders'] as $order) {
+            if ($order['quantity'] > 0) {
+                $product = $products->get($order['product_id']);
+                if ($product) {
+                    $existingOrder = MonthlyOrder::where([
+                        'department_id' => $department->id,
+                        'product_id' => $order['product_id'],
+                        'month' => $validated['month'],
+                    ])->first();
+
+                    // Chỉ tính phần tăng thêm
+                    $oldQuantity = $existingOrder ? $existingOrder->quantity : 0;
+                    $quantityDiff = $order['quantity'] - $oldQuantity;
+                    
+                    if ($quantityDiff > 0) {
+                        $totalNewOrderValue += $quantityDiff * $product->price;
+                    }
+                }
+            }
+        }
+
+        // Kiểm tra ngân sách nếu có đơn hàng mới
+        if ($totalNewOrderValue > 0) {
+            $parts = explode('/', $validated['month']);
+            $year = isset($parts[1]) ? (int)$parts[1] : date('Y');
+            
+            $budget = \App\Models\DepartmentBudget::where('department_id', $department->id)
+                ->where('year', $year)
+                ->first();
+
+            if (!$budget) {
+                return redirect()->back()->with('error', "Khoa chưa được cấp ngân sách cho năm {$year}. Vui lòng liên hệ SuperAdmin.");
+            }
+
+            if (!$budget->hasEnoughBudget($totalNewOrderValue)) {
+                return redirect()->back()->with('error', sprintf(
+                    "Không đủ ngân sách! Cần: %s VNĐ, Còn lại: %s VNĐ",
+                    number_format($totalNewOrderValue, 0, ',', '.'),
+                    number_format($budget->remaining_budget, 0, ',', '.')
+                ));
+            }
+        }
 
         foreach ($validated['orders'] as $order) {
             // Kiểm tra xem đã có order này chưa
@@ -131,21 +180,47 @@ class DepartmentController extends Controller
             $hasQuantity = $order['quantity'] > 0;
 
             if ($hasQuantity || $hasNotes) {
+                $product = $products->get($order['product_id']);
+                $oldQuantity = $existingOrder ? $existingOrder->quantity : 0;
+                $quantityDiff = $order['quantity'] - $oldQuantity;
+
+                // Cập nhật ngân sách
+                if ($quantityDiff != 0 && $product) {
+                    $parts = explode('/', $validated['month']);
+                    $year = isset($parts[1]) ? (int)$parts[1] : date('Y');
+                    
+                    $budget = \App\Models\DepartmentBudget::where('department_id', $department->id)
+                        ->where('year', $year)
+                        ->first();
+
+                    if ($budget) {
+                        $amountDiff = $quantityDiff * $product->price;
+                        if ($quantityDiff > 0) {
+                            $budget->useBudget($amountDiff);
+                        } else {
+                            $budget->refundBudget(abs($amountDiff));
+                        }
+                    }
+                }
+
                 // Cho phép tạo mới hoặc cập nhật nếu trước ngày 5
                 MonthlyOrder::updateOrCreate(
-                    [
-                        'department_id' => $department->id,
-                        'product_id' => $order['product_id'],
-                        'month' => $validated['month'],
-                    ],
-                    [
-                        'quantity' => $order['quantity'],
-                        'notes' => $order['notes'] ?? null,
-                    ]
+                [
+                    'department_id' => $department->id,
+                    'product_id' => $order['product_id'],
+                    'month' => $validated['month'],
+                ],
+                [
+                    'quantity' => $order['quantity'],
+                    'notes' => $order['notes'] ?? null,
+                ]
                 );
-            } else {
+            }
+            else {
                 // Xóa order nếu không có số lượng và không có ghi chú
                 if ($existingOrder) {
+                    // Hoàn trả ngân sách
+                    \App\Helpers\BudgetHelper::refundBudget($existingOrder);
                     $existingOrder->delete();
                 }
             }
@@ -179,8 +254,8 @@ class DepartmentController extends Controller
             ->with('product')
             ->get()
             ->sum(function ($order) {
-                return $order->quantity * $order->product->price;
-            });
+            return $order->quantity * $order->product->price;
+        });
 
         // Tính toán quyền chỉnh sửa
         try {
@@ -188,14 +263,15 @@ class DepartmentController extends Controller
             $deadline = $orderMonth->copy()->addMonth()->day(5)->endOfDay();
             $canEdit = now()->lte($deadline);
 
-            // Debug info
-            // dd([
-            //     'selectedResult' => $selectedMonth,
-            //     'deadline' => $deadline->toDateTimeString(),
-            //     'now' => now()->toDateTimeString(),
-            //     'canEdit' => $canEdit
-            // ]);
-        } catch (\Exception $e) {
+        // Debug info
+        // dd([
+        //     'selectedResult' => $selectedMonth,
+        //     'deadline' => $deadline->toDateTimeString(),
+        //     'now' => now()->toDateTimeString(),
+        //     'canEdit' => $canEdit
+        // ]);
+        }
+        catch (\Exception $e) {
             $canEdit = false;
         }
 
@@ -232,8 +308,8 @@ class DepartmentController extends Controller
             ->with('product')
             ->get()
             ->sum(function ($order) {
-                return $order->quantity * $order->product->price;
-            });
+            return $order->quantity * $order->product->price;
+        });
 
         return view('department.department-print', compact(
             'department',
@@ -268,7 +344,8 @@ class DepartmentController extends Controller
                     'message' => 'Đã quá hạn chỉnh sửa (Sau ngày 5 của tháng tiếp theo).'
                 ], 403);
             }
-        } catch (\Exception $e) {
+        }
+        catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Lỗi xác định thời gian.'
@@ -319,7 +396,8 @@ class DepartmentController extends Controller
                     'message' => 'Đã quá hạn chỉnh sửa (Sau ngày 5 của tháng tiếp theo).'
                 ], 403);
             }
-        } catch (\Exception $e) {
+        }
+        catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Lỗi xác định thời gian.'
@@ -369,18 +447,22 @@ class DepartmentController extends Controller
                     'message' => 'Đã quá hạn xóa (Sau ngày 5 của tháng tiếp theo).'
                 ], 403);
             }
-        } catch (\Exception $e) {
+        }
+        catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Lỗi xác định thời gian.'
             ], 403);
         }
 
+        // Hoàn trả ngân sách
+        \App\Helpers\BudgetHelper::refundBudget($order);
+
         $order->delete();
 
         return response()->json([
             'success' => true,
-            'message' => 'Đã xóa yêu cầu thành công!'
+            'message' => 'Đã xóa yêu cầu và hoàn trả ngân sách thành công!'
         ]);
     }
 

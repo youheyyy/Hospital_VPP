@@ -272,7 +272,6 @@
 
 
     </div>
-    </div>
 
     <!-- Auto Backup Config -->
     <!-- Auto Backup Config (HIDDEN AS REQUESTED) -->
@@ -309,7 +308,4 @@
         </form>
     </div>
     --}}
-    </div>
-    {{-- Backup Table Removed from here to move inside Restore Card --}}
-    </div>
 @endsection

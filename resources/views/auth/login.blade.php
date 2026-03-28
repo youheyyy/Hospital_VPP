@@ -133,20 +133,20 @@
 
                 <!-- Error Messages -->
                 @if ($errors->any())
-                    <div class="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-                        <ul class="text-sm text-red-600 dark:text-red-400 space-y-1">
-                            @foreach ($errors->all() as $error)
-                                <li>{{ $error }}</li>
-                            @endforeach
-                        </ul>
-                    </div>
+                <div class="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                    <ul class="text-sm text-red-600 dark:text-red-400 space-y-1">
+                        @foreach ($errors->all() as $error)
+                        <li>{{ $error }}</li>
+                        @endforeach
+                    </ul>
+                </div>
                 @endif
 
                 @if (session('status'))
-                    <div
-                        class="mb-6 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
-                        <p class="text-sm text-green-600 dark:text-green-400">{{ session('status') }}</p>
-                    </div>
+                <div
+                    class="mb-6 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                    <p class="text-sm text-green-600 dark:text-green-400">{{ session('status') }}</p>
+                </div>
                 @endif
 
                 <!-- Login Form -->
@@ -159,8 +159,8 @@
                         <div class="flex items-stretch rounded-lg shadow-sm">
                             <input id="email" name="email"
                                 class="form-input flex-1 h-14 border border-[#cfe3e7] dark:border-white/10 bg-white/50 dark:bg-black/20 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary rounded-l-lg p-4 text-[#0d191b] dark:text-white placeholder:text-[#4c8d9a]/50 text-base"
-                                placeholder="Nhập email của bạn" type="email" value="{{ old('email') }}"
-                                required autofocus />
+                                placeholder="Nhập email của bạn" type="email" value="{{ old('email') }}" required
+                                autofocus />
                             <div
                                 class="flex items-center px-4 bg-white/50 dark:bg-black/20 border border-l-0 border-[#cfe3e7] dark:border-white/10 rounded-r-lg text-[#4c8d9a]">
                                 <span class="material-symbols-outlined">email</span>
@@ -207,12 +207,12 @@
                 </form>
 
                 <!-- Footer info in card -->
-                <div class="mt-10 pt-6 border-t border-[#cfe3e7]/50 dark:border-white/5 flex flex-col gap-4">
+                <!-- <div class="mt-10 pt-6 border-t border-[#cfe3e7]/50 dark:border-white/5 flex flex-col gap-4">
                     <div class="flex justify-between items-center text-xs text-[#4c8d9a] dark:text-[#a1cbd3]">
                         <span>Liên hệ hỗ trợ: <b>1900 1234</b></span>
                         <span>Phiên bản 3.0.1</span>
                     </div>
-                </div>
+                </div> -->
             </div>
         </div>
     </div>

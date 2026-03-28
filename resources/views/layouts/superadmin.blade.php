@@ -29,14 +29,12 @@
         <!-- Sidebar -->
         <aside class="w-64 bg-white border-r border-gray-200 flex flex-col">
             <div class="p-6 border-b">
-                <div class="flex items-center gap-3">
-                    <img src="{{ asset('images/logo-tmmc.png') }}" alt="Logo" class="h-12 w-auto">
-                    <div class="flex flex-col text-left">
-                        <h2 class="text-slate-900 text-lg font-black leading-none tracking-tighter">TÂM TRÍ</h2>
-                        <span class="text-[10px] font-bold text-slate-800 uppercase tracking-widest mt-1">CAO
-                            LÃNH</span>
-                        <span class="text-[9px] font-medium text-slate-500 leading-none mt-0.5 uppercase">Quản lý
-                            VPP</span>
+                <div class="flex flex-col items-center justify-center gap-3 w-full pt-2">
+                    <img src="{{ asset('images/logo-tmmc.png') }}" alt="Logo" class="h-20 w-auto object-contain">
+                    <div class="flex items-center justify-center gap-1.5 w-full">
+                        <div class="h-[2px] w-4 bg-[#00a8e8] rounded-full"></div>
+                        <span class="text-[10px] font-bold text-slate-500 uppercase tracking-[0.15em] whitespace-nowrap">Quản Lý Văn Phòng Phẩm</span>
+                        <div class="h-[2px] w-4 bg-[#00a8e8] rounded-full"></div>
                     </div>
                 </div>
             </div>
@@ -56,7 +54,14 @@
                     <span class="font-medium">Quản lý người dùng</span>
                 </a>
 
-                <!-- 3. Quản lý dữ liệu -->
+                <!-- 3. Quản lý ngân sách -->
+                <a href="{{ route('superadmin.budgets.index') }}"
+                    class="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors {{ request()->routeIs('superadmin.budgets.*') ? 'bg-purple-600 text-white' : 'text-gray-700 hover:bg-gray-100' }}">
+                    <span class="material-symbols-outlined">account_balance_wallet</span>
+                    <span class="font-medium">Quản lý ngân sách</span>
+                </a>
+
+                <!-- 4. Quản lý dữ liệu -->
                 <a href="{{ route('superadmin.data-management') }}"
                     class="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors {{ request()->routeIs('superadmin.data-management') ? 'bg-purple-600 text-white' : 'text-gray-700 hover:bg-gray-100' }}">
                     <span class="material-symbols-outlined">database</span>
@@ -69,7 +74,7 @@
                     <div class="flex items-center gap-3">
                         <div
                             class="size-10 rounded-full bg-purple-600 text-white flex items-center justify-center font-bold text-sm">
-                            {{ strtoupper(substr(auth()->user()->name, 0, 2)) }}
+                            {{ mb_strtoupper(mb_substr(auth()->user()->name, 0, 2, 'UTF-8'), 'UTF-8') }}
                         </div>
                         <div class="flex-1 min-w-0">
                             <p class="text-sm font-bold truncate text-slate-900">{{ auth()->user()->name }}</p>

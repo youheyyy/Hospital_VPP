@@ -119,6 +119,30 @@
         .sidebar-item .material-symbols-outlined {
             @apply text-2xl;
         }
+
+        .cell-input {
+            width: 100%;
+            height: 100%;
+            border: none;
+            padding: 8px; /* Original padding */
+            text-align: right;
+            outline: none;
+            background: transparent;
+            font-family: inherit;
+            font-size: inherit;
+            transition: all 0.2s ease-in-out;
+        }
+        .cell-input:focus {
+            background-color: #f8fafc;
+            /* removed the inset box-shadow to prevent it from looking like a grid */
+        }
+        .saving-indicator {
+            position: absolute;
+            right: 4px;
+            top: 4px;
+            font-size: 10px;
+            pointer-events: none;
+        }
     </style>
 </head>
 
@@ -127,20 +151,21 @@
         <!-- Hidden Print Iframe -->
         <iframe id="printFrame" style="display:none;"></iframe>
         <!-- Sidebar -->
-        <aside class="w-64 flex-shrink-0 bg-white border-r border-slate-100 flex flex-col py-8 px-4 gap-4 no-print">
-            <div class="mb-8 px-4">
-                <div class="flex items-center gap-3">
-                    <div
-                        class="w-12 h-12 bg-mint-500 rounded-2xl flex items-center justify-center shadow-lg shadow-mint-100">
-                        <span class="material-symbols-outlined text-white">inventory_2</span>
-                    </div>
-                    <div>
-                        <h2 class="text-lg font-extrabold text-slate-900">VPP Admin</h2>
-                        <p class="text-[10px] text-slate-400 font-medium">Quản trị hệ thống</p>
+        <aside
+            class="w-64 flex-shrink-0 bg-white border-r border-slate-100 flex flex-col no-print transition-all duration-300">
+            <div class="p-6 border-b border-slate-100">
+                <div class="flex flex-col items-center justify-center gap-3 w-full pt-2">
+                    <img src="{{ asset('images/logo-tmmc.png') }}" alt="Logo" class="h-20 w-auto object-contain">
+                    <div class="flex items-center justify-center gap-1.5 w-full">
+                        <div class="h-[2px] w-4 bg-[#00a8e8] rounded-full"></div>
+                        <span
+                            class="text-[10px] font-bold text-slate-500 uppercase tracking-[0.15em] whitespace-nowrap">Quản
+                            Lý Văn Phòng Phẩm</span>
+                        <div class="h-[2px] w-4 bg-[#00a8e8] rounded-full"></div>
                     </div>
                 </div>
             </div>
-            <nav class="flex flex-col gap-2 flex-1">
+            <nav class="flex-1 p-4 space-y-2">
                 <a class="sidebar-item" href="{{ route('admin.dashboard') }}">
                     <span class="material-symbols-outlined">grid_view</span>
                     <span class="text-sm font-bold">Tổng quan</span>
@@ -149,28 +174,32 @@
                     <span class="material-symbols-outlined">assignment</span>
                     <span class="text-sm font-bold">Tổng hợp yêu cầu</span>
                 </a>
+                <a class="sidebar-item" href="{{ route('admin.budgets.index') }}">
+                    <span class="material-symbols-outlined">account_balance_wallet</span>
+                    <span class="text-sm font-bold">Quản lý ngân sách</span>
+                </a>
             </nav>
-            <div class="mt-auto px-4">
-                <div class="bg-slate-50 rounded-2xl p-4 mb-4">
-                    <div class="flex items-center gap-3 mb-3">
+            <div class="p-4 border-t border-slate-100">
+                <div class="bg-slate-50 rounded-2xl p-4">
+                    <div class="flex items-center gap-3">
                         <div
-                            class="w-10 h-10 rounded-full bg-indigo-500 flex items-center justify-center text-white font-bold">
-                            {{ strtoupper(substr(auth()->user()->name, 0, 2)) }}
+                            class="w-10 h-10 rounded-full bg-indigo-500 flex items-center justify-center text-white font-bold shadow-sm">
+                            {{ mb_strtoupper(mb_substr(auth()->user()->name, 0, 2, 'UTF-8'), 'UTF-8') }}
                         </div>
-                        <div class="flex-1 overflow-hidden">
+                        <div class="flex-1 min-w-0">
                             <p class="text-sm font-bold text-slate-900 truncate">{{ auth()->user()->name }}</p>
-                            <p class="text-[10px] text-slate-400 uppercase">{{ auth()->user()->role }}</p>
+                            <p class="text-[10px] text-slate-400 uppercase truncate">{{ auth()->user()->role }}</p>
                         </div>
                     </div>
+                    <form action="{{ route('logout') }}" method="POST" class="mt-3">
+                        @csrf
+                        <button type="submit"
+                            class="w-full text-xs font-bold text-slate-500 hover:text-indigo-600 text-left px-2 py-1 transition-colors flex items-center gap-2">
+                            <span class="material-symbols-outlined text-[16px]">logout</span>
+                            Đăng xuất
+                        </button>
+                    </form>
                 </div>
-                <form action="{{ route('logout') }}" method="POST">
-                    @csrf
-                    <button type="submit"
-                        class="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 transition-colors text-sm font-bold text-slate-600">
-                        <span class="material-symbols-outlined text-lg">logout</span>
-                        <span>Đăng xuất</span>
-                    </button>
-                </form>
             </div>
         </aside>
 
@@ -231,25 +260,17 @@
                         <span class="material-symbols-outlined text-sm">print</span>
                         In
                     </button>
-                    <!-- Grid Entry Button -->
-                    <!-- <a href="{{ route('admin.grid-entry', ['month' => $selectedMonth]) }}"
-                        class="px-3 py-2 bg-indigo-500 text-white rounded-2xl hover:bg-indigo-600 flex items-center gap-2 transition-colors shadow-sm whitespace-nowrap"
-                        title="Nhập liệu nhanh dạng lưới">
-                        <span class="material-symbols-outlined text-sm">grid_on</span>
-                        Nhập dữ liệu cũ
-                    </a> -->
-                    <a href="{{ route('admin.consolidated.export', ['month' => $selectedMonth]) }}"
+                    <button onclick="exportContextExcel()"
                         class="px-3 py-2 bg-emerald-600 text-white rounded-2xl hover:bg-emerald-700 flex items-center gap-2 transition-colors shadow-sm whitespace-nowrap">
+                        <span class="material-symbols-outlined text-sm">download</span>
+                        Xuất Excel
+                    </button>
+                    <a href="{{ route('admin.consolidated.export', ['month' => $selectedMonth]) }}"
+                        class="px-3 py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-2xl hover:bg-emerald-100 flex items-center gap-2 transition-colors shadow-sm whitespace-nowrap"
+                        title="Xuất tất cả dữ liệu ra 1 file nhiều sheets">
                         <span class="material-symbols-outlined text-sm">table_chart</span>
-                        Excel
+                        Tải File Tổng
                     </a>
-                    <!-- Historical Export Button -->
-                    <!-- <a href="{{ route('admin.consolidated.export-historical', ['month' => $selectedMonth]) }}"
-                        class="px-3 py-2 bg-cyan-600 text-white rounded-2xl hover:bg-cyan-700 flex items-center gap-2 transition-colors shadow-sm whitespace-nowrap"
-                        title="Xuất Excel đa sheet cho quá khứ">
-                        <span class="material-symbols-outlined text-sm">history</span>
-                        Xuất Excel Quá Khứ
-                    </a> -->
                     <button onclick="exportToPDF()"
                         class="px-3 py-2 bg-amber-500 text-white rounded-2xl hover:bg-amber-600 flex items-center gap-2 transition-colors shadow-sm whitespace-nowrap">
                         <span class="material-symbols-outlined text-sm">picture_as_pdf</span>
@@ -288,18 +309,18 @@
                                 class="w-full pl-3 pr-10 py-2 border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white">
                                 <option value="">-- Tất cả sản phẩm --</option>
                                 @php
-                                    $allUniqueProducts = collect();
-                                    foreach ($products as $catProducts) {
-                                        foreach ($catProducts as $p) {
-                                            if ($p->monthlyOrders->where('month', $selectedMonth)->sum('quantity') > 0) {
-                                                $allUniqueProducts->push($p->name);
-                                            }
-                                        }
-                                    }
-                                    $allUniqueProducts = $allUniqueProducts->unique()->sort();
+                                $allUniqueProducts = collect();
+                                foreach ($products as $catProducts) {
+                                foreach ($catProducts as $p) {
+                                if ($p->monthlyOrders->where('month', $selectedMonth)->sum('quantity') > 0) {
+                                $allUniqueProducts->push($p->name);
+                                }
+                                }
+                                }
+                                $allUniqueProducts = $allUniqueProducts->unique()->sort();
                                 @endphp
                                 @foreach($allUniqueProducts as $productName)
-                                    <option value="{{ $productName }}">{{ $productName }}</option>
+                                <option value="{{ $productName }}">{{ $productName }}</option>
                                 @endforeach
                             </select>
                             <div
@@ -309,14 +330,15 @@
                         </div>
                     </div>
 
-                    <table class="excel-table" id="tableBangTong">
+                    <table class="excel-table" id="tableBangTong" x-data="consolidatedApp()">
                         <thead>
                             <tr>
                                 <th style="width: 40px;">STT</th>
                                 <th style="width: 250px;">TÊN HÀNG</th>
                                 <th style="width: 80px;">ĐVT</th>
                                 @foreach($departments as $dept)
-                                    <th style="width: 100px; background: #d4edda;">{{ strtoupper($dept->name) }}</th>
+                                <th style="width: 100px; background: #d4edda;">{{ mb_strtoupper($dept->name, 'UTF-8') }}
+                                </th>
                                 @endforeach
                                 <th style="width: 120px; background: #fff3cd;">Tổng SL</th>
                             </tr>
@@ -324,43 +346,51 @@
                         <tbody>
                             @php $stt = 0; @endphp
                             @foreach($categories as $category)
-                                @if(isset($products[$category->id]) && $products[$category->id]->count() > 0)
-                                    <!-- Category Header -->
-                                    <tr class="category-header">
-                                        <td colspan="{{ 4 + $departments->count() }}">{{ strtoupper($category->name) }}</td>
-                                    </tr>
+                            @if(isset($products[$category->id]) && $products[$category->id]->count() > 0)
+                            <!-- Category Header -->
+                            <tr class="category-header">
+                                <td colspan="{{ 4 + $departments->count() }}">{{ mb_strtoupper($category->name, 'UTF-8')
+                                    }}</td>
+                            </tr>
 
-                                    <!-- Products -->
-                                    @foreach($products[$category->id] as $product)
-                                        @php
-                                            $stt++;
-                                            // Correctly filter orders for this month only
-                                            $monthlyOrders = $product->monthlyOrders->where('month', $selectedMonth);
-                                            $hasOrders = $monthlyOrders->sum('quantity') > 0;
-                                            $totalQuantity = 0;
-                                        @endphp
-                                        @if($hasOrders)
-                                            <tr>
-                                                <td class="text-center text-gray-600">{{ $stt }}</td>
-                                                <td class="font-medium">{{ $product->name }}</td>
-                                                <td class="text-center">{{ $product->unit }}</td>
-                                                @foreach($departments as $dept)
-                                                    @php
-                                                        $order = $monthlyOrders->firstWhere('department_id', $dept->id);
-                                                        $quantity = $order ? $order->quantity : 0;
-                                                        $totalQuantity += $quantity;
-                                                    @endphp
-                                                    <td class="text-right {{ $quantity > 0 ? 'font-semibold' : 'text-gray-400' }}">
-                                                        {{ $quantity > 0 ? number_format($quantity, 0, ',', '.') : '' }}
-                                                    </td>
-                                                @endforeach
-                                                <td class="text-right font-semibold" style="background: #fff3cd;">
-                                                    {{ number_format($totalQuantity, 0, ',', '.') }}
-                                                </td>
-                                            </tr>
-                                        @endif
-                                    @endforeach
-                                @endif
+                            <!-- Products -->
+                            @foreach($products[$category->id] as $product)
+                            @php
+                            $stt++;
+                            // Correctly filter orders for this month only
+                            $monthlyOrders = $product->monthlyOrders->where('month', $selectedMonth);
+                            $hasOrders = $monthlyOrders->sum('quantity') > 0;
+                            $totalQuantity = 0;
+                            @endphp
+                            @if($hasOrders)
+                            <tr>
+                                <td class="text-center text-gray-600">{{ $stt }}</td>
+                                <td class="font-medium">{{ $product->name }}</td>
+                                <td class="text-center">{{ $product->unit }}</td>
+                                @foreach($departments as $dept)
+                                @php
+                                $order = $monthlyOrders->firstWhere('department_id', $dept->id);
+                                $quantity = $order ? $order->quantity : 0;
+                                $totalQuantity += $quantity;
+                                @endphp
+                                <td class="relative p-0 h-full">
+                                    <input type="text" value="{{ $quantity > 0 ? ($quantity + 0) : '' }}"
+                                        @change="saveQuantity($event, '{{ $product->id }}', '{{ $dept->id }}')"
+                                        class="cell-input {{ $quantity > 0 ? 'text-slate-900 font-semibold' : 'text-gray-400' }}"
+                                        placeholder="">
+                                    <div class="saving-indicator hidden">
+                                        <span
+                                            class="material-symbols-outlined text-[14px] text-emerald-500">check_circle</span>
+                                    </div>
+                                </td>
+                                @endforeach
+                                <td class="text-right font-semibold" style="background: #fff3cd;">
+                                    {{ number_format($totalQuantity, 0, ',', '.') }}
+                                </td>
+                            </tr>
+                            @endif
+                            @endforeach
+                            @endif
                             @endforeach
                         </tbody>
                         <tfoot>
@@ -368,18 +398,20 @@
                                 <td colspan="3" class="text-right">TỔNG CỘNG SỐ LƯỢNG:</td>
                                 @php $overallQty = 0; @endphp
                                 @foreach($departments as $dept)
-                                    @php 
-                                        $deptQty = 0;
-                                        foreach($categories as $cat) {
-                                            if(isset($products[$cat->id])) {
-                                                foreach($products[$cat->id] as $p) {
-                                                    $deptQty += $p->monthlyOrders->where('month', $selectedMonth)->where('department_id', $dept->id)->sum('quantity');
-                                                }
-                                            }
-                                        }
-                                        $overallQty += $deptQty;
-                                    @endphp
-                                    <td class="text-right">{{ $deptQty > 0 ? number_format($deptQty, 0, ',', '.') : '' }}</td>
+                                @php
+                                $deptQty = 0;
+                                foreach($categories as $cat) {
+                                if(isset($products[$cat->id])) {
+                                foreach($products[$cat->id] as $p) {
+                                $deptQty += $p->monthlyOrders->where('month', $selectedMonth)->where('department_id',
+                                $dept->id)->sum('quantity');
+                                }
+                                }
+                                }
+                                $overallQty += $deptQty;
+                                @endphp
+                                <td class="text-right">{{ $deptQty > 0 ? number_format($deptQty, 0, ',', '.') : '' }}
+                                </td>
                                 @endforeach
                                 <td class="text-right">{{ number_format($overallQty, 0, ',', '.') }}</td>
                             </tr>
@@ -513,111 +545,113 @@
                         <tbody>
                             @php $stt = 0; @endphp
                             @foreach($categories as $category)
-                                @if(isset($products[$category->id]) && $products[$category->id]->count() > 0)
-                                    <!-- Category Header -->
-                                    <tr class="category-header">
-                                        <td colspan="7">{{ strtoupper($category->name) }}</td>
-                                    </tr>
+                            @if(isset($products[$category->id]) && $products[$category->id]->count() > 0)
+                            <!-- Category Header -->
+                            <tr class="category-header">
+                                <td colspan="7">{{ mb_strtoupper($category->name, 'UTF-8') }}</td>
+                            </tr>
 
-                                    <!-- Products -->
-                                    @foreach($products[$category->id] as $product)
-                                        @php
-                                            $stt++;
-                                            // Correctly filter orders for this month only
-                                            $monthlyOrders = $product->monthlyOrders->where('month', $selectedMonth);
-                                            $hasOrders = $monthlyOrders->sum('quantity') > 0;
-                                            $totalQuantity = 0;
-                                            $totalAmount = 0;
-                                        @endphp
-                                        @if($hasOrders)
-                                            <tr>
-                                                <td class="text-center font-medium pdf-stt-cell">{{ $stt }}</td>
-                                                <td class="font-medium px-4">{{ $product->name }}</td>
-                                                <td class="text-center">{{ $product->unit }}</td>
-                                                @php
-                                                    foreach ($departments as $dept) {
-                                                        $order = $monthlyOrders->firstWhere('department_id', $dept->id);
-                                                        $quantity = $order ? $order->quantity : 0;
-                                                        $totalQuantity += $quantity;
-                                                    }
-                                                    $totalAmount = $totalQuantity * $product->price;
-                                                @endphp
-                                                <td class="text-right font-bold">{{ number_format($totalQuantity, 0, ',', '.') }}
-                                                </td>
-                                                <td class="text-right">{{ number_format($product->price, 0, ',', '.') }}</td>
-                                                <td class="text-right font-bold text-red-600">
-                                                    {{ number_format($totalAmount, 0, ',', '.') }}
-                                                </td>
-                                                <td class="px-2 py-1 pdf-hide"
-                                                    x-data="smartNote('{{ $product->id }}', '{{ $selectedMonth }}', {{ \Illuminate\Support\Js::from($product->monthlyOrders->first()->admin_notes ?? '') }})">
-                                                    <div class="relative" @click.away="dropdownOpen = false">
-                                                        <div class="relative group">
-                                                            <input type="text" x-model="note" @focus="dropdownOpen = true"
-                                                                :style="{ backgroundColor: bgColor }"
-                                                                class="w-full border-gray-300 rounded text-sm px-2 py-1 transition-all pr-8"
-                                                                placeholder="Nhập ghi chú...">
+                            <!-- Products -->
+                            @foreach($products[$category->id] as $product)
+                            @php
+                            $stt++;
+                            // Correctly filter orders for this month only
+                            $monthlyOrders = $product->monthlyOrders->where('month', $selectedMonth);
+                            $hasOrders = $monthlyOrders->sum('quantity') > 0;
+                            $totalQuantity = 0;
+                            $totalAmount = 0;
+                            @endphp
+                            @if($hasOrders)
+                            <tr>
+                                <td class="text-center font-medium pdf-stt-cell">{{ $stt }}</td>
+                                <td class="font-medium px-4">{{ $product->name }}</td>
+                                <td class="text-center">{{ $product->unit }}</td>
+                                @php
+                                foreach ($departments as $dept) {
+                                $order = $monthlyOrders->firstWhere('department_id', $dept->id);
+                                $quantity = $order ? $order->quantity : 0;
+                                $totalQuantity += $quantity;
+                                }
+                                $totalAmount = $totalQuantity * $product->price;
+                                @endphp
+                                <td class="text-right font-bold">{{ number_format($totalQuantity, 0, ',', '.') }}
+                                </td>
+                                <td class="text-right">{{ number_format($product->price, 0, ',', '.') }}</td>
+                                <td class="text-right font-bold text-red-600">
+                                    {{ number_format($totalAmount, 0, ',', '.') }}
+                                </td>
+                                <td class="px-2 py-1 pdf-hide"
+                                    x-data="smartNote('{{ $product->id }}', '{{ $selectedMonth }}', {{ \Illuminate\Support\Js::from($product->monthlyOrders->first()->admin_notes ?? '') }})">
+                                    <div class="relative" @click.away="dropdownOpen = false">
+                                        <div class="relative group">
+                                            <input type="text" x-model="note" @focus="dropdownOpen = true"
+                                                :style="{ backgroundColor: bgColor }"
+                                                class="w-full border-gray-300 rounded text-sm px-2 py-1 transition-all pr-8"
+                                                placeholder="Nhập ghi chú...">
 
-                                                            <div class="absolute right-2 top-1/2 -translate-y-1/2">
-                                                                <template x-if="saving">
-                                                                    <span
-                                                                        class="material-symbols-outlined text-[16px] text-blue-500 animate-spin">sync</span>
-                                                                </template>
-                                                                <template x-if="!saving">
-                                                                    <span
-                                                                        class="material-symbols-outlined text-[16px] text-gray-300 group-hover:text-blue-500 transition-colors cursor-pointer"
-                                                                        @click="dropdownOpen = !dropdownOpen">expand_more</span>
-                                                                </template>
-                                                            </div>
-                                                        </div>
+                                            <div class="absolute right-2 top-1/2 -translate-y-1/2">
+                                                <template x-if="saving">
+                                                    <span
+                                                        class="material-symbols-outlined text-[16px] text-blue-500 animate-spin">sync</span>
+                                                </template>
+                                                <template x-if="!saving">
+                                                    <span
+                                                        class="material-symbols-outlined text-[16px] text-gray-300 group-hover:text-blue-500 transition-colors cursor-pointer"
+                                                        @click="dropdownOpen = !dropdownOpen">expand_more</span>
+                                                </template>
+                                            </div>
+                                        </div>
 
-                                                        <!-- Suggestions Dropdown -->
-                                                        <div x-show="dropdownOpen" x-transition
-                                                            class="absolute z-50 mt-1 w-full bg-white border shadow-xl rounded-lg p-2 min-w-[200px]">
-                                                            <div class="flex flex-wrap gap-1">
-                                                                <template x-for="(sug, index) in suggestions" :key="index">
-                                                                    <button @click="addSuggestion(sug); dropdownOpen = false"
-                                                                        type="button"
-                                                                        class="px-2 py-1 rounded text-[10px] font-bold border transition-all hover:bg-gray-100"
-                                                                        :class="getChipClass(index)" x-text="sug">
-                                                                    </button>
-                                                                </template>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </td>
-                                        @endif
-                                    @endforeach
-
-                                        <!-- Category Total -->
-                                    <tr class="category-total">
-                                        <td colspan="5" class="text-right">Cộng:</td>
-                                        @php
-                                            $catTotalAmount = 0;
-                                            foreach($products[$category->id] as $p) {
-                                                $catTotalAmount += $p->monthlyOrders->where('month', $selectedMonth)->sum('quantity') * $p->price;
-                                            }
-                                        @endphp
-                                        <td class="text-right font-bold text-red-600">
-                                            {{ number_format($catTotalAmount, 0, ',', '.') }}
-                                        </td>
-                                    </tr>
+                                        <!-- Suggestions Dropdown -->
+                                        <div x-show="dropdownOpen" x-transition
+                                            class="absolute z-50 mt-1 w-full bg-white border shadow-xl rounded-lg p-2 min-w-[200px]">
+                                            <div class="flex flex-wrap gap-1">
+                                                <template x-for="(sug, index) in suggestions" :key="index">
+                                                    <button @click="addSuggestion(sug); dropdownOpen = false"
+                                                        type="button"
+                                                        class="px-2 py-1 rounded text-[10px] font-bold border transition-all hover:bg-gray-100"
+                                                        :class="getChipClass(index)" x-text="sug">
+                                                    </button>
+                                                </template>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </td>
                                 @endif
+                                @endforeach
+
+                                <!-- Category Total -->
+                            <tr class="category-total">
+                                <td colspan="5" class="text-right">Cộng:</td>
+                                @php
+                                $catTotalAmount = 0;
+                                foreach($products[$category->id] as $p) {
+                                $catTotalAmount += $p->monthlyOrders->where('month', $selectedMonth)->sum('quantity') *
+                                $p->price;
+                                }
+                                @endphp
+                                <td class="text-right font-bold text-red-600">
+                                    {{ number_format($catTotalAmount, 0, ',', '.') }}
+                                </td>
+                            </tr>
+                            @endif
                             @endforeach
 
                             <!-- Total Quantity Row -->
-                            @php 
-                                $totalOverallQty = 0;
-                                foreach($categories as $cat) {
-                                    if(isset($products[$cat->id])) {
-                                        foreach($products[$cat->id] as $p) {
-                                            $totalOverallQty += $p->monthlyOrders->where('month', $selectedMonth)->sum('quantity');
-                                        }
-                                    }
-                                }
+                            @php
+                            $totalOverallQty = 0;
+                            foreach($categories as $cat) {
+                            if(isset($products[$cat->id])) {
+                            foreach($products[$cat->id] as $p) {
+                            $totalOverallQty += $p->monthlyOrders->where('month', $selectedMonth)->sum('quantity');
+                            }
+                            }
+                            }
                             @endphp
                             <tr class="category-total bg-amber-50">
                                 <td colspan="3" class="text-right font-bold">TỔNG CỘNG SỐ LƯỢNG:</td>
-                                <td class="text-right font-extrabold text-blue-700">{{ number_format($totalOverallQty, 0, ',', '.') }}</td>
+                                <td class="text-right font-extrabold text-blue-700">{{ number_format($totalOverallQty,
+                                    0, ',', '.') }}</td>
                                 <td colspan="2"></td>
                             </tr>
 
@@ -786,6 +820,28 @@
             XLSX.writeFile(wb, 'Tong_hop_VPP_{{ $selectedMonth }}.xlsx');
         }
 
+        function getContextUrl(baseUrl) {
+            const activeTab = localStorage.getItem('active_consolidated_tab') || 'bang-tong';
+            let url = baseUrl + "?month=" + encodeURIComponent("{{ $selectedMonth }}");
+
+            if (activeTab === 'bang-tong') {
+                url += "&tabType=bang_tong";
+            } else if (activeTab === 'tong-hop') {
+                url += "&tabType=tong_hop";
+            } else if (activeTab === 'phieu-xuat-kho') {
+                url += "&tabType=phieu_xuat_kho";
+                const selectElement = document.querySelector('select[x-model="selectedDeptId"]');
+                if (selectElement) {
+                    url += "&deptId=" + encodeURIComponent(selectElement.value);
+                }
+            }
+            return url;
+        }
+
+        function exportContextExcel() {
+            window.location.href = getContextUrl("{{ route('admin.consolidated.export-single') }}");
+        }
+
         function docSoThanhChu(number) {
             const chuSo = ["không", "một", "hai", "ba", "bốn", "năm", "sáu", "bảy", "tám", "chín"];
             const docBlock = (number) => {
@@ -820,7 +876,8 @@
 
         async function exportToPDF() {
             const month = "{{ $selectedMonth }}";
-            const printUrl = "{{ route('admin.consolidated.print') }}?month=" + encodeURIComponent(month);
+            const printUrl = getContextUrl("{{ route('admin.consolidated.print') }}");
+            const activeTab = localStorage.getItem('active_consolidated_tab') || 'bang-tong';
 
             // Show loading state
             const btn = event.currentTarget;
@@ -858,14 +915,14 @@
 
                 const opt = {
                     margin: [0.2, 0.2, 0.2, 0.2],
-                    filename: 'Tong_hop_VPP_' + month.replace('/', '_') + '.pdf',
+                    filename: 'In_VPP_' + month.replace('/', '_') + '.pdf',
                     image: { type: 'jpeg', quality: 0.98 },
                     html2canvas: {
                         scale: 2,
                         useCORS: true,
                         letterRendering: true
                     },
-                    jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' },
+                    jsPDF: { unit: 'in', format: 'a4', orientation: activeTab === 'bang-tong' ? 'landscape' : 'portrait' },
                     pagebreak: { mode: ['css', 'legacy'] }
                 };
 
@@ -881,8 +938,7 @@
         }
 
         function printDirect() {
-            const month = "{{ $selectedMonth }}";
-            const printUrl = "{{ route('admin.consolidated.print') }}?month=" + encodeURIComponent(month);
+            const printUrl = getContextUrl("{{ route('admin.consolidated.print') }}");
 
             const printFrame = document.getElementById('printFrame');
 
@@ -1050,57 +1106,106 @@
     </script>
 
     @php
-        $jsonDepartments = $departments->map(function ($dept) {
-            return [
-                'id' => $dept->id,
-                'name' => $dept->name
-            ];
-        });
+    $jsonDepartments = $departments->map(function ($dept) {
+    return [
+    'id' => $dept->id,
+    'name' => $dept->name
+    ];
+    });
 
-        $deptData = [];
-        foreach ($departments as $dept) {
-            $deptCats = [];
-            foreach ($categories as $cat) {
-                $catProducts = [];
-                if (isset($products[$cat->id])) {
-                    foreach ($products[$cat->id] as $product) {
-                        // AGGREGATE orders for CURRENT MONTH AND THIS DEPARTMENT (matching aggregated import)
-                        $matchingOrders = $product->monthlyOrders
-                            ->where('department_id', $dept->id)
-                            ->where('month', $selectedMonth);
+    $deptData = [];
+    foreach ($departments as $dept) {
+    $deptCats = [];
+    foreach ($categories as $cat) {
+    $catProducts = [];
+    if (isset($products[$cat->id])) {
+    foreach ($products[$cat->id] as $product) {
+    // AGGREGATE orders for CURRENT MONTH AND THIS DEPARTMENT (matching aggregated import)
+    $matchingOrders = $product->monthlyOrders
+    ->where('department_id', $dept->id)
+    ->where('month', $selectedMonth);
 
-                        $totalQty = $matchingOrders->sum('quantity');
+    $totalQty = $matchingOrders->sum('quantity');
 
-                        if ($totalQty > 0) {
-                            $catProducts[] = [
-                                'id' => $product->id,
-                                'name' => $product->name,
-                                'unit' => $product->unit,
-                                'quantity' => $totalQty,
-                                'price' => $product->price,
-                                'total' => $totalQty * $product->price,
-                                'note' => $matchingOrders->pluck('notes')->filter()->implode('; ')
-                            ];
-                        }
-                    }
-                }
-                if (count($catProducts) > 0) {
-                    // Map category names to include Supplier
-                    $displayName = $cat->name;
+    if ($totalQty > 0) {
+    $catProducts[] = [
+    'id' => $product->id,
+    'name' => $product->name,
+    'unit' => $product->unit,
+    'quantity' => $totalQty,
+    'price' => $product->price,
+    'total' => $totalQty * $product->price,
+    'note' => $matchingOrders->pluck('notes')->filter()->implode('; ')
+    ];
+    }
+    }
+    }
+    if (count($catProducts) > 0) {
+    // Map category names to include Supplier
+    $displayName = $cat->name;
 
-                    $deptCats[] = [
-                        'id' => $cat->id,
-                        'name' => $displayName,
-                        'products' => $catProducts,
-                        'total' => array_sum(array_column($catProducts, 'total'))
-                    ];
-                }
-            }
-            $deptData[$dept->id] = $deptCats;
-        }
+    $deptCats[] = [
+    'id' => $cat->id,
+    'name' => $displayName,
+    'products' => $catProducts,
+    'total' => array_sum(array_column($catProducts, 'total'))
+    ];
+    }
+    }
+    $deptData[$dept->id] = $deptCats;
+    }
     @endphp
 
     <script>
+        function consolidatedApp() {
+            return {
+                saveQuantity(event, productId, deptId) {
+                    let input = event.target;
+                    let value = input.value;
+                    let cell = input.closest('td');
+                    let indicator = cell.querySelector('.saving-indicator');
+
+                    input.classList.add('bg-indigo-50');
+
+                    fetch('{{ route("admin.consolidated.update-quantity") }}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                        },
+                        body: JSON.stringify({
+                            product_id: productId,
+                            department_id: deptId,
+                            month: '{{ $selectedMonth }}',
+                            quantity: value
+                        })
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                if (value > 0) {
+                                    input.classList.remove('text-gray-400');
+                                    input.classList.add('text-slate-900', 'font-semibold');
+                                } else {
+                                    input.classList.remove('text-slate-900', 'font-semibold');
+                                    input.classList.add('text-gray-400');
+                                }
+                                indicator.classList.remove('hidden');
+                                setTimeout(() => {
+                                    indicator.classList.add('hidden');
+                                    input.classList.remove('bg-indigo-50');
+                                }, 1000);
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            input.classList.add('bg-red-50');
+                            alert('Lỗi lưu dữ liệu. Vui lòng thử lại.');
+                        });
+                }
+            }
+        }
+
         document.addEventListener('alpine:init', () => {
             Alpine.data('stockIssueApp', () => ({
                 departments: @json($jsonDepartments),

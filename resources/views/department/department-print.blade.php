@@ -1,57 +1,57 @@
 @php
-    function docSoThanhChu($number) {
-        $number = (int) round($number);
-        $chuSo  = ['không', 'một', 'hai', 'ba', 'bốn', 'năm', 'sáu', 'bảy', 'tám', 'chín'];
+function docSoThanhChu($number) {
+$number = (int) round($number);
+$chuSo = ['không', 'một', 'hai', 'ba', 'bốn', 'năm', 'sáu', 'bảy', 'tám', 'chín'];
 
-        $docBlock = function (int $n) use ($chuSo): string {
-            $tram  = intdiv($n, 100);
-            $chuc  = intdiv($n % 100, 10);
-            $donvi = $n % 10;
-            $res   = '';
+$docBlock = function (int $n) use ($chuSo): string {
+$tram = intdiv($n, 100);
+$chuc = intdiv($n % 100, 10);
+$donvi = $n % 10;
+$res = '';
 
-            if ($tram > 0) {
-                $res .= $chuSo[$tram] . ' trăm ';
-            }
+if ($tram > 0) {
+$res .= $chuSo[$tram] . ' trăm ';
+}
 
-            if ($chuc > 1) {
-                $res .= $chuSo[$chuc] . ' mươi ';
-            } elseif ($chuc === 1) {
-                $res .= 'mười ';
-            } elseif ($tram > 0 && $donvi > 0) {
-                $res .= 'lẻ ';
-            }
+if ($chuc > 1) {
+$res .= $chuSo[$chuc] . ' mươi ';
+} elseif ($chuc === 1) {
+$res .= 'mười ';
+} elseif ($tram > 0 && $donvi > 0) {
+$res .= 'lẻ ';
+}
 
-            if ($donvi === 5 && $chuc >= 1) {
-                $res .= 'lăm';
-            } elseif ($donvi === 1 && $chuc > 0) {
-                $res .= 'mốt';
-            } elseif ($donvi > 0) {
-                $res .= $chuSo[$donvi];
-            }
+if ($donvi === 5 && $chuc >= 1) {
+$res .= 'lăm';
+} elseif ($donvi === 1 && $chuc > 0) {
+$res .= 'mốt';
+} elseif ($donvi > 0) {
+$res .= $chuSo[$donvi];
+}
 
-            return $res;
-        };
+return $res;
+};
 
-        $hangDonVi = ['', ' nghìn', ' triệu', ' tỷ', ' nghìn tỷ', ' triệu tỷ'];
+$hangDonVi = ['', ' nghìn', ' triệu', ' tỷ', ' nghìn tỷ', ' triệu tỷ'];
 
-        if ($number === 0) return 'Không đồng';
+if ($number === 0) return 'Không đồng';
 
-        $res = '';
-        $i   = 0;
-        $num = $number;
+$res = '';
+$i = 0;
+$num = $number;
 
-        do {
-            $block = $num % 1000;
-            if ($block > 0) {
-                $s   = $docBlock($block);
-                $res = trim($s) . $hangDonVi[$i] . ($res !== '' ? ' ' : '') . $res;
-            }
-            $i++;
-            $num = intdiv($num, 1000);
-        } while ($num > 0);
+do {
+$block = $num % 1000;
+if ($block > 0) {
+$s = $docBlock($block);
+$res = trim($s) . $hangDonVi[$i] . ($res !== '' ? ' ' : '') . $res;
+}
+$i++;
+$num = intdiv($num, 1000);
+} while ($num > 0);
 
-        return ucfirst(trim($res)) . ' đồng./.';
-    }
+return ucfirst(trim($res)) . ' đồng./.';
+}
 @endphp
 <!DOCTYPE html>
 <html lang="vi">
@@ -91,30 +91,57 @@
 
             @page {
                 size: A4 portrait;
-                margin: 0; /* Removing margin hides browser headers/footers */
+                margin: 0;
+                /* Removing margin hides browser headers/footers */
             }
 
             .page {
-                margin: 20mm 15mm 20mm 15mm; /* Add margin back to content */
+                margin: 20mm 15mm 20mm 15mm;
+                /* Add margin back to content */
                 border: none;
                 width: auto;
                 min-height: auto;
                 padding: 0 !important;
                 page-break-after: always;
             }
-            
-            thead { display: table-header-group; }
-            tfoot { display: table-footer-group; }
-            tr { page-break-inside: avoid; }
+
+            thead {
+                display: table-header-group;
+            }
+
+            tfoot {
+                display: table-footer-group;
+            }
+
+            tr {
+                page-break-inside: avoid;
+            }
         }
 
         /* Common Styles */
-        .text-center { text-align: center; }
-        .text-right { text-align: right; }
-        .text-left { text-align: left; }
-        .font-bold { font-weight: bold; }
-        .italic { font-style: italic; }
-        .uppercase { text-transform: uppercase; }
+        .text-center {
+            text-align: center;
+        }
+
+        .text-right {
+            text-align: right;
+        }
+
+        .text-left {
+            text-align: left;
+        }
+
+        .font-bold {
+            font-weight: bold;
+        }
+
+        .italic {
+            font-style: italic;
+        }
+
+        .uppercase {
+            text-transform: uppercase;
+        }
 
         table {
             width: 100%;
@@ -122,7 +149,8 @@
             margin: 10px 0;
         }
 
-        th, td {
+        th,
+        td {
             border: 1px solid black;
             padding: 4px 6px;
             font-size: 11pt;
@@ -169,7 +197,8 @@
             margin-bottom: 5px;
         }
 
-        .company-info p, .national-info p {
+        .company-info p,
+        .national-info p {
             margin: 2px 0;
             font-size: 11pt;
         }
@@ -177,10 +206,10 @@
         .national-info {
             text-align: center;
         }
-        
+
         .title-section {
-             margin: 10px 0;
-             text-align: center;
+            margin: 10px 0;
+            text-align: center;
         }
 
         /* Signatures */
@@ -223,18 +252,20 @@
             <div class="national-info">
                 <p class="font-bold uppercase">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</p>
                 <p class="font-bold">Độc lập - Tự do - Hạnh phúc</p>
-                <p class="italic" style="margin-top: 5px;">Đồng Tháp, ngày {{ date('d') }} tháng {{ date('m') }} năm {{ date('Y') }}</p>
+                <p class="italic" style="margin-top: 5px;">Đồng Tháp, ngày {{ date('d') }} tháng {{ date('m') }} năm {{
+                    date('Y') }}</p>
             </div>
         </div>
 
         <div class="title-section">
-            <p class="font-bold" style="font-size: 16pt; text-transform: uppercase;">PHIẾU DỰ TRÙ VĂN PHÒNG PHẨM - VTTH</p>
+            <p class="font-bold" style="font-size: 16pt; text-transform: uppercase;">PHIẾU DỰ TRÙ VĂN PHÒNG PHẨM - VTTH
+            </p>
             <p class="font-bold">Tháng {{ $selectedMonth }}</p>
         </div>
 
         <div style="margin: 10px 0;">
-             <p>Kính gửi: Ban Giám đốc, Phòng Tài chính Kế toán, Bộ phận Hỗ trợ dịch vụ.</p>
-             <p>Căn cứ nhu cầu sử dụng thực tế, {{ $department->name }} đề nghị cấp các vật tư sau:</p>
+            <p>Kính gửi: Ban Giám đốc, Phòng Tài chính Kế toán, Bộ phận Hỗ trợ dịch vụ.</p>
+            <p>Căn cứ nhu cầu sử dụng thực tế, {{ $department->name }} đề nghị cấp các vật tư sau:</p>
         </div>
 
         <table>
@@ -247,52 +278,52 @@
                     <th style="width: 100px;">Đơn giá</th>
                     <th style="width: 120px;">Thành tiền</th>
                     <th style="width: 150px;">Ghi chú</th>
-                    <th style="width: 150px;">Phản hồi</th>
+                    <!-- <th style="width: 150px;">Phản hồi</th> -->
                 </tr>
             </thead>
             <tbody>
-                @php 
-                    $stt = 0; 
-                    $grandTotal = 0;
+                @php
+                $stt = 0;
+                $grandTotal = 0;
                 @endphp
                 @foreach($orders as $categoryName => $categoryOrders)
-                    @php
-                        $catTotal = 0;
-                        foreach($categoryOrders as $o) {
-                            $catTotal += $o->quantity * $o->product->price;
-                        }
-                        $grandTotal += $catTotal;
-                    @endphp
-                    
-                    <tr class="bg-blue-header">
-                        <td colspan="8" class="font-bold text-left pl-2">{{ $categoryName }}</td>
-                    </tr>
-                    
-                    @foreach($categoryOrders as $order)
-                        @php 
-                            $stt++;
-                            $itemTotal = $order->quantity * $order->product->price;
-                        @endphp
-                        <tr>
-                            <td class="text-center">{{ $stt }}</td>
-                            <td>{{ $order->product->name }}</td>
-                            <td class="text-center">{{ $order->product->unit }}</td>
-                            <td class="text-right">{{ number_format($order->quantity, 0, ',', '.') }}</td>
-                            <td class="text-right">{{ number_format($order->product->price, 0, ',', '.') }}</td>
-                            <td class="text-right font-bold">{{ number_format($itemTotal, 0, ',', '.') }}</td>
-                            <td>{{ $order->notes }}</td>
-                            <td>{{ $order->admin_notes }}</td>
-                        </tr>
-                    @endforeach
-                    
-                    <!-- Category Subtotal -->
-                    <tr class="bg-subtotal">
-                        <td colspan="5" class="text-right font-bold pr-2">Cộng:</td>
-                        <td class="text-right font-bold pr-2 text-red-600">{{ number_format($catTotal, 0, ',', '.') }}</td>
-                        <td colspan="2"></td>
-                    </tr>
+                @php
+                $catTotal = 0;
+                foreach($categoryOrders as $o) {
+                $catTotal += $o->quantity * $o->product->price;
+                }
+                $grandTotal += $catTotal;
+                @endphp
+
+                <tr class="bg-blue-header">
+                    <td colspan="8" class="font-bold text-left pl-2">{{ $categoryName }}</td>
+                </tr>
+
+                @foreach($categoryOrders as $order)
+                @php
+                $stt++;
+                $itemTotal = $order->quantity * $order->product->price;
+                @endphp
+                <tr>
+                    <td class="text-center">{{ $stt }}</td>
+                    <td>{{ $order->product->name }}</td>
+                    <td class="text-center">{{ $order->product->unit }}</td>
+                    <td class="text-right">{{ number_format($order->quantity, 0, ',', '.') }}</td>
+                    <td class="text-right">{{ number_format($order->product->price, 0, ',', '.') }}</td>
+                    <td class="text-right font-bold">{{ number_format($itemTotal, 0, ',', '.') }}</td>
+                    <td>{{ $order->notes }}</td>
+                    <!-- <td>{{ $order->admin_notes }}</td> -->
+                </tr>
                 @endforeach
-                
+
+                <!-- Category Subtotal -->
+                <tr class="bg-subtotal">
+                    <td colspan="5" class="text-right font-bold pr-2">Cộng:</td>
+                    <td class="text-right font-bold pr-2 text-red-600">{{ number_format($catTotal, 0, ',', '.') }}</td>
+                    <td colspan="2"></td>
+                </tr>
+                @endforeach
+
                 <!-- Grand Total -->
                 <tr class="bg-gold-total">
                     <td colspan="5" class="text-right uppercase pr-2">TỔNG CỘNG:</td>
@@ -301,9 +332,10 @@
                 </tr>
             </tbody>
         </table>
-        
+
         <div style="margin-top: 10px;">
-            <p class="font-bold">Tổng số tiền bằng chữ: <span class="italic font-normal">{{ docSoThanhChu($grandTotal) }}</span></p>
+            <p class="font-bold">Tổng số tiền bằng chữ: <span class="italic font-normal">{{ docSoThanhChu($grandTotal)
+                    }}</span></p>
         </div>
 
         <div class="signature-section">

@@ -48,49 +48,40 @@
     <aside
         class="w-64 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col h-screen sticky top-0">
         <div class="p-6">
-            <div class="flex items-center gap-3 mb-8 px-2">
-                <img src="{{ asset('images/logo-tmmc.png') }}" alt="Logo" class="h-12 w-auto">
-                <div class="flex flex-col text-left">
-                    <h2 class="text-slate-900 text-lg font-black leading-none tracking-tighter">TÂM TRÍ</h2>
-                    <span class="text-[10px] font-bold text-slate-800 uppercase tracking-widest mt-1">CAO LÃNH</span>
-                    <span class="text-[9px] font-medium text-slate-500 leading-none mt-0.5 uppercase">Hệ Thống Vật
-                        Tư</span>
+            <div class="flex flex-col items-center justify-center gap-3 w-full mb-8 pt-2">
+                <img src="{{ asset('images/logo-tmmc.png') }}" alt="Logo" class="h-20 w-auto object-contain">
+                <div class="flex items-center justify-center gap-1.5 w-full">
+                    <div class="h-[2px] w-4 bg-[#00a8e8] rounded-full"></div>
+                    <span
+                        class="text-[10px] font-bold text-slate-500 uppercase tracking-[0.15em] whitespace-nowrap">Quản
+                        Lý Văn Phòng Phẩm</span>
+                    <div class="h-[2px] w-4 bg-[#00a8e8] rounded-full"></div>
                 </div>
             </div>
             <nav class="flex flex-col gap-1">
                 @if(auth()->user()->role === 'SuperAdmin')
-                    <a class="flex items-center gap-3 px-3 py-2.5 rounded-md {{ request()->routeIs('superadmin.users') ? 'sidebar-item-active' : 'hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400' }}"
-                        href="{{ route('superadmin.users') }}">
-                        <span class="material-symbols-outlined text-[20px]">dashboard</span>
-                        <span class="text-sm font-semibold">Dashboard</span>
-                    </a>
+                <a class="flex items-center gap-3 px-3 py-2.5 rounded-md {{ request()->routeIs('superadmin.users') ? 'sidebar-item-active' : 'hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400' }}"
+                    href="{{ route('superadmin.users') }}">
+                    <span class="material-symbols-outlined text-[20px]">dashboard</span>
+                    <span class="text-sm font-semibold">Dashboard</span>
+                </a>
                 @else
-                    <a class="flex items-center gap-3 px-3 py-2.5 rounded-md {{ request()->routeIs('admin.dashboard') ? 'sidebar-item-active' : 'hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400' }}"
-                        href="{{ route('admin.dashboard') }}">
-                        <span class="material-symbols-outlined text-[20px]">dashboard</span>
-                        <span class="text-sm font-semibold">Tổng quan</span>
-                    </a>
+                <a class="flex items-center gap-3 px-3 py-2.5 rounded-md {{ request()->routeIs('admin.dashboard') ? 'sidebar-item-active' : 'hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400' }}"
+                    href="{{ route('admin.dashboard') }}">
+                    <span class="material-symbols-outlined text-[20px]">dashboard</span>
+                    <span class="text-sm font-semibold">Tổng quan</span>
+                </a>
                 @endif
 
-                <a class="flex items-center gap-3 px-3 py-2.5 rounded-md {{ request()->routeIs('admin.approve_summary_votes') ? 'sidebar-item-active' : 'hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400' }}"
-                    href="{{ route('admin.approve_summary_votes') }}">
-                    <span class="material-symbols-outlined text-[20px]">receipt_long</span>
-                    <span class="text-sm font-medium">Duyệt phiếu tổng hợp</span>
+                <a class="flex items-center gap-3 px-3 py-2.5 rounded-md {{ request()->routeIs('admin.consolidated') ? 'sidebar-item-active' : 'hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400' }}"
+                    href="{{ route('admin.consolidated') }}">
+                    <span class="material-symbols-outlined text-[20px]">assignment</span>
+                    <span class="text-sm font-medium">Tổng hợp yêu cầu</span>
                 </a>
-                <a class="flex items-center gap-3 px-3 py-2.5 rounded-md {{ request()->routeIs('admin.orders.*') ? 'sidebar-item-active' : 'hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400' }}"
-                    href="{{ route('admin.orders.index') }}">
-                    <span class="material-symbols-outlined text-[20px]">shopping_cart</span>
-                    <span class="text-sm font-medium">Danh sách PO</span>
-                </a>
-                <a class="flex items-center gap-3 px-3 py-2.5 rounded-md {{ request()->routeIs('admin.product') ? 'sidebar-item-active' : 'hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400' }}"
-                    href="{{ route('admin.product') }}">
-                    <span class="material-symbols-outlined text-[20px]">inventory_2</span>
-                    <span class="text-sm font-medium">Danh mục vật tư</span>
-                </a>
-                <a class="flex items-center gap-3 px-3 py-2.5 rounded-md {{ request()->routeIs('admin.management') ? 'sidebar-item-active' : 'hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400' }}"
-                    href="{{ route('admin.management') }}">
-                    <span class="material-symbols-outlined text-[20px]">settings_applications</span>
-                    <span class="text-sm font-medium">Chức năng quản lý</span>
+                <a class="flex items-center gap-3 px-3 py-2.5 rounded-md {{ request()->routeIs('admin.budgets.*') ? 'sidebar-item-active' : 'hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400' }}"
+                    href="{{ route('admin.budgets.index') }}">
+                    <span class="material-symbols-outlined text-[20px]">account_balance_wallet</span>
+                    <span class="text-sm font-medium">Quản lý ngân sách</span>
                 </a>
             </nav>
         </div>
@@ -109,10 +100,10 @@
                             style="display: flex; align-items: center; gap: 8px; background: #f3f4f6; padding: 3px 12px 3px 3px; border-radius: 9999px; border: 1px solid #e5e7eb; cursor: pointer;">
                             <div
                                 style="height: 32px; width: 32px; border-radius: 9999px; background: #135bec; color: white; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 900;">
-                                {{ strtoupper(substr(auth()->user()->full_name ?? 'U', 0, 1)) }}
+                                {{ mb_strtoupper(mb_substr(auth()->user()->full_name ?? 'U', 0, 1, 'UTF-8'), 'UTF-8') }}
                             </div>
-                            <span
-                                style="font-weight: 700; font-size: 14px; color: #111827;">{{ auth()->user()->full_name ?? 'User' }}</span>
+                            <span style="font-weight: 700; font-size: 14px; color: #111827;">{{
+                                auth()->user()->full_name ?? 'User' }}</span>
                             <span class="material-symbols-outlined"
                                 style="font-size: 16px; color: #6b7280;">expand_more</span>
                         </button>
@@ -163,8 +154,6 @@
             </div>
         </header>
 
-        @include('layouts.profile-modals')
-
         <script>
             // Toggle dropdown function
             function toggleUserDropdown(event) {
@@ -190,27 +179,27 @@
         </script>
         <div class="p-8 max-w-[1600px] w-full mx-auto">
             @if(session('success'))
-                <div x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 5000)"
-                    class="mb-6 p-4 bg-green-100 border border-green-200 text-green-700 rounded-lg flex items-center justify-between shadow-sm">
-                    <div class="flex items-center gap-3">
-                        <span class="material-symbols-outlined">check_circle</span>
-                        <span class="text-sm font-bold">{{ session('success') }}</span>
-                    </div>
-                    <button @click="show = false" class="text-green-500 hover:text-green-700 transition-colors"><span
-                            class="material-symbols-outlined">close</span></button>
+            <div x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 5000)"
+                class="mb-6 p-4 bg-green-100 border border-green-200 text-green-700 rounded-lg flex items-center justify-between shadow-sm">
+                <div class="flex items-center gap-3">
+                    <span class="material-symbols-outlined">check_circle</span>
+                    <span class="text-sm font-bold">{{ session('success') }}</span>
                 </div>
+                <button @click="show = false" class="text-green-500 hover:text-green-700 transition-colors"><span
+                        class="material-symbols-outlined">close</span></button>
+            </div>
             @endif
 
             @if(session('error'))
-                <div x-data="{ show: true }" x-show="show"
-                    class="mb-6 p-4 bg-red-100 border border-red-200 text-red-700 rounded-lg flex items-center justify-between shadow-sm">
-                    <div class="flex items-center gap-3">
-                        <span class="material-symbols-outlined">error</span>
-                        <span class="text-sm font-bold">{{ session('error') }}</span>
-                    </div>
-                    <button @click="show = false" class="text-red-500 hover:text-red-700 transition-colors"><span
-                            class="material-symbols-outlined">close</span></button>
+            <div x-data="{ show: true }" x-show="show"
+                class="mb-6 p-4 bg-red-100 border border-red-200 text-red-700 rounded-lg flex items-center justify-between shadow-sm">
+                <div class="flex items-center gap-3">
+                    <span class="material-symbols-outlined">error</span>
+                    <span class="text-sm font-bold">{{ session('error') }}</span>
                 </div>
+                <button @click="show = false" class="text-red-500 hover:text-red-700 transition-colors"><span
+                        class="material-symbols-outlined">close</span></button>
+            </div>
             @endif
 
             @yield('content')

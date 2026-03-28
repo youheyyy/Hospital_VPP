@@ -27,6 +27,12 @@ Route::middleware(['auth', 'role:SuperAdmin'])->prefix('superadmin')->name('supe
     Route::post('/users/{user}/toggle-status', [SuperAdminController::class, 'toggleStatus'])->name('users.toggle-status');
     Route::delete('/users/{user}', [SuperAdminController::class, 'deleteUser'])->name('users.delete');
 
+    // Budget Management
+    Route::get('/budgets', [\App\Http\Controllers\BudgetController::class, 'index'])->name('budgets.index');
+    Route::post('/budgets', [\App\Http\Controllers\BudgetController::class, 'store'])->name('budgets.store');
+    Route::delete('/budgets/{budget}', [\App\Http\Controllers\BudgetController::class, 'destroy'])->name('budgets.destroy');
+    Route::post('/budgets/{budget}/recalculate', [\App\Http\Controllers\BudgetController::class, 'recalculate'])->name('budgets.recalculate');
+
     // Data Management
     Route::get('/data-management', [SuperAdminController::class, 'dataManagement'])->name('data-management');
     Route::post('/backup', [SuperAdminController::class, 'createBackup'])->name('backup.create');
@@ -41,19 +47,21 @@ Route::middleware(['auth', 'role:SuperAdmin'])->prefix('superadmin')->name('supe
 });
 
 // Admin routes
-Route::middleware(['auth', 'role:SuperAdmin,Admin'])->prefix('admin')->name('admin.')->group(function () {
+Route::middleware(['auth', 'role:Admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/dashboard', [AdminController::class, 'dashboard'])->name('dashboard');
     Route::get('/consolidated', [AdminController::class, 'consolidated'])->name('consolidated');
     Route::get('/consolidated/export', [AdminController::class, 'exportConsolidated'])->name('consolidated.export');
     Route::get('/consolidated/print', [AdminController::class, 'printConsolidated'])->name('consolidated.print');
     Route::post('/consolidated/update-note', [AdminController::class, 'updateNote'])->name('consolidated.update_note');
 
-    // Grid Entry Tool
-    Route::get('/grid-entry', [AdminController::class, 'gridEntry'])->name('grid-entry');
-    Route::post('/grid-entry/update', [AdminController::class, 'updateGridQuantity'])->name('grid-entry.update');
-
-    // Historical Export (Multi-sheet)
-    Route::get('/consolidated/export-historical', [AdminController::class, 'exportHistorical'])->name('consolidated.export-historical');
+    Route::post('/consolidated/update-quantity', [AdminController::class, 'updateQuantity'])->name('consolidated.update-quantity');
+    Route::get('/consolidated/export-single', [AdminController::class, 'exportSingleConsolidated'])->name('consolidated.export-single');
+    
+    // Budget management routes for Admin
+    Route::get('/budgets', [AdminController::class, 'budgets'])->name('budgets.index');
+    Route::post('/budgets', [AdminController::class, 'storeBudget'])->name('budgets.store');
+    Route::delete('/budgets/{budget}', [AdminController::class, 'destroyBudget'])->name('budgets.destroy');
+    Route::post('/budgets/{budget}/recalculate', [AdminController::class, 'recalculateBudget'])->name('budgets.recalculate');
 });
 
 // Department routes

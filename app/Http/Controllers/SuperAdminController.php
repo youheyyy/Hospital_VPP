@@ -868,7 +868,7 @@ class SuperAdminController extends Controller
 
             // ── Batch insert orders ───────────────────────────────────────────────
             foreach (array_chunk($ordersToInsert, 500) as $chunk) {
-                \App\Models\MonthlyOrder::insert($chunk);
+                MonthlyOrder::insert($chunk);
             }
 
             $this->logActivity('Import Excel', "Import {$processedOrders} dòng cho {$processedDepts} khoa, tháng {$targetMonth}");

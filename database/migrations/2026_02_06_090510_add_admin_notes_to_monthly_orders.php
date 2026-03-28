@@ -12,7 +12,10 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('monthly_orders', function (Blueprint $table) {
-            $table->text('admin_notes')->nullable()->after('notes');
+            // Kiểm tra xem cột đã tồn tại chưa
+            if (!Schema::hasColumn('monthly_orders', 'admin_notes')) {
+                $table->text('admin_notes')->nullable()->after('notes');
+            }
         });
     }
 

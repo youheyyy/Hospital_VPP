@@ -25,11 +25,13 @@
         <!-- Sidebar -->
         <aside class="w-64 bg-white border-r border-gray-200 flex flex-col">
             <div class="p-6 border-b">
-                <div class="flex items-center gap-3">
-                    <div class="bg-blue-600 p-2 rounded-lg text-white">
-                        <span class="material-symbols-outlined">local_hospital</span>
+                <div class="flex flex-col items-center justify-center gap-3 w-full pt-2">
+                    <img src="{{ asset('images/logo-tmmc.png') }}" class="h-20 w-auto object-contain" alt="Logo">
+                    <div class="flex items-center justify-center gap-1.5 w-full">
+                        <div class="h-[2px] w-4 bg-[#00a8e8] rounded-full"></div>
+                        <span class="text-[10px] font-bold text-slate-500 uppercase tracking-[0.15em] whitespace-nowrap">Quản Lý Văn Phòng Phẩm</span>
+                        <div class="h-[2px] w-4 bg-[#00a8e8] rounded-full"></div>
                     </div>
-                    <h2 class="font-bold text-lg">VPP Hospital</h2>
                 </div>
             </div>
             <nav class="flex-1 p-4 space-y-2">
@@ -46,7 +48,7 @@
                 <div class="bg-gray-50 rounded-xl p-3">
                     <div class="flex items-center gap-3">
                         <div class="size-10 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-sm">
-                            {{ strtoupper(substr($department->name, 0, 2)) }}
+                            {{ mb_strtoupper(mb_substr($department->name, 0, 2, 'UTF-8'), 'UTF-8') }}
                         </div>
                         <div class="flex-1 min-w-0">
                             <p class="text-sm font-bold truncate">{{ $department->name }}</p>
@@ -66,23 +68,84 @@
         <!-- Main Content -->
         <main class="flex-1 flex flex-col overflow-hidden">
             <!-- Header -->
-            <header class="bg-white border-b px-8 py-4 flex justify-between items-center">
-                <div>
-                    <h1 class="text-xl font-bold text-gray-800">{{ $department->name }}</h1>
-                    <p class="text-sm text-gray-500">Yêu cầu văn phòng phẩm tháng {{ $selectedMonth }}</p>
-                    @php
-                        $currentDay = now()->day;
-                        $canEdit = $currentDay < 5;
-                    @endphp
-                    @if(!$canEdit)
-                        <p class="text-xs text-red-600 mt-1">⚠️ Chỉ có thể chỉnh sửa trước ngày 5 hàng tháng. Hiện tại chỉ có thể tạo yêu cầu mới.</p>
-                    @endif
-                </div>
-                <div class="flex items-center gap-4">
-                    <div class="border-gray-300 rounded-lg text-sm px-4 py-2 bg-gray-50 font-semibold text-gray-700">
-                        Tháng {{ date('m/Y') }}
+            <header class="bg-white border-b px-8 py-4">
+                <div class="flex justify-between items-center mb-4">
+                    <div>
+                        <h1 class="text-xl font-bold text-gray-800">{{ $department->name }}</h1>
+                        <p class="text-sm text-gray-500">Yêu cầu văn phòng phẩm tháng {{ $selectedMonth }}</p>
+                        @php
+                            $currentDay = now()->day;
+                            $canEdit = $currentDay < 5;
+                        @endphp
+                        @if(!$canEdit)
+                            <p class="text-xs text-red-600 mt-1">⚠️ Chỉ có thể chỉnh sửa trước ngày 5 hàng tháng. Hiện tại chỉ có thể tạo yêu cầu mới.</p>
+                        @endif
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <div class="border-gray-300 rounded-lg text-sm px-4 py-2 bg-gray-50 font-semibold text-gray-700">
+                            Tháng {{ date('m/Y') }}
+                        </div>
                     </div>
                 </div>
+
+                <!-- Budget Progress Bar -->
+                @php
+                    $parts = explode('/', $selectedMonth);
+                    $year = isset($parts[1]) ? (int)$parts[1] : date('Y');
+                    $budget = \App\Models\DepartmentBudget::where('department_id', $department->id)
+                        ->where('year', $year)
+                        ->first();
+                @endphp
+                @if($budget)
+                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <div class="flex justify-between items-center mb-2">
+                            <div class="flex items-center gap-2">
+                                <span class="material-symbols-outlined text-blue-600">account_balance_wallet</span>
+                                <span class="text-sm font-semibold text-gray-700">Ngân sách năm {{ $year }}</span>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-xs text-gray-500">Còn lại</div>
+                                <div class="text-sm font-bold {{ $budget->remaining_budget < 0 ? 'text-red-600' : 'text-green-600' }}">
+                                    {{ number_format($budget->remaining_budget, 0, ',', '.') }} VNĐ
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <div class="flex-1">
+                                @php
+                                    $usagePercentage = $budget->total_budget > 0 ? ($budget->used_budget / $budget->total_budget) * 100 : 0;
+                                    $barColor = $usagePercentage > 90 ? 'bg-red-600' : ($usagePercentage > 70 ? 'bg-orange-500' : 'bg-green-500');
+                                    $barWidth = min($usagePercentage, 100);
+                                @endphp
+                                <div class="w-full bg-gray-200 rounded-full h-3">
+                                    <div class="h-3 rounded-full {{ $barColor }} transition-all duration-300" 
+                                         style="width: {{ $barWidth }}%"></div>
+                                </div>
+                            </div>
+                            <div class="text-sm font-semibold text-gray-700 min-w-[60px] text-right">
+                                {{ number_format($usagePercentage, 1) }}%
+                            </div>
+                        </div>
+                        <div class="flex justify-between mt-2 text-xs text-gray-600">
+                            <span>Đã dùng: {{ number_format($budget->used_budget, 0, ',', '.') }} VNĐ</span>
+                            <span>Tổng: {{ number_format($budget->total_budget, 0, ',', '.') }} VNĐ</span>
+                        </div>
+                        @if($usagePercentage > 90)
+                            <div class="mt-2 text-xs text-red-600 font-medium">
+                                ⚠️ Cảnh báo: Ngân sách sắp hết!
+                            </div>
+                        @elseif($usagePercentage > 70)
+                            <div class="mt-2 text-xs text-orange-600 font-medium">
+                                ⚠️ Lưu ý: Đã sử dụng hơn 70% ngân sách
+                            </div>
+                        @endif
+                    </div>
+                @else
+                    <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3 flex items-center gap-2">
+                        <span class="material-symbols-outlined text-yellow-600">warning</span>
+                        <span class="text-sm text-yellow-800">Chưa có ngân sách cho năm {{ $year }}. Vui lòng liên hệ SuperAdmin.</span>
+                    </div>
+                @endif
             </header>
 
             <!-- Content -->
@@ -173,7 +236,7 @@
                                     
                                     <!-- Category Header -->
                                     <tr class="category-header">
-                                        <td colspan="7">{{ strtoupper($category->name) }}</td>
+                                        <td colspan="7">{{ mb_strtoupper($category->name, 'UTF-8') }}</td>
                                     </tr>
 
                                     <!-- Products -->

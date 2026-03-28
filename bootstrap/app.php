@@ -21,5 +21,7 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        $exceptions->render(function (\Illuminate\Session\TokenMismatchException $e, \Illuminate\Http\Request $request) {
+            return redirect()->back()->withInput($request->except('_token'))->with('error', 'Phiên làm việc đã hết hạn do để trang quá lâu. Vui lòng thao tác lại.');
+        });
     })->create();

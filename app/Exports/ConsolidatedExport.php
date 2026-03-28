@@ -21,8 +21,10 @@ class ConsolidatedExport
     protected $products;
     protected $categoryTotals;
     protected $grandTotal;
+    protected $tabType;
+    protected $deptId;
 
-    public function __construct($month, $departments, $categories, $products, $categoryTotals, $grandTotal)
+    public function __construct($month, $departments, $categories, $products, $categoryTotals, $grandTotal, $tabType = 'all', $deptId = null)
     {
         $this->month = $month;
         $this->departments = $departments;
@@ -30,48 +32,68 @@ class ConsolidatedExport
         $this->products = $products;
         $this->categoryTotals = $categoryTotals;
         $this->grandTotal = $grandTotal;
+        $this->tabType = $tabType;
+        $this->deptId = $deptId;
     }
 
     public function download($filename)
     {
         $spreadsheet = new Spreadsheet();
+        $sheetCount = 0;
 
-        // Sheet 1: BẢNG TỔNG (Summary by departments)
-        $sheet1 = $spreadsheet->getActiveSheet();
-        $this->createBangTongSheet($sheet1);
+        if ($this->tabType === 'bang_tong' || $this->tabType === 'all') {
+            $sheet = $spreadsheet->getActiveSheet();
+            $this->createBangTongSheet($sheet);
+            $sheetCount++;
+        }
 
-        // Sheet 2: TỔNG HỢP (Detailed)
-        $sheet2 = $spreadsheet->createSheet();
-        $this->createTongHopSheet($sheet2);
+        if ($this->tabType === 'tong_hop' || $this->tabType === 'all') {
+            $sheet = $sheetCount == 0 ? $spreadsheet->getActiveSheet() : $spreadsheet->createSheet();
+            $this->createTongHopSheet($sheet);
+            $sheetCount++;
+        }
 
-        // Sheets 3+: Each Department
-        foreach ($this->departments as $dept) {
-            // Check if department has valid orders for SELECTED MONTH ONLY
-            $hasOrders = false;
-            foreach ($this->products as $categoryId => $categoryProducts) {
-                foreach ($categoryProducts as $product) {
-                    $order = $product->monthlyOrders
-                        ->where('department_id', $dept->id)
-                        ->where('month', $this->month)
-                        ->first();
-                    if ($order && $order->quantity > 0) {
-                        $hasOrders = true;
-                        break 2;
-                    }
-                }
-            }
-
-            if ($hasOrders) {
-                $sheet = $spreadsheet->createSheet();
-                // Excel sheet names are limited to 31 chars
+        if ($this->tabType === 'phieu_xuat_kho' && $this->deptId) {
+            $dept = $this->departments->firstWhere('id', $this->deptId);
+            if ($dept) {
+                $sheet = $sheetCount == 0 ? $spreadsheet->getActiveSheet() : $spreadsheet->createSheet();
                 $sheetTitle = mb_substr($dept->name, 0, 31);
                 $sheet->setTitle($sheetTitle);
                 $this->createDepartmentSheet($sheet, $dept);
+                $sheetCount++;
+            }
+        } elseif ($this->tabType === 'all') {
+            // Sheets 3+: Each Department
+            foreach ($this->departments as $dept) {
+                // Check if department has valid orders for SELECTED MONTH ONLY
+                $hasOrders = false;
+                foreach ($this->products as $categoryId => $categoryProducts) {
+                    foreach ($categoryProducts as $product) {
+                        $order = $product->monthlyOrders
+                            ->where('department_id', $dept->id)
+                            ->where('month', $this->month)
+                            ->first();
+                        if ($order && $order->quantity > 0) {
+                            $hasOrders = true;
+                            break 2;
+                        }
+                    }
+                }
+
+                if ($hasOrders) {
+                    $sheet = $spreadsheet->createSheet();
+                    // Excel sheet names are limited to 31 chars
+                    $sheetTitle = mb_substr($dept->name, 0, 31);
+                    $sheet->setTitle($sheetTitle);
+                    $this->createDepartmentSheet($sheet, $dept);
+                }
             }
         }
 
         // Set active sheet to first sheet
-        $spreadsheet->setActiveSheetIndex(0);
+        if ($spreadsheet->getSheetCount() > 0) {
+            $spreadsheet->setActiveSheetIndex(0);
+        }
 
         // Download
         $writer = new Xlsx($spreadsheet);
