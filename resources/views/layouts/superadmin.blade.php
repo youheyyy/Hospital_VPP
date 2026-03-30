@@ -54,14 +54,7 @@
                     <span class="font-medium">Quản lý người dùng</span>
                 </a>
 
-                <!-- 3. Quản lý ngân sách -->
-                <a href="{{ route('superadmin.budgets.index') }}"
-                    class="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors {{ request()->routeIs('superadmin.budgets.*') ? 'bg-purple-600 text-white' : 'text-gray-700 hover:bg-gray-100' }}">
-                    <span class="material-symbols-outlined">account_balance_wallet</span>
-                    <span class="font-medium">Quản lý ngân sách</span>
-                </a>
-
-                <!-- 4. Quản lý dữ liệu -->
+                <!-- 3. Quản lý dữ liệu -->
                 <a href="{{ route('superadmin.data-management') }}"
                     class="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors {{ request()->routeIs('superadmin.data-management') ? 'bg-purple-600 text-white' : 'text-gray-700 hover:bg-gray-100' }}">
                     <span class="material-symbols-outlined">database</span>

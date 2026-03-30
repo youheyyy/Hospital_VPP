@@ -23,8 +23,9 @@ class ConsolidatedExport
     protected $grandTotal;
     protected $tabType;
     protected $deptId;
+    protected $exportMode; // 'standard', 'detailed_biemmau', 'aggregated_vpp'
 
-    public function __construct($month, $departments, $categories, $products, $categoryTotals, $grandTotal, $tabType = 'all', $deptId = null)
+    public function __construct($month, $departments, $categories, $products, $categoryTotals, $grandTotal, $tabType = 'all', $deptId = null, $exportMode = 'standard')
     {
         $this->month = $month;
         $this->departments = $departments;
@@ -34,6 +35,7 @@ class ConsolidatedExport
         $this->grandTotal = $grandTotal;
         $this->tabType = $tabType;
         $this->deptId = $deptId;
+        $this->exportMode = $exportMode;
     }
 
     public function download($filename)
@@ -448,6 +450,16 @@ class ConsolidatedExport
 
         foreach ($this->categories as $category) {
             if (isset($this->products[$category->id]) && $this->products[$category->id]->count() > 0) {
+                // Calculate category total quantity first
+                $catTotalQty = 0;
+                foreach ($this->products[$category->id] as $product) {
+                    $catTotalQty += $product->monthlyOrders->where('month', $this->month)->sum('quantity');
+                }
+                
+                if ($catTotalQty <= 0) {
+                    continue;
+                }
+
                 // Category header
                 $sheet->setCellValue('A' . $currentRow, $category->name);
                 $sheet->mergeCells('A' . $currentRow . ':G' . $currentRow);
@@ -468,6 +480,7 @@ class ConsolidatedExport
                 foreach ($this->products[$category->id] as $product) {
                     if ($product->monthlyOrders->count() > 0) {
                         $stt++;
+                        $pPrice = $product->price;
                         $totalQuantity = 0;
                         $allNotes = [];
 
@@ -478,21 +491,40 @@ class ConsolidatedExport
                                 ->first();
 
                             if ($order) {
+                                if ($order->price > 0) {
+                                    $pPrice = $order->price;
+                                }
                                 $quantity = $order->quantity;
                                 $totalQuantity += $quantity;
+                                
+                                // Shared Admin Note (Part 1)
+                                if ($order->admin_notes) {
+                                    $parts = explode('|||', $order->admin_notes);
+                                    $sharedPart = trim($parts[0]);
+                                    if ($sharedPart !== '') {
+                                        $allNotes[] = $sharedPart;
+                                    }
+                                }
+                                
+                                // Department Note
                                 if ($order->notes) {
                                     $allNotes[] = $order->notes;
                                 }
                             }
                         }
 
-                        $totalAmount = $totalQuantity * $product->price;
+                        $totalAmount = $totalQuantity * $pPrice;
+
+                        if ($this->exportMode === 'aggregated_vpp' && $product->is_form) {
+                            // Aggregation mode: Skip individual forms in the table
+                            continue;
+                        }
 
                         $sheet->setCellValue('A' . $currentRow, $stt);
                         $sheet->setCellValue('B' . $currentRow, $product->name);
                         $sheet->setCellValue('C' . $currentRow, $product->unit);
                         $sheet->setCellValue('D' . $currentRow, $totalQuantity);
-                        $sheet->setCellValue('E' . $currentRow, $product->price);
+                        $sheet->setCellValue('E' . $currentRow, $pPrice);
                         $sheet->setCellValue('F' . $currentRow, $totalAmount);
                         $sheet->setCellValue('G' . $currentRow, implode("; ", array_unique(array_filter($allNotes))));
 
@@ -501,16 +533,43 @@ class ConsolidatedExport
                 }
 
                 // Category total
-                $sheet->setCellValue('E' . $currentRow, 'Cộng:');
-                $sheet->setCellValue('F' . $currentRow, $this->categoryTotals[$category->id] ?? 0);
-                $sheet->getStyle('A' . $currentRow . ':G' . $currentRow)->applyFromArray([
-                    'fill' => [
-                        'fillType' => Fill::FILL_SOLID,
-                        'startColor' => ['rgb' => 'FEF3C7'],
-                    ],
-                    'font' => ['bold' => true],
+                if ($this->exportMode !== 'aggregated_vpp') {
+                    $sheet->setCellValue('E' . $currentRow, 'Cộng:');
+                    $sheet->setCellValue('F' . $currentRow, $this->categoryTotals[$category->id] ?? 0);
+                    $sheet->getStyle('A' . $currentRow . ':G' . $currentRow)->applyFromArray([
+                        'fill' => [
+                            'fillType' => Fill::FILL_SOLID,
+                            'startColor' => ['rgb' => 'FEF3C7'],
+                        ],
+                        'font' => ['bold' => true],
+                    ]);
+                    $currentRow++;
+                }
+            }
+        }
+
+        // Add Paper Summary if in Aggregated Mode
+        if ($this->exportMode === 'aggregated_vpp') {
+            $paperAggregation = $this->calculateSummaryPaperAggregation();
+            if (!empty($paperAggregation)) {
+                // Biểu mẫu Category Header
+                $sheet->setCellValue('A' . $currentRow, 'BIỂU MẪU (Dạng Giấy)');
+                $sheet->mergeCells('A' . $currentRow . ':G' . $currentRow);
+                $sheet->getStyle('A' . $currentRow)->applyFromArray([
+                    'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '10B981']],
+                    'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
                 ]);
                 $currentRow++;
+
+                foreach ($paperAggregation as $size => $data) {
+                    $stt++;
+                    $sheet->setCellValue('A' . $currentRow, $stt);
+                    $sheet->setCellValue('B' . $currentRow, 'Giấy ' . $size);
+                    $sheet->setCellValue('C' . $currentRow, 'Gram');
+                    $sheet->setCellValue('D' . $currentRow, $data['weight']);
+                    $sheet->setCellValue('G' . $currentRow, "Từ " . $data['total_sheets'] . " tờ");
+                    $currentRow++;
+                }
             }
         }
 
@@ -529,6 +588,23 @@ class ConsolidatedExport
         ]);
         $tableEndRow = $currentRow;
         $currentRow++;
+
+        // Detailed mode Bottom Summary (Hình 3)
+        if ($this->exportMode === 'detailed_biemmau') {
+            $currentRow++;
+            $paperAggregation = $this->calculateSummaryPaperAggregation();
+            $sheet->setCellValue('A' . $currentRow, 'TRONG ĐÓ GỒM:');
+            $sheet->getStyle('A' . $currentRow)->getFont()->setBold(true);
+            $currentRow++;
+            foreach ($paperAggregation as $size => $data) {
+                $sheet->setCellValue('A' . $currentRow, '+ Giấy ' . $size . ': ' . $data['total_sheets'] . ' tờ = ' . $data['weight'] . ' gram');
+                $sheet->getStyle('A' . $currentRow)->getFont()->setBold(true)->getColor()->setRGB('10B981');
+                $currentRow++;
+            }
+            $sheet->setCellValue('A' . $currentRow, 'Ghi chú: Mỗi cuốn 60 tờ');
+            $sheet->getStyle('A' . $currentRow)->getFont()->setItalic(true);
+            $currentRow++;
+        }
 
         // Borders for table
         $sheet->getStyle('A' . $tableStartRow . ':G' . $tableEndRow)->applyFromArray([
@@ -649,7 +725,8 @@ class ConsolidatedExport
         $tableStartRow = $currentRow;
 
         // Table headers (REMOVED NOTE COLUMN)
-        $headers = ['STT', 'Tên hàng hóa, quy cách', 'ĐVT', 'Số lượng', 'Đơn giá', 'Thành tiền'];
+        // Table headers (REDUCED TO 6 COLS PREVIOUSLY, ADDING GHI CHU)
+        $headers = ['STT', 'Tên hàng hóa, quy cách', 'ĐVT', 'Số lượng', 'Đơn giá', 'Thành tiền', 'Ghi chú'];
         $col = 'A';
         foreach ($headers as $header) {
             $sheet->setCellValue($col . $currentRow, $header);
@@ -657,7 +734,7 @@ class ConsolidatedExport
         }
 
         // Style table header
-        $sheet->getStyle('A' . $currentRow . ':F' . $currentRow)->applyFromArray([
+        $sheet->getStyle('A' . $currentRow . ':G' . $currentRow)->applyFromArray([
             'fill' => [
                 'fillType' => Fill::FILL_SOLID,
                 'startColor' => ['rgb' => 'F3F4F6'],
@@ -688,11 +765,14 @@ class ConsolidatedExport
                         ->first();
 
                     if ($order && $order->quantity > 0) {
-                        $amount = $order->quantity * $product->price;
+                        $pPrice = ($order->price && $order->price > 0) ? $order->price : $product->price;
+                        $amount = $order->quantity * $pPrice;
                         $categoryProducts[] = [
                             'product' => $product,
                             'quantity' => $order->quantity,
+                            'price' => $pPrice,
                             'amount' => $amount,
+                            'note' => $this->getDepartmentNote($order)
                         ];
                         $categoryTotal += $amount;
                     }
@@ -717,7 +797,7 @@ class ConsolidatedExport
                     }
 
                     $sheet->setCellValue('A' . $currentRow, $romanIndex . '. ' . $displayName);
-                    $sheet->mergeCells('A' . $currentRow . ':F' . $currentRow); // Reduced to F
+                    $sheet->mergeCells('A' . $currentRow . ':G' . $currentRow); 
                     $sheet->getStyle('A' . $currentRow)->applyFromArray([
                         'fill' => [
                             'fillType' => Fill::FILL_SOLID,
@@ -735,14 +815,26 @@ class ConsolidatedExport
                     // Products
                     $stt = 0;
                     foreach ($categoryProducts as $item) {
+                        if ($this->exportMode === 'aggregated_vpp' && $item['product']->is_form) {
+                            // Aggregation mode: Skip individual forms in department list
+                            continue;
+                        }
+
                         $stt++;
                         $sheet->setCellValue('A' . $currentRow, $stt);
                         $sheet->setCellValue('B' . $currentRow, $item['product']->name);
                         $sheet->setCellValue('C' . $currentRow, $item['product']->unit);
                         $sheet->setCellValue('D' . $currentRow, $item['quantity']);
-                        $sheet->setCellValue('E' . $currentRow, $item['product']->price);
+                        
+                        // Detailed mode: if it's a form and unit is 'Cuốn', add note about sheets
+                        if ($this->exportMode === 'detailed_biemmau' && $item['product']->is_form && $item['product']->unit === 'Cuốn') {
+                            $sheets = $item['quantity'] * 60;
+                            $sheet->setCellValue('B' . $currentRow, $item['product']->name . " (" . $sheets . " tờ)");
+                        }
+
+                        $sheet->setCellValue('E' . $currentRow, $item['price']);
                         $sheet->setCellValue('F' . $currentRow, $item['amount']);
-                        // REMOVED NOTE CELL SETTING
+                        $sheet->setCellValue('G' . $currentRow, $item['note']);
 
                         // Style cells
                         $sheet->getStyle('A' . $currentRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER); // STT
@@ -753,28 +845,57 @@ class ConsolidatedExport
                         $currentRow++;
                     }
 
-                    // Category total
-                    $sheet->setCellValue('E' . $currentRow, 'CỘNG NHÓM (' . $romanIndex . '):');
-                    $sheet->setCellValue('F' . $currentRow, $categoryTotal);
-                    $sheet->getStyle('E' . $currentRow)->getFont()->setBold(true);
-                    $sheet->getStyle('F' . $currentRow)->getFont()->setBold(true)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color(\PhpOffice\PhpSpreadsheet\Style\Color::COLOR_BLUE));
-                    $sheet->getStyle('A' . $currentRow . ':F' . $currentRow)->applyFromArray([
-                        'fill' => [
-                            'fillType' => Fill::FILL_SOLID,
-                            'startColor' => ['rgb' => 'EBF8FF'],
-                        ],
-                    ]);
-                    $currentRow++;
+                    if ($this->exportMode !== 'aggregated_vpp') {
+                        // Category total
+                        $sheet->setCellValue('E' . $currentRow, 'CỘNG NHÓM (' . $romanIndex . '):');
+                        $sheet->setCellValue('F' . $currentRow, $categoryTotal);
+                        $sheet->getStyle('E' . $currentRow)->getFont()->setBold(true);
+                        $sheet->getStyle('F' . $currentRow)->getFont()->setBold(true)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color(\PhpOffice\PhpSpreadsheet\Style\Color::COLOR_BLUE));
+                        $sheet->getStyle('A' . $currentRow . ':G' . $currentRow)->applyFromArray([
+                            'fill' => [
+                                'fillType' => Fill::FILL_SOLID,
+                                'startColor' => ['rgb' => 'EBF8FF'],
+                            ],
+                        ]);
+                        $currentRow++;
+                    }
 
                     $grandTotal += $categoryTotal;
                 }
             }
         }
 
+        // Add Aggregated Forms at the end of Department sheet
+        if ($this->exportMode === 'aggregated_vpp') {
+            $deptAggregation = $this->calculateDepartmentPaperAggregation($department->id);
+            if (!empty($deptAggregation)) {
+                $categoryIndex++;
+                $romanIndex = $this->romanize($categoryIndex);
+                $sheet->setCellValue('A' . $currentRow, $romanIndex . '. BIỂU MẪU (TỔNG THEO GRAM)');
+                $sheet->mergeCells('A' . $currentRow . ':G' . $currentRow);
+                $sheet->getStyle('A' . $currentRow)->applyFromArray([
+                    'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '10B981']],
+                    'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF'], 'italic' => true],
+                ]);
+                $currentRow++;
+
+                $stt = 0;
+                foreach ($deptAggregation as $size => $data) {
+                    $stt++;
+                    $sheet->setCellValue('A' . $currentRow, $stt);
+                    $sheet->setCellValue('B' . $currentRow, 'Giấy ' . $size . ' (Gộp từ biểu mẫu)');
+                    $sheet->setCellValue('C' . $currentRow, 'Gram');
+                    $sheet->setCellValue('D' . $currentRow, $data['weight']);
+                    $sheet->setCellValue('G' . $currentRow, 'Từ ' . $data['total_sheets'] . ' tờ');
+                    $currentRow++;
+                }
+            }
+        }
+
         // Grand total
-        $sheet->setCellValue('E' . $currentRow, 'TỔNG CỘNG:');
+        $sheet->setCellValue('A' . $currentRow, 'TỔNG CỘNG:');
         $sheet->setCellValue('F' . $currentRow, $grandTotal);
-        $sheet->getStyle('A' . $currentRow . ':F' . $currentRow)->applyFromArray([
+        $sheet->getStyle('A' . $currentRow . ':G' . $currentRow)->applyFromArray([
             'fill' => [
                 'fillType' => Fill::FILL_SOLID,
                 'startColor' => ['rgb' => 'F3F4F6'],
@@ -789,7 +910,7 @@ class ConsolidatedExport
         $currentRow++;
 
         // Borders for table
-        $sheet->getStyle('A' . $tableStartRow . ':F' . $tableEndRow)->applyFromArray([
+        $sheet->getStyle('A' . $tableStartRow . ':G' . $tableEndRow)->applyFromArray([
             'borders' => [
                 'allBorders' => [
                     'borderStyle' => Border::BORDER_THIN,
@@ -812,7 +933,7 @@ class ConsolidatedExport
         $sheet->setCellValue('C' . $currentRow, 'Người nhận');
         $sheet->mergeCells('C' . $currentRow . ':D' . $currentRow);
         $sheet->setCellValue('E' . $currentRow, 'Người giao');
-        $sheet->mergeCells('E' . $currentRow . ':F' . $currentRow);
+        $sheet->mergeCells('E' . $currentRow . ':G' . $currentRow);
 
         $sheet->getStyle('A' . $currentRow . ':F' . $currentRow)->getFont()->setBold(true);
         $sheet->getStyle('A' . $currentRow . ':F' . $currentRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
@@ -824,10 +945,10 @@ class ConsolidatedExport
         $sheet->setCellValue('C' . $currentRow, ''); // Dept head signs manually
         $sheet->mergeCells('C' . $currentRow . ':D' . $currentRow);
         $sheet->setCellValue('E' . $currentRow, 'Lê Thúy Huỳnh');
-        $sheet->mergeCells('E' . $currentRow . ':F' . $currentRow);
+        $sheet->mergeCells('E' . $currentRow . ':G' . $currentRow);
 
-        $sheet->getStyle('A' . $currentRow . ':F' . $currentRow)->getFont()->setBold(true);
-        $sheet->getStyle('A' . $currentRow . ':F' . $currentRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $sheet->getStyle('A' . $currentRow . ':G' . $currentRow)->getFont()->setBold(true);
+        $sheet->getStyle('A' . $currentRow . ':G' . $currentRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
         // Set column widths
         $sheet->getColumnDimension('A')->setWidth(6);  // STT
@@ -836,7 +957,23 @@ class ConsolidatedExport
         $sheet->getColumnDimension('D')->setWidth(10); // SL
         $sheet->getColumnDimension('E')->setWidth(15); // ĐG
         $sheet->getColumnDimension('F')->setWidth(18); // TT
-        // G removed
+        $sheet->getColumnDimension('G')->setWidth(20); // GHI CHU
+    }
+
+    protected function getDepartmentNote($order)
+    {
+        $notes = [];
+        if ($order->notes) {
+            $notes[] = $order->notes;
+        }
+        if ($order->admin_notes) {
+            $parts = explode('|||', $order->admin_notes);
+            $privatePart = isset($parts[1]) ? trim($parts[1]) : '';
+            if ($privatePart !== '') {
+                $notes[] = $privatePart;
+            }
+        }
+        return implode(' - ', $notes);
     }
 
     protected function numberToWords(int $number): string
@@ -893,6 +1030,71 @@ class ConsolidatedExport
         } while ($num > 0);
 
         return ucfirst(trim($res)) . ' đồng';
+    }
+
+    protected function calculateSummaryPaperAggregation()
+    {
+        $aggregation = [];
+        foreach ($this->products as $categoryId => $categoryProducts) {
+            foreach ($categoryProducts as $product) {
+                if ($product->is_form && $product->paper_size) {
+                    $totalSheets = 0;
+                    foreach ($product->monthlyOrders as $order) {
+                        $qty = $order->quantity;
+                        if ($product->unit === 'Cuốn') {
+                            $qty *= 60;
+                        }
+                        $totalSheets += $qty;
+                    }
+
+                    if ($totalSheets > 0) {
+                        if (!isset($aggregation[$product->paper_size])) {
+                            $aggregation[$product->paper_size] = ['total_sheets' => 0, 'weight' => 0];
+                        }
+                        $aggregation[$product->paper_size]['total_sheets'] += $totalSheets;
+                    }
+                }
+            }
+        }
+
+        foreach ($aggregation as $size => &$data) {
+            $data['weight'] = ceil($data['total_sheets'] / 500);
+        }
+
+        return $aggregation;
+    }
+
+    protected function calculateDepartmentPaperAggregation($deptId)
+    {
+        $aggregation = [];
+        foreach ($this->products as $categoryId => $categoryProducts) {
+            foreach ($categoryProducts as $product) {
+                if ($product->is_form && $product->paper_size) {
+                    $order = $product->monthlyOrders
+                        ->where('department_id', $deptId)
+                        ->where('month', $this->month)
+                        ->first();
+
+                    if ($order && $order->quantity > 0) {
+                        $sheets = $order->quantity;
+                        if ($product->unit === 'Cuốn') {
+                            $sheets *= 60;
+                        }
+
+                        if (!isset($aggregation[$product->paper_size])) {
+                            $aggregation[$product->paper_size] = ['total_sheets' => 0, 'weight' => 0];
+                        }
+                        $aggregation[$product->paper_size]['total_sheets'] += $sheets;
+                    }
+                }
+            }
+        }
+
+        foreach ($aggregation as $size => &$data) {
+            $data['weight'] = ceil($data['total_sheets'] / 500);
+        }
+
+        return $aggregation;
     }
 
     protected function romanize($num)

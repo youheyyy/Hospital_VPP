@@ -12,20 +12,20 @@
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
         rel="stylesheet" />
     <style>
-        body {
-            font-family: 'Inter', sans-serif;
+        body { font-family: 'Inter', sans-serif; }
+        .excel-table { border-collapse: collapse; width: 100%; border: 1px solid #e5e7eb; }
+        .excel-table th, .excel-table td { border: 1px solid #e5e7eb; padding: 10px 12px; }
+        
+        /* Toast Notification Styles */
+        #toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; }
+        .toast { 
+            background: white; border-left: 4px solid #3b82f6; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); 
+            padding: 16px 20px; border-radius: 8px; margin-bottom: 12px; min-width: 300px;
+            display: flex; align-items: center; gap: 12px; transform: translateX(120%); transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
         }
-
-        .excel-table {
-            border-collapse: collapse;
-            width: 100%;
-        }
-
-        .excel-table th,
-        .excel-table td {
-            border: 1px solid #d1d5db;
-            padding: 8px 12px;
-        }
+        .toast.show { transform: translateX(0); }
+        .toast-error { border-left-color: #ef4444; }
+        .toast-success { border-left-color: #10b981; }
 
         .excel-table th {
             background: #f3f4f6;
@@ -133,84 +133,50 @@
         <!-- Main Content -->
         <main class="flex-1 flex flex-col overflow-hidden">
             <!-- Header -->
-            <header class="bg-white border-b px-8 py-4">
-                <div class="flex justify-between items-center mb-4">
-                    <div>
-                        <h1 class="text-xl font-bold text-gray-800">Lịch sử yêu cầu</h1>
-                        <p class="text-sm text-gray-500">{{ $department->name }} - Tháng {{ $selectedMonth }}</p>
-                    </div>
-                    <div class="flex items-center gap-4">
-                        <form method="GET" action="{{ route('department.history') }}">
-                            <select name="month" onchange="this.form.submit()"
-                                class="border-gray-300 rounded-lg text-sm px-4 py-2">
-                                @for($i = 0; $i < 12; $i++)
-                                    @php
-                                        $date = now()->subMonths($i);
-                                        $monthValue = $date->format('m/Y');
-                                    @endphp
-                                    <option value="{{ $monthValue }}" {{ $selectedMonth == $monthValue ? 'selected' : '' }}>
-                                        Tháng {{ $date->format('m/Y') }}
-                                    </option>
-                                @endfor
-                            </select>
-                        </form>
+            <header class="bg-white border-b px-8 py-4 flex justify-between items-center">
+                <div>
+                    <h1 class="text-xl font-bold text-gray-800">Lịch sử yêu cầu</h1>
+                    <p class="text-sm text-gray-500">{{ $department->name }} - Tháng {{ $selectedMonth }}</p>
+                </div>
+                <div class="flex items-center gap-3">
+                    <div class="flex items-center bg-gray-100 rounded-lg p-1 border border-gray-200">
+                        <button onclick="changeMonth(-1)" 
+                            class="p-2 hover:bg-white hover:text-blue-600 rounded-md transition-all group flex items-center justify-center"
+                            id="btnPrevMonth" title="Tháng trước">
+                            <span class="material-symbols-outlined text-lg">chevron_left</span>
+                        </button>
+                        
+                        <div class="relative px-4 py-1.5 flex items-center gap-2 border-x border-gray-200 group">
+                            <span class="text-sm font-bold text-gray-700">Tháng</span>
+                            <div class="flex items-center">
+                                <input type="text" id="monthInput" value="{{ $selectedMonth }}" 
+                                    class="bg-white border border-gray-300 rounded px-2 py-1 text-sm font-bold text-blue-600 focus:ring-2 focus:ring-blue-500 w-24 text-center transition-all"
+                                    placeholder="mm/yyyy"
+                                    onkeydown="if(event.key === 'Enter') validateAndGo(this.value)">
+                                <button onclick="validateAndGo(document.getElementById('monthInput').value)" 
+                                    class="ml-1 p-1 text-blue-600 hover:bg-blue-50 rounded transition-colors" title="Đi tới tháng này">
+                                    <span class="material-symbols-outlined text-sm">send</span>
+                                </button>
+                            </div>
+                            <button onclick="document.getElementById('monthSelector').showPicker()" 
+                                class="p-1 hover:text-blue-600 transition-colors" title="Chọn từ lịch">
+                                <span class="material-symbols-outlined text-sm">calendar_month</span>
+                            </button>
+                            <input type="month" id="monthSelector" class="absolute inset-0 opacity-0 pointer-events-none" 
+                                value="{{ \Carbon\Carbon::createFromFormat('m/Y', $selectedMonth)->format('Y-m') }}"
+                                onchange="onMonthSelected(this.value)">
+                        </div>
+
+                        <button onclick="changeMonth(1)" 
+                            class="p-2 hover:bg-white hover:text-blue-600 rounded-md transition-all group flex items-center justify-center"
+                            id="btnNextMonth" title="Tháng sau">
+                            <span class="material-symbols-outlined text-lg">chevron_right</span>
+                        </button>
                     </div>
                 </div>
-
-                <!-- Budget Progress Bar -->
-                @php
-                    $parts = explode('/', $selectedMonth);
-                    $year = isset($parts[1]) ? (int)$parts[1] : date('Y');
-                    $budget = \App\Models\DepartmentBudget::where('department_id', $department->id)
-                        ->where('year', $year)
-                        ->first();
-                @endphp
-                @if($budget)
-                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                        <div class="flex justify-between items-center mb-2">
-                            <div class="flex items-center gap-2">
-                                <span class="material-symbols-outlined text-blue-600">account_balance_wallet</span>
-                                <span class="text-sm font-semibold text-gray-700">Ngân sách năm {{ $year }}</span>
-                            </div>
-                            <div class="text-right">
-                                <div class="text-xs text-gray-500">Còn lại</div>
-                                <div class="text-sm font-bold {{ $budget->remaining_budget < 0 ? 'text-red-600' : 'text-green-600' }}">
-                                    {{ number_format($budget->remaining_budget, 0, ',', '.') }} VNĐ
-                                </div>
-                            </div>
-                        </div>
-                        <div class="flex items-center gap-3">
-                            <div class="flex-1">
-                                @php
-                                    $usagePercentage = $budget->total_budget > 0 ? ($budget->used_budget / $budget->total_budget) * 100 : 0;
-                                    $barColor = $usagePercentage > 90 ? 'bg-red-600' : ($usagePercentage > 70 ? 'bg-orange-500' : 'bg-green-500');
-                                    $barWidth = min($usagePercentage, 100);
-                                @endphp
-                                <div class="w-full bg-gray-200 rounded-full h-3">
-                                    <div class="h-3 rounded-full {{ $barColor }} transition-all duration-300" 
-                                         style="width: {{ $barWidth }}%"></div>
-                                </div>
-                            </div>
-                            <div class="text-sm font-semibold text-gray-700 min-w-[60px] text-right">
-                                {{ number_format($usagePercentage, 1) }}%
-                            </div>
-                        </div>
-                        <div class="flex justify-between mt-2 text-xs text-gray-600">
-                            <span>Đã dùng: {{ number_format($budget->used_budget, 0, ',', '.') }} VNĐ</span>
-                            <span>Tổng: {{ number_format($budget->total_budget, 0, ',', '.') }} VNĐ</span>
-                        </div>
-                        @if($usagePercentage > 90)
-                            <div class="mt-2 text-xs text-red-600 font-medium">
-                                ⚠️ Cảnh báo: Ngân sách sắp hết!
-                            </div>
-                        @elseif($usagePercentage > 70)
-                            <div class="mt-2 text-xs text-orange-600 font-medium">
-                                ⚠️ Lưu ý: Đã sử dụng hơn 70% ngân sách
-                            </div>
-                        @endif
-                    </div>
-                @endif
             </header>
+
+            <div id="toast-container"></div>
 
             <!-- Content -->
             <div class="flex-1 overflow-y-auto p-8">
@@ -222,7 +188,7 @@
                             </div>
                             <div class="ml-3">
                                 <p class="text-sm font-medium text-yellow-700">
-                                    Đã quá hạn chỉnh sửa cho tháng này (Sau ngày 5 của tháng tiếp theo). Bạn chỉ có thể xem lịch sử.
+                                    Đã quá hạn chỉnh sửa cho yêu cầu tháng {{ $selectedMonth }} (Sau 23:59:59 ngày 25 hàng tháng). Bạn chỉ có thể xem lịch sử.
                                 </p>
                             </div>
                         </div>
@@ -295,7 +261,27 @@
                                                 @endif>
                                                 <span class="notes-display">{{ $order->notes ?? '' }}</span>
                                             </td>
-                                            <td class="text-sm text-blue-700 bg-blue-50">{{ $order->admin_notes ?? '' }}</td>
+                                            <td class="text-sm px-3 py-2">
+                                                @if($order->admin_notes)
+                                                    @php
+                                                        $adminParts = explode('|||', $order->admin_notes);
+                                                        $shared = trim($adminParts[0]);
+                                                        $private = isset($adminParts[1]) ? trim($adminParts[1]) : '';
+                                                    @endphp
+                                                    <div class="flex flex-col gap-1">
+                                                        @if($shared)
+                                                            <div class="text-blue-800 bg-blue-50 px-2 py-1 rounded text-xs italic" title="Ghi chú chung">
+                                                                <span class="font-bold">Tổng hợp:</span> {{ $shared }}
+                                                            </div>
+                                                        @endif
+                                                        @if($private)
+                                                            <div class="text-red-800 bg-red-50 px-2 py-1 rounded text-xs font-medium" title="Đã chỉnh sửa số lượng">
+                                                                <span class="font-bold">Đã chỉnh sửa:</span> {{ $private }}
+                                                            </div>
+                                                        @endif
+                                                    </div>
+                                                @endif
+                                            </td>
                                             <td class="text-center text-sm text-gray-600">
                                                 {{ $order->created_at->format('d/m/Y H:i') }}</td>
                                             <td class="text-center text-sm text-gray-600">
@@ -341,6 +327,127 @@
     <iframe id="printFrame" style="display:none;"></iframe>
 
     <script>
+        const EARLIEST_MONTH = "{{ $earliestMonth }}"; // m/Y
+        const LATEST_MONTH = "{{ $latestMonth }}"; // m/Y
+        const SELECTED_MONTH = "{{ $selectedMonth }}"; // m/Y
+
+        function getMonthData(mStr) {
+            const parts = mStr.split('/');
+            return { month: parseInt(parts[0]), year: parseInt(parts[1]) };
+        }
+
+        function formatDate(m, y) {
+            return `${m.toString().padStart(2, '0')}/${y}`;
+        }
+
+        function isBeforeEarliest(mStr) {
+            const current = getMonthData(mStr);
+            const earliest = getMonthData(EARLIEST_MONTH);
+            if (current.year < earliest.year) return true;
+            if (current.year === earliest.year && current.month < earliest.month) return true;
+            return false;
+        }
+
+        function isAfterLatest(mStr) {
+            const current = getMonthData(mStr);
+            const latest = getMonthData(LATEST_MONTH);
+            if (current.year > latest.year) return true;
+            if (current.year === latest.year && current.month > latest.month) return true;
+            return false;
+        }
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type} flex items-center gap-3`;
+            
+            const icon = type === 'error' ? 'report' : (type === 'success' ? 'check_circle' : 'info');
+            const iconColor = type === 'error' ? 'text-red-500' : (type === 'success' ? 'text-green-500' : 'text-blue-500');
+
+            toast.innerHTML = `
+                <span class="material-symbols-outlined ${iconColor}">${icon}</span>
+                <span class="text-sm font-medium text-gray-700">${message}</span>
+            `;
+            
+            container.appendChild(toast);
+            setTimeout(() => toast.classList.add('show'), 10);
+            
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 300);
+            }, 4000);
+        }
+
+        function changeMonth(delta) {
+            const current = getMonthData(SELECTED_MONTH);
+            let m = current.month + delta;
+            let y = current.year;
+
+            if (m > 12) { m = 1; y++; }
+            if (m < 1) { m = 12; y--; }
+
+            const newMonthStr = formatDate(m, y);
+            
+            if (isBeforeEarliest(newMonthStr)) {
+                showToast(`Dữ liệu của khoa bắt đầu từ tháng ${EARLIEST_MONTH}. Bạn không thể quay lại xa hơn tháng này.`, 'error');
+                return;
+            }
+
+            if (isAfterLatest(newMonthStr)) {
+                showToast(`Tháng ${newMonthStr} là tháng tương lai. Bạn chỉ có thể xem lịch sử tối đa đến tháng ${LATEST_MONTH}.`, 'error');
+                return;
+            }
+
+            window.location.href = `{{ route('department.history') }}?month=${encodeURIComponent(newMonthStr)}`;
+        }
+
+        function onMonthSelected(val) {
+            // val is YYYY-MM from <input type="month">
+            const parts = val.split('-');
+            const newMonthStr = `${parts[1]}/${parts[0]}`;
+            validateAndGo(newMonthStr);
+        }
+
+        function validateAndGo(mStr) {
+            // Check format mm/yyyy
+            const regex = /^(0[1-9]|1[0-2])\/\d{4}$/;
+            if (!regex.test(mStr)) {
+                showToast("Vui lòng nhập tháng theo định dạng mm/yyyy (ví dụ: 03/2026)", 'error');
+                return;
+            }
+
+            if (isBeforeEarliest(mStr)) {
+                showToast(`Dữ liệu của khoa bắt đầu từ tháng ${EARLIEST_MONTH}. Bạn không thể quay lại xa hơn tháng này.`, 'error');
+                return;
+            }
+
+            if (isAfterLatest(mStr)) {
+                showToast(`Bạn đã chọn tháng ${mStr}. Đây là tháng tương lai. Lịch sử chỉ cho phép xem tối đa đến tháng ${LATEST_MONTH}.`, 'error');
+                return;
+            }
+
+            window.location.href = `{{ route('department.history') }}?month=${encodeURIComponent(mStr)}`;
+        }
+
+        function updateNavButtons() {
+            const btnPrev = document.getElementById('btnPrevMonth');
+            const btnNext = document.getElementById('btnNextMonth');
+            
+            // Disable prev if at earliest
+            if (SELECTED_MONTH === EARLIEST_MONTH) {
+                btnPrev.classList.add('opacity-30', 'cursor-not-allowed');
+                btnPrev.onclick = null;
+            }
+
+            // Disable next if at latest
+            if (SELECTED_MONTH === LATEST_MONTH) {
+                btnNext.classList.add('opacity-30', 'cursor-not-allowed');
+                btnNext.onclick = null;
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', updateNavButtons);
+
         function printDirect(btn) {
             const month = "{{ $selectedMonth }}";
             const printUrl = "{{ route('department.history.print') }}?month=" + encodeURIComponent(month);

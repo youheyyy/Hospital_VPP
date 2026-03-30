@@ -27,12 +27,6 @@ Route::middleware(['auth', 'role:SuperAdmin'])->prefix('superadmin')->name('supe
     Route::post('/users/{user}/toggle-status', [SuperAdminController::class, 'toggleStatus'])->name('users.toggle-status');
     Route::delete('/users/{user}', [SuperAdminController::class, 'deleteUser'])->name('users.delete');
 
-    // Budget Management
-    Route::get('/budgets', [\App\Http\Controllers\BudgetController::class, 'index'])->name('budgets.index');
-    Route::post('/budgets', [\App\Http\Controllers\BudgetController::class, 'store'])->name('budgets.store');
-    Route::delete('/budgets/{budget}', [\App\Http\Controllers\BudgetController::class, 'destroy'])->name('budgets.destroy');
-    Route::post('/budgets/{budget}/recalculate', [\App\Http\Controllers\BudgetController::class, 'recalculate'])->name('budgets.recalculate');
-
     // Data Management
     Route::get('/data-management', [SuperAdminController::class, 'dataManagement'])->name('data-management');
     Route::post('/backup', [SuperAdminController::class, 'createBackup'])->name('backup.create');
@@ -43,6 +37,8 @@ Route::middleware(['auth', 'role:SuperAdmin'])->prefix('superadmin')->name('supe
     Route::post('/backup/config', [SuperAdminController::class, 'updateBackupConfig'])->name('backup.config');
     Route::post('/import', [SuperAdminController::class, 'importData'])->name('import');
     Route::post('/import-advanced', [SuperAdminController::class, 'importAdvanced'])->name('import.advanced');
+    Route::post('/import-master', [SuperAdminController::class, 'importMasterData'])->name('import.master');
+
     Route::get('/export-template/{type}', [SuperAdminController::class, 'exportTemplate'])->name('export-template');
 });
 
@@ -51,17 +47,29 @@ Route::middleware(['auth', 'role:Admin'])->prefix('admin')->name('admin.')->grou
     Route::get('/dashboard', [AdminController::class, 'dashboard'])->name('dashboard');
     Route::get('/consolidated', [AdminController::class, 'consolidated'])->name('consolidated');
     Route::get('/consolidated/export', [AdminController::class, 'exportConsolidated'])->name('consolidated.export');
+    Route::get('/consolidated/export-biemmau', [AdminController::class, 'exportBiemMau'])->name('consolidated.export.biemmau');
+    Route::get('/consolidated/export-tongvpp', [AdminController::class, 'exportTongVPP'])->name('consolidated.export.tongvpp');
+    Route::get('/consolidated/export-tongvppall', [AdminController::class, 'exportTongVPPAll'])->name('consolidated.export.tongvppall');
     Route::get('/consolidated/print', [AdminController::class, 'printConsolidated'])->name('consolidated.print');
     Route::post('/consolidated/update-note', [AdminController::class, 'updateNote'])->name('consolidated.update_note');
+    Route::post('/consolidated/update-private-note', [AdminController::class, 'updatePrivateNote'])->name('consolidated.update_private_note');
 
     Route::post('/consolidated/update-quantity', [AdminController::class, 'updateQuantity'])->name('consolidated.update-quantity');
     Route::get('/consolidated/export-single', [AdminController::class, 'exportSingleConsolidated'])->name('consolidated.export-single');
-    
-    // Budget management routes for Admin
-    Route::get('/budgets', [AdminController::class, 'budgets'])->name('budgets.index');
-    Route::post('/budgets', [AdminController::class, 'storeBudget'])->name('budgets.store');
-    Route::delete('/budgets/{budget}', [AdminController::class, 'destroyBudget'])->name('budgets.destroy');
-    Route::post('/budgets/{budget}/recalculate', [AdminController::class, 'recalculateBudget'])->name('budgets.recalculate');
+
+    // Product Management
+    Route::get('/products', [AdminController::class, 'products'])->name('products');
+    Route::post('/products/update-price', [AdminController::class, 'updateProductPrice'])->name('products.update-price');
+    Route::post('/products/update-name', [AdminController::class, 'updateProductName'])->name('products.update-name');
+    Route::post('/products/update-unit', [AdminController::class, 'updateProductUnit'])->name('products.update-unit');
+    Route::post('/products/update-category', [AdminController::class, 'updateProductCategory'])->name('products.update-category');
+    Route::post('/products/update-is-form', [AdminController::class, 'updateProductIsForm'])->name('products.update-is-form');
+    Route::post('/products/update-paper-size', [AdminController::class, 'updateProductPaperSize'])->name('products.update-paper-size');
+    Route::delete('/products/{product}', [AdminController::class, 'destroyProduct'])->name('products.destroy');
+    Route::post('/category/update-name', [AdminController::class, 'updateCategoryName'])->name('category.update-name');
+    Route::delete('/category/{category}', [AdminController::class, 'destroyCategory'])->name('category.destroy');
+    Route::post('/category/store', [AdminController::class, 'storeCategory'])->name('category.store');
+    Route::post('/products/store', [AdminController::class, 'storeProduct'])->name('products.store');
 });
 
 // Department routes

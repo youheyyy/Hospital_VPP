@@ -11,8 +11,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('monthly_orders', function (Blueprint $table) {
-            $table->text('admin_notes')->nullable()->after('notes');
+        Schema::table('products', function (Blueprint $table) {
+            $table->decimal('previous_price', 15, 2)->nullable()->after('price');
         });
     }
 
@@ -21,8 +21,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('monthly_orders', function (Blueprint $table) {
-            $table->dropColumn('admin_notes');
+        Schema::table('products', function (Blueprint $table) {
+            $table->dropColumn('previous_price');
         });
     }
 };

@@ -68,84 +68,19 @@
         <!-- Main Content -->
         <main class="flex-1 flex flex-col overflow-hidden">
             <!-- Header -->
-            <header class="bg-white border-b px-8 py-4">
-                <div class="flex justify-between items-center mb-4">
-                    <div>
-                        <h1 class="text-xl font-bold text-gray-800">{{ $department->name }}</h1>
-                        <p class="text-sm text-gray-500">Yêu cầu văn phòng phẩm tháng {{ $selectedMonth }}</p>
-                        @php
-                            $currentDay = now()->day;
-                            $canEdit = $currentDay < 5;
-                        @endphp
-                        @if(!$canEdit)
-                            <p class="text-xs text-red-600 mt-1">⚠️ Chỉ có thể chỉnh sửa trước ngày 5 hàng tháng. Hiện tại chỉ có thể tạo yêu cầu mới.</p>
-                        @endif
-                    </div>
-                    <div class="flex items-center gap-4">
-                        <div class="border-gray-300 rounded-lg text-sm px-4 py-2 bg-gray-50 font-semibold text-gray-700">
-                            Tháng {{ date('m/Y') }}
-                        </div>
+            <header class="bg-white border-b px-8 py-4 flex justify-between items-center">
+                <div>
+                    <h1 class="text-xl font-bold text-gray-800">{{ $department->name }}</h1>
+                    <p class="text-sm text-gray-500">Yêu cầu văn phòng phẩm tháng {{ $selectedMonth }}</p>
+                    @if(!$canEdit)
+                        <p class="text-xs text-red-600 mt-1">⚠️ Hạn chót chỉnh sửa yêu cầu tháng {{ $selectedMonth }} là ngày 25. Hiện tại chỉ có thể thêm sản phẩm mới.</p>
+                    @endif
+                </div>
+                <div class="flex items-center gap-3">
+                    <div class="flex items-center bg-gray-100 rounded-lg px-4 py-2 border border-gray-200 shadow-sm font-semibold text-blue-600">
+                        Tháng {{ $selectedMonth }}
                     </div>
                 </div>
-
-                <!-- Budget Progress Bar -->
-                @php
-                    $parts = explode('/', $selectedMonth);
-                    $year = isset($parts[1]) ? (int)$parts[1] : date('Y');
-                    $budget = \App\Models\DepartmentBudget::where('department_id', $department->id)
-                        ->where('year', $year)
-                        ->first();
-                @endphp
-                @if($budget)
-                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                        <div class="flex justify-between items-center mb-2">
-                            <div class="flex items-center gap-2">
-                                <span class="material-symbols-outlined text-blue-600">account_balance_wallet</span>
-                                <span class="text-sm font-semibold text-gray-700">Ngân sách năm {{ $year }}</span>
-                            </div>
-                            <div class="text-right">
-                                <div class="text-xs text-gray-500">Còn lại</div>
-                                <div class="text-sm font-bold {{ $budget->remaining_budget < 0 ? 'text-red-600' : 'text-green-600' }}">
-                                    {{ number_format($budget->remaining_budget, 0, ',', '.') }} VNĐ
-                                </div>
-                            </div>
-                        </div>
-                        <div class="flex items-center gap-3">
-                            <div class="flex-1">
-                                @php
-                                    $usagePercentage = $budget->total_budget > 0 ? ($budget->used_budget / $budget->total_budget) * 100 : 0;
-                                    $barColor = $usagePercentage > 90 ? 'bg-red-600' : ($usagePercentage > 70 ? 'bg-orange-500' : 'bg-green-500');
-                                    $barWidth = min($usagePercentage, 100);
-                                @endphp
-                                <div class="w-full bg-gray-200 rounded-full h-3">
-                                    <div class="h-3 rounded-full {{ $barColor }} transition-all duration-300" 
-                                         style="width: {{ $barWidth }}%"></div>
-                                </div>
-                            </div>
-                            <div class="text-sm font-semibold text-gray-700 min-w-[60px] text-right">
-                                {{ number_format($usagePercentage, 1) }}%
-                            </div>
-                        </div>
-                        <div class="flex justify-between mt-2 text-xs text-gray-600">
-                            <span>Đã dùng: {{ number_format($budget->used_budget, 0, ',', '.') }} VNĐ</span>
-                            <span>Tổng: {{ number_format($budget->total_budget, 0, ',', '.') }} VNĐ</span>
-                        </div>
-                        @if($usagePercentage > 90)
-                            <div class="mt-2 text-xs text-red-600 font-medium">
-                                ⚠️ Cảnh báo: Ngân sách sắp hết!
-                            </div>
-                        @elseif($usagePercentage > 70)
-                            <div class="mt-2 text-xs text-orange-600 font-medium">
-                                ⚠️ Lưu ý: Đã sử dụng hơn 70% ngân sách
-                            </div>
-                        @endif
-                    </div>
-                @else
-                    <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3 flex items-center gap-2">
-                        <span class="material-symbols-outlined text-yellow-600">warning</span>
-                        <span class="text-sm text-yellow-800">Chưa có ngân sách cho năm {{ $year }}. Vui lòng liên hệ SuperAdmin.</span>
-                    </div>
-                @endif
             </header>
 
             <!-- Content -->
@@ -178,45 +113,44 @@
                                 <tr>
                                     <th style="width: 50px;">Chọn</th>
                                     <th style="width: 50px;">STT</th>
-                                    <th style="position: relative;">
-                                        <div class="flex items-center justify-between">
-                                            <span>Tên hàng</span>
-                                            <button type="button" id="filterButton" onclick="toggleFilter(event)" class="ml-2 px-3 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm transition-colors">
-                                                Lọc
-                                            </button>
+                                    <th style="position: relative; min-width: 250px;">
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-sm font-bold text-gray-700 whitespace-nowrap">Tên hàng</span>
+                                            <div class="relative flex-1">
+                                                <input type="text" id="filterSearch" placeholder="Tìm kiếm & lọc..." 
+                                                    onkeyup="filterProducts()" 
+                                                    onclick="toggleFilter(event)"
+                                                    class="w-full px-3 py-1.5 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 hover:bg-white transition-all">
+                                                <span class="material-symbols-outlined absolute right-2 top-1.5 text-gray-400 text-sm pointer-events-none">search</span>
+                                            </div>
                                         </div>
                                         
                                         <!-- Filter Dropdown -->
-                                        <div id="filterDropdown" style="display: none; position: absolute; top: 100%; left: 0; z-index: 1000; background: white; border: 1px solid #d1d5db; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); width: 320px; max-height: 400px; overflow: hidden;">
-                                            <!-- Search Box -->
-                                            <div style="padding: 12px; border-bottom: 1px solid #e5e7eb;">
-                                                <input type="text" id="filterSearch" placeholder="Tìm kiếm sản phẩm..." 
-                                                    onkeyup="filterProducts()" 
-                                                    class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                            </div>
-                                            
+                                        <div id="filterDropdown" style="display: none; position: absolute; top: 100%; left: 0; z-index: 1000; background: white; border: 1px solid #d1d5db; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.15); width: 100%; min-width: 300px; max-height: 400px; overflow: hidden; margin-top: 4px;">
                                             <!-- Filter Options -->
-                                            <div style="max-height: 300px; overflow-y: auto; padding: 8px;">
+                                            <div style="max-height: 300px; overflow-y: auto; padding: 12px;">
                                                 <!-- Select All -->
-                                                <label class="flex items-center px-3 py-2 hover:bg-gray-50 cursor-pointer rounded">
+                                                <label class="flex items-center px-3 py-2 hover:bg-blue-50 cursor-pointer rounded-lg transition-colors group">
                                                     <input type="checkbox" id="selectAllFilter" checked onchange="toggleAllFilters(this)" class="w-4 h-4 text-blue-600 rounded">
-                                                    <span class="ml-2 text-sm font-semibold">(Select All)</span>
+                                                    <span class="ml-3 text-sm font-bold text-gray-700 group-hover:text-blue-700">(Tất cả)</span>
                                                 </label>
                                                 
+                                                <div class="my-2 border-t border-gray-100"></div>
+
                                                 <!-- Product List -->
                                                 <div id="filterProductList">
                                                     @foreach($products as $product)
-                                                        <label class="filter-option flex items-center px-3 py-2 hover:bg-gray-50 cursor-pointer rounded" data-product-name="{{ strtolower($product->name) }}">
+                                                        <label class="filter-option flex items-center px-3 py-2 hover:bg-blue-50 cursor-pointer rounded-lg transition-colors group" data-product-name="{{ strtolower($product->name) }}">
                                                             <input type="checkbox" checked class="product-filter-checkbox w-4 h-4 text-blue-600 rounded" data-product-id="{{ $product->id }}" onchange="applyFilter()">
-                                                            <span class="ml-2 text-sm">{{ $product->name }}</span>
+                                                            <span class="ml-3 text-sm text-gray-600 group-hover:text-blue-600">{{ $product->name }}</span>
                                                         </label>
                                                     @endforeach
                                                 </div>
                                             </div>
                                             
                                             <!-- Footer Buttons -->
-                                            <div style="padding: 12px; border-top: 1px solid #e5e7eb; display: flex; justify-content: flex-end; gap: 8px;">
-                                                <button type="button" onclick="closeFilter()" class="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md">Đóng</button>
+                                            <div style="padding: 12px; border-top: 1px solid #f3f4f6; background: #fafafa; display: flex; justify-content: flex-end;">
+                                                <button type="button" onclick="closeFilter()" class="px-6 py-1.5 text-xs font-bold text-gray-600 hover:text-blue-600 hover:bg-white border border-transparent hover:border-gray-200 rounded-md transition-all">Đóng</button>
                                             </div>
                                         </div>
                                     </th>
@@ -247,10 +181,11 @@
                                         <tr class="product-row" data-product-id="{{ $product->id }}">
                                             <td class="text-center">
                                                 <input type="checkbox" 
-                                                    class="product-checkbox w-4 h-4 text-blue-600 rounded"
+                                                    class="product-checkbox w-4 h-4 text-blue-600 rounded {{ !$canEdit ? 'opacity-50 cursor-not-allowed' : '' }}"
                                                     data-product-id="{{ $product->id }}"
                                                     onchange="toggleProductRow(this)"
-                                                    {{ isset($monthlyOrders[$product->id]) ? 'checked' : '' }}>
+                                                    {{ isset($monthlyOrders[$product->id]) ? 'checked' : '' }}
+                                                    {{ !$canEdit ? 'disabled' : '' }}>
                                             </td>
                                             <td class="text-center text-sm text-gray-600">{{ $stt }}</td>
                                             <td class="text-sm font-medium">{{ $product->name }}</td>
@@ -259,13 +194,14 @@
                                                 <input type="hidden" name="orders[{{ $product->id }}][product_id]" value="{{ $product->id }}">
                                                 <input type="number" 
                                                     name="orders[{{ $product->id }}][quantity]"
-                                                    class="quantity-input w-full border-gray-300 rounded text-sm px-2 py-1 text-right"
+                                                    class="quantity-input w-full border-gray-300 rounded text-sm px-2 py-1 text-right {{ !$canEdit ? 'bg-gray-100 cursor-not-allowed' : '' }}"
                                                     data-price="{{ $product->price }}"
                                                     data-product-id="{{ $product->id }}"
                                                      value="{{ isset($monthlyOrders[$product->id]) ? (int)$monthlyOrders[$product->id]->quantity : 0 }}"
                                                     min="0"
                                                     step="1"
-                                                    oninput="calculateTotal(this)">
+                                                    oninput="calculateTotal(this)"
+                                                    {{ !$canEdit ? 'readonly' : '' }}>
                                             </td>
                                             <td class="text-right text-sm price-cell">{{ number_format($product->price, 0, ',', '.') }}</td>
                                             <td class="text-right text-sm font-semibold total-cell">{{ number_format(($monthlyOrders[$product->id]->quantity ?? 0) * $product->price, 0, ',', '.') }}</td>
@@ -282,12 +218,19 @@
                         </table>
                     </div>
 
-                    <div class="mt-6 flex justify-end gap-4">
-                        <button type="submit" class="px-8 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow-lg">
-                            <span class="material-symbols-outlined text-sm inline-block align-middle">save</span>
-                            Lưu yêu cầu
-                        </button>
-                    </div>
+                    @if($canEdit)
+                        <div class="mt-6 flex justify-end gap-4">
+                            <button type="submit" class="px-8 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow-lg">
+                                <span class="material-symbols-outlined text-sm inline-block align-middle">save</span>
+                                Lưu yêu cầu
+                            </button>
+                        </div>
+                    @else
+                        <div class="mt-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-3 text-red-700">
+                            <span class="material-symbols-outlined">lock</span>
+                            <p class="text-sm font-medium">Hệ thống đã khóa yêu cầu cho tháng {{ $selectedMonth }}. Bạn chỉ có thể xem, không thể thay đổi.</p>
+                        </div>
+                    @endif
                 </form>
             </div>
         </main>
@@ -298,7 +241,12 @@
         function toggleFilter(event) {
             event.stopPropagation();
             const dropdown = document.getElementById('filterDropdown');
-            dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+            if (dropdown.style.display === 'none' || dropdown.style.display === '') {
+                dropdown.style.display = 'block';
+            } else {
+                // Keep open if typing
+                if (event.type === 'keyup') return;
+            }
         }
 
         function closeFilter() {
@@ -367,12 +315,10 @@
         // Close filter when clicking outside
         document.addEventListener('click', function(event) {
             const dropdown = document.getElementById('filterDropdown');
-            const filterButton = document.getElementById('filterButton');
+            const filterSearch = document.getElementById('filterSearch');
             
-            if (dropdown && filterButton && 
-                !dropdown.contains(event.target) && 
-                !filterButton.contains(event.target)) {
-                dropdown.style.display = 'none';
+            if (dropdown && filterSearch && !dropdown.contains(event.target) && !filterSearch.contains(event.target)) {
+                closeFilter();
             }
         });
 

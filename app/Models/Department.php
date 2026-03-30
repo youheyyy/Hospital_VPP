@@ -34,20 +34,4 @@ class Department extends Model
     {
         return $this->hasMany(MonthlyOrder::class);
     }
-
-    /**
-     * Get the budgets for the department.
-     */
-    public function budgets()
-    {
-        return $this->hasMany(DepartmentBudget::class);
-    }
-
-    /**
-     * Get the budget for a specific year.
-     */
-    public function getBudgetForYear($year)
-    {
-        return $this->budgets()->where('year', $year)->first();
-    }
 }

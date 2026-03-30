@@ -198,7 +198,7 @@
 
 <div id="editUserModal" class="modal fixed inset-0 bg-slate-900/40 backdrop-blur-sm items-center justify-center z-50">
     <div class="bg-white rounded-2xl p-8 w-full max-w-md shadow-2xl">
-        <h3 class="text-xl font-bold text-slate-900 mb-6">Sửa thông tin</h3>
+        <h3 class="text-xl font-bold text-slate-900 mb-6 font-bold">Sửa thông tin</h3>
         <form id="editUserForm" method="POST">
             @csrf @method('PUT')
             <div class="space-y-4 text-left">

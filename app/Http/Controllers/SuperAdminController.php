@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use PhpOffice\PhpSpreadsheet\Reader\Xlsb;
 
 class SuperAdminController extends Controller
 {
@@ -868,7 +869,7 @@ class SuperAdminController extends Controller
 
             // ── Batch insert orders ───────────────────────────────────────────────
             foreach (array_chunk($ordersToInsert, 500) as $chunk) {
-                MonthlyOrder::insert($chunk);
+                \App\Models\MonthlyOrder::insert($chunk);
             }
 
             $this->logActivity('Import Excel', "Import {$processedOrders} dòng cho {$processedDepts} khoa, tháng {$targetMonth}");
@@ -1164,7 +1165,7 @@ class SuperAdminController extends Controller
 
     private function parsePrice($val)
     {
-        if ($val === null || $val === '')
+        if ($val === null || $val === '' || trim((string) $val) === '-')
             return 0;
 
         // If it's already a number (from toArray with formatData=false)
@@ -1470,5 +1471,148 @@ class SuperAdminController extends Controller
 
         $str = $this->cleanString($str); // Uses existing alphanumeric cleaner
         return strtoupper($str);
+    }
+
+    /**
+     * Chức năng Import Sản phẩm Biểu mẫu chuyên biệt từ sheet "TỔNG HỢP"
+     * Chỉ đồng bộ danh mục sản phẩm, không quan tâm ngày tháng hay số lượng.
+     */
+
+
+    public function importMasterData(Request $request)
+    {
+        $request->validate([
+            'excel_file' => 'required|file|mimes:xlsx,xls',
+        ]);
+
+        try {
+            set_time_limit(0);
+            $file = $request->file('excel_file');
+            
+            $reader = \PhpOffice\PhpSpreadsheet\IOFactory::createReaderForFile($file->getPathname());
+            $reader->setReadDataOnly(false);
+            $spreadsheet = $reader->load($file->getPathname());
+
+            // 1. Đồng bộ Khoa phòng từ Sheet Names
+            $sheetNames = $spreadsheet->getSheetNames();
+            $masterName = null;
+            $deptCount = 0;
+
+            foreach ($sheetNames as $sheetName) {
+                $cleanName = $this->cleanStringForMatch($sheetName);
+                if (str_contains($cleanName, 'TONGHOP')) {
+                    $masterName = $sheetName;
+                    continue;
+                }
+                
+                // Bỏ qua các sheet không phải khoa phòng
+                if ($this->isJunkRow($sheetName) || str_contains($cleanName, 'BANGTONG') || str_contains($cleanName, 'CONSOLIDATED')) {
+                    continue;
+                }
+
+                $slug = strtoupper(\Illuminate\Support\Str::slug($sheetName));
+                $dept = \App\Models\Department::updateOrCreate(
+                    ['code' => $slug],
+                    ['name' => $sheetName, 'is_active' => true]
+                );
+                $this->ensureDepartmentUser($dept);
+                $deptCount++;
+            }
+
+            if (!$masterName) {
+                return redirect()->back()->with('error', 'Không tìm thấy sheet "TỔNG HỢP" trong file Excel để lấy danh mục sản phẩm.');
+            }
+
+            // 2. Đồng bộ Danh mục & Sản phẩm từ Master Sheet
+            $sheet = $spreadsheet->getSheetByName($masterName);
+            $rows = $sheet->toArray(null, true, false, false);
+            $headerIdx = $this->findHeaderRow($rows);
+            
+            // Dò tìm vị trí cột linh hoạt thay vì fix cứng index
+            list($nameCol, $unitCol, $priceCol, $qtyCol, $noteCol) = $this->detectColumnsStrict($rows, $headerIdx);
+            
+            // Nếu không tìm thấy cột Tên, fallback về index 1
+            if ($nameCol == -1) $nameCol = 1;
+            if ($unitCol == -1) $unitCol = 2;
+            if ($priceCol == -1) $priceCol = 4;
+
+            $currentCatId = null;
+            $catCount = 0;
+            $prodCount = 0;
+
+            foreach ($rows as $idx => $row) {
+                if ($idx <= $headerIdx) continue;
+
+                $stt = trim((string) ($row[0] ?? ''));
+                $name = trim((string) ($row[$nameCol] ?? ''));
+                $unit = trim((string) ($row[$unitCol] ?? ''));
+                $price = $this->parsePrice($row[$priceCol] ?? 0);
+
+                $actualName = (!empty($name) && strlen($name) > 1) ? $name : $stt;
+                $h = mb_strtolower(trim($actualName));
+
+                // QUY TẮC DỪNG: Nếu gặp chữ ký ở chân trang
+                if (str_contains($h, 'trưởng phòng') || str_contains($h, 'giám đốc') || str_contains($h, 'kế toán') || str_contains($h, 'người lập') || str_contains($h, 'bp.htdv')) {
+                    Log::info("Import [MASTER]: Signature detected at row " . ($idx+1) . " -> Stopping.");
+                    break;
+                }
+
+                if (empty($actualName) || strlen($actualName) < 2) continue;
+
+                // LẤY ĐỊNH DẠNG Ô
+                $cellAddress = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($nameCol + 1) . ($idx + 1);
+                $style = $sheet->getStyle($cellAddress);
+                $isBold = $style->getFont()->getBold();
+                $rgb = strtoupper($style->getFill()->getStartColor()->getRGB());
+                $isColored = ($style->getFill()->getFillType() !== \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_NONE && $rgb !== 'FFFFFF' && $rgb !== '000000');
+                
+                // MÀU VÀNG: Bỏ qua (Dòng cộng tổng)
+                $isYellow = ($rgb === 'FFFF00' || $rgb === 'FFFF99' || $rgb === 'FFF2CC' || $rgb === 'FFD966');
+                if ($isYellow || $this->isJunkRow($actualName)) {
+                    continue; 
+                }
+
+                // PHÂN LOẠI THÔNG MINH (Ưu tiên GIÁ > 0 HOẶC Cột SỐ LƯỢNG có "-" hoặc Số)
+                $qtyVal = ($qtyCol !== -1) ? trim((string)($row[$qtyCol] ?? '')) : '';
+                $isProduct = ($price > 0) || !empty($unit) || (is_numeric($stt) && !empty($stt)) || ($qtyVal === '-') || is_numeric($qtyVal);
+                $isCategory = !$isProduct && ($isColored || $isBold || (empty($stt) && empty($unit)));
+
+                if ($isCategory) {
+                    // MÀU XANH / CHỮ ĐẬM VÀ KHÔNG CÓ GIÁ = NHÀ CUNG CẤP
+                    $cat = \App\Models\Category::updateOrCreate(
+                        ['name' => $actualName],
+                        ['is_active' => true]
+                    );
+                    $currentCatId = $cat->id;
+                    $catCount++;
+                    Log::info("Import [MASTER]: Row " . ($idx+1) . " -> NCC: '{$actualName}'");
+                } elseif ($isProduct) {
+                    // CÓ GIÁ / CÓ ĐVT / CÓ STT = SẢN PHẨM
+                    if (!$currentCatId) {
+                        $currentCatId = \App\Models\Category::firstOrCreate(['name' => 'Chung'])->id;
+                    }
+
+                    $cleanProdName = $this->normalizeProductName($actualName);
+                    \App\Models\Product::updateOrCreate(
+                        ['name' => $cleanProdName],
+                        [
+                            'unit' => $unit,
+                            'price' => $price,
+                            'category_id' => $currentCatId,
+                            'is_active' => true
+                        ]
+                    );
+                    $prodCount++;
+                    // Log::info("Import [MASTER]: Row " . ($idx+1) . " -> SP: '{$cleanProdName}' - {$price}đ");
+                }
+            }
+
+            $this->logActivity('Import Master Data', "Đã đồng bộ {$deptCount} khoa, {$catCount} danh mục, {$prodCount} sản phẩm.");
+            return redirect()->back()->with('success', "Đồng bộ thành công: {$deptCount} khoa phòng, {$catCount} nhà cung cấp, {$prodCount} sản phẩm.");
+
+        } catch (\Exception $e) {
+            Log::error('Master Data Import failed: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Lỗi Import: ' . $e->getMessage());
+        }
     }
 }

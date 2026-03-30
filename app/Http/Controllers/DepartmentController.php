@@ -7,6 +7,8 @@ use App\Models\Product;
 use App\Models\Category;
 use App\Models\MonthlyOrder;
 use Illuminate\Support\Facades\Auth;
+use App\Services\TimeService;
+use Carbon\Carbon;
 
 class DepartmentController extends Controller
 {
@@ -18,26 +20,25 @@ class DepartmentController extends Controller
         $user = Auth::user();
         $department = $user->department;
 
-        // Lấy tháng hiện tại hoặc tháng được chọn
-        $selectedMonth = $request->input('month', date('m/Y'));
+        // Lấy tháng hiện tại hoặc tháng được chọn (Tự động chuyển tháng từ ngày 26)
+        $selectedMonth = $request->input('month', TimeService::getCurrentCycleMonth());
 
         // Kiểm tra tháng được chọn phải là tháng hiện tại
         try {
             $selectedDate = \Carbon\Carbon::createFromFormat('m/Y', $selectedMonth)->startOfMonth();
             $currentDate = now()->startOfMonth();
 
-            if (!$selectedDate->equalTo($currentDate)) {
+            if (!$selectedDate->equalTo($currentDate) && !$selectedDate->equalTo($currentDate->copy()->addMonth())) {
                 $errorMessage = $selectedDate->greaterThan($currentDate)
-                    ? 'Không thể tạo yêu cầu cho tháng tương lai. Chỉ có thể tạo yêu cầu cho tháng hiện tại.'
-                    : 'Không thể tạo yêu cầu cho tháng quá khứ. Chỉ có thể tạo yêu cầu cho tháng hiện tại.';
+                    ? 'Không thể tạo yêu cầu cho tháng tương lai quá xa. Chỉ có thể tạo yêu cầu cho chu kỳ hiện tại.'
+                    : 'Không thể tạo yêu cầu cho tháng quá khứ. Chỉ có thể tạo yêu cầu cho chu kỳ hiện tại.';
 
-                return redirect()->route('department.index', ['month' => date('m/Y')])
+                return redirect()->route('department.index', ['month' => TimeService::getCurrentCycleMonth()])
                     ->with('error', $errorMessage);
             }
-        }
-        catch (\Exception $e) {
-            // Nếu định dạng tháng không hợp lệ, chuyển về tháng hiện tại
-            return redirect()->route('department.index', ['month' => date('m/Y')]);
+        } catch (\Exception $e) {
+            // Nếu định dạng tháng không hợp lệ, chuyển về tháng hiện tại của chu kỳ
+            return redirect()->route('department.index', ['month' => TimeService::getCurrentCycleMonth()]);
         }
 
         // Lấy tất cả categories và products
@@ -56,12 +57,17 @@ class DepartmentController extends Controller
             ->get()
             ->keyBy('product_id'); // keyed by product_id for easy lookup
 
+        $canEdit = !TimeService::isPastDeadline($selectedMonth);
+        $earliestMonth = TimeService::getEarliestMonth($department->id);
+
         return view('department.index', compact(
             'department',
             'categories',
             'products',
             'monthlyOrders',
-            'selectedMonth'
+            'selectedMonth',
+            'canEdit',
+            'earliestMonth'
         ));
     }
 
@@ -86,148 +92,60 @@ class DepartmentController extends Controller
             $selectedDate = \Carbon\Carbon::createFromFormat('m/Y', $validated['month'])->startOfMonth();
             $currentDate = now()->startOfMonth();
 
-            if (!$selectedDate->equalTo($currentDate)) {
+            if (!$selectedDate->equalTo($currentDate) && !$selectedDate->equalTo($currentDate->copy()->addMonth())) {
                 $errorMessage = $selectedDate->greaterThan($currentDate)
-                    ? 'Không thể tạo yêu cầu cho tháng tương lai. Chỉ có thể tạo yêu cầu cho tháng hiện tại.'
-                    : 'Không thể tạo yêu cầu cho tháng quá khứ. Chỉ có thể tạo yêu cầu cho tháng hiện tại.';
+                    ? 'Không thể tạo yêu cầu cho tháng tương lai quá xa. Chỉ có thể tạo yêu cầu cho chu kỳ hiện tại.'
+                    : 'Không thể tạo yêu cầu cho tháng quá khứ. Chỉ có thể tạo yêu cầu cho chu kỳ hiện tại.';
 
                 return redirect()->back()->withErrors([
                     'month' => $errorMessage
                 ])->withInput();
             }
-        }
-        catch (\Exception $e) {
+        } catch (\Exception $e) {
             return redirect()->back()->withErrors([
                 'month' => 'Định dạng tháng không hợp lệ.'
             ])->withInput();
         }
 
-        // Tính hạn chót: Ngày 5 của tháng tiếp theo
-        try {
-            $orderMonth = \Carbon\Carbon::createFromFormat('m/Y', $validated['month'])->startOfMonth();
-            $deadline = $orderMonth->copy()->addMonth()->day(5)->endOfDay();
-            $canEdit = now()->lte($deadline);
-        }
-        catch (\Exception $e) {
-            $canEdit = false;
+        // Hạn chót cho tháng đang yêu cầu (Sử dụng TimeService)
+        $canEdit = !TimeService::isPastDeadline($validated['month']);
+
+        // Nếu đã quá hạn chót, không cho phép lưu bất kỳ thay đổi nào (kể cả tạo mới)
+        if (!$canEdit) {
+            return redirect()->back()->with('error', 'Đã quá hạn chót (ngày 25) để gửi hoặc chỉnh sửa yêu cầu cho tháng ' . $validated['month'] . '.');
         }
 
         // Debug: Write to log file to see what's being received
         \Log::info('=== NOTES DEBUG ===', ['validated_orders' => $validated['orders']]);
 
-        // Tính tổng giá trị đơn hàng mới để kiểm tra ngân sách
-        $totalNewOrderValue = 0;
-        $products = \App\Models\Product::whereIn('id', array_column($validated['orders'], 'product_id'))->get()->keyBy('id');
-
         foreach ($validated['orders'] as $order) {
-            if ($order['quantity'] > 0) {
-                $product = $products->get($order['product_id']);
-                if ($product) {
-                    $existingOrder = MonthlyOrder::where([
-                        'department_id' => $department->id,
-                        'product_id' => $order['product_id'],
-                        'month' => $validated['month'],
-                    ])->first();
-
-                    // Chỉ tính phần tăng thêm
-                    $oldQuantity = $existingOrder ? $existingOrder->quantity : 0;
-                    $quantityDiff = $order['quantity'] - $oldQuantity;
-                    
-                    if ($quantityDiff > 0) {
-                        $totalNewOrderValue += $quantityDiff * $product->price;
-                    }
-                }
-            }
-        }
-
-        // Kiểm tra ngân sách nếu có đơn hàng mới
-        if ($totalNewOrderValue > 0) {
-            $parts = explode('/', $validated['month']);
-            $year = isset($parts[1]) ? (int)$parts[1] : date('Y');
-            
-            $budget = \App\Models\DepartmentBudget::where('department_id', $department->id)
-                ->where('year', $year)
-                ->first();
-
-            if (!$budget) {
-                return redirect()->back()->with('error', "Khoa chưa được cấp ngân sách cho năm {$year}. Vui lòng liên hệ SuperAdmin.");
-            }
-
-            if (!$budget->hasEnoughBudget($totalNewOrderValue)) {
-                return redirect()->back()->with('error', sprintf(
-                    "Không đủ ngân sách! Cần: %s VNĐ, Còn lại: %s VNĐ",
-                    number_format($totalNewOrderValue, 0, ',', '.'),
-                    number_format($budget->remaining_budget, 0, ',', '.')
-                ));
-            }
-        }
-
-        foreach ($validated['orders'] as $order) {
-            // Kiểm tra xem đã có order này chưa
-            $existingOrder = MonthlyOrder::where([
-                'department_id' => $department->id,
-                'product_id' => $order['product_id'],
-                'month' => $validated['month'],
-            ])->first();
-
-            // Nếu sau ngày 5 và đã có order, không cho phép cập nhật
-            if (!$canEdit && $existingOrder) {
-                continue; // Bỏ qua việc cập nhật order đã tồn tại
-            }
-
             // Lưu nếu có số lượng > 0 hoặc có ghi chú
             $hasNotes = !empty($order['notes']);
             $hasQuantity = $order['quantity'] > 0;
 
             if ($hasQuantity || $hasNotes) {
-                $product = $products->get($order['product_id']);
-                $oldQuantity = $existingOrder ? $existingOrder->quantity : 0;
-                $quantityDiff = $order['quantity'] - $oldQuantity;
-
-                // Cập nhật ngân sách
-                if ($quantityDiff != 0 && $product) {
-                    $parts = explode('/', $validated['month']);
-                    $year = isset($parts[1]) ? (int)$parts[1] : date('Y');
-                    
-                    $budget = \App\Models\DepartmentBudget::where('department_id', $department->id)
-                        ->where('year', $year)
-                        ->first();
-
-                    if ($budget) {
-                        $amountDiff = $quantityDiff * $product->price;
-                        if ($quantityDiff > 0) {
-                            $budget->useBudget($amountDiff);
-                        } else {
-                            $budget->refundBudget(abs($amountDiff));
-                        }
-                    }
-                }
-
-                // Cho phép tạo mới hoặc cập nhật nếu trước ngày 5
                 MonthlyOrder::updateOrCreate(
-                [
+                    [
+                        'department_id' => $department->id,
+                        'product_id' => $order['product_id'],
+                        'month' => $validated['month'],
+                    ],
+                    [
+                        'quantity' => $order['quantity'],
+                        'notes' => $order['notes'] ?? null,
+                    ]
+                );
+            } else {
+                // Xóa order nếu không có số lượng và không có ghi chú
+                MonthlyOrder::where([
                     'department_id' => $department->id,
                     'product_id' => $order['product_id'],
                     'month' => $validated['month'],
-                ],
-                [
-                    'quantity' => $order['quantity'],
-                    'notes' => $order['notes'] ?? null,
-                ]
-                );
-            }
-            else {
-                // Xóa order nếu không có số lượng và không có ghi chú
-                if ($existingOrder) {
-                    // Hoàn trả ngân sách
-                    \App\Helpers\BudgetHelper::refundBudget($existingOrder);
-                    $existingOrder->delete();
-                }
+                ])->delete();
             }
         }
 
-        $message = $canEdit ? 'Đã lưu yêu cầu thành công!' : 'Đã lưu yêu cầu mới thành công! (Không thể chỉnh sửa yêu cầu cũ sau ngày 5 của tháng tiếp theo)';
-        return redirect()->back()->with('success', $message);
+        return redirect()->back()->with('success', 'Đã lưu yêu cầu thành công!');
     }
 
     /**
@@ -238,8 +156,7 @@ class DepartmentController extends Controller
         $user = Auth::user();
         $department = $user->department;
 
-        // Lấy tháng được chọn hoặc tháng hiện tại
-        $selectedMonth = $request->input('month', date('m/Y'));
+        $selectedMonth = $request->input('month', TimeService::getCurrentCycleMonth());
 
         // Lấy tất cả yêu cầu của khoa trong tháng
         $orders = MonthlyOrder::where('department_id', $department->id)
@@ -254,33 +171,21 @@ class DepartmentController extends Controller
             ->with('product')
             ->get()
             ->sum(function ($order) {
-            return $order->quantity * $order->product->price;
-        });
+                return $order->quantity * $order->product->price;
+            });
 
-        // Tính toán quyền chỉnh sửa
-        try {
-            $orderMonth = \Carbon\Carbon::createFromFormat('m/Y', $selectedMonth)->startOfMonth();
-            $deadline = $orderMonth->copy()->addMonth()->day(5)->endOfDay();
-            $canEdit = now()->lte($deadline);
-
-        // Debug info
-        // dd([
-        //     'selectedResult' => $selectedMonth,
-        //     'deadline' => $deadline->toDateTimeString(),
-        //     'now' => now()->toDateTimeString(),
-        //     'canEdit' => $canEdit
-        // ]);
-        }
-        catch (\Exception $e) {
-            $canEdit = false;
-        }
+        $canEdit = !TimeService::isPastDeadline($selectedMonth);
+        $earliestMonth = TimeService::getEarliestMonth($department->id);
+        $latestMonth = TimeService::getCurrentCycleMonth();
 
         return view('department.history', compact(
             'department',
             'orders',
             'selectedMonth',
             'totalAmount',
-            'canEdit'
+            'canEdit',
+            'earliestMonth',
+            'latestMonth'
         ));
     }
 
@@ -292,8 +197,8 @@ class DepartmentController extends Controller
         $user = Auth::user();
         $department = $user->department;
 
-        // Lấy tháng được chọn hoặc tháng hiện tại
-        $selectedMonth = $request->input('month', date('m/Y'));
+        // Lấy tháng được chọn hoặc tháng hiện tại của chu kỳ
+        $selectedMonth = $request->input('month', TimeService::getCurrentCycleMonth());
 
         // Lấy tất cả yêu cầu của khoa trong tháng
         $orders = MonthlyOrder::where('department_id', $department->id)
@@ -308,8 +213,8 @@ class DepartmentController extends Controller
             ->with('product')
             ->get()
             ->sum(function ($order) {
-            return $order->quantity * $order->product->price;
-        });
+                return $order->quantity * $order->product->price;
+            });
 
         return view('department.department-print', compact(
             'department',
@@ -334,21 +239,11 @@ class DepartmentController extends Controller
             ], 403);
         }
 
-        // Kiểm tra hạn chót
-        try {
-            $orderMonth = \Carbon\Carbon::createFromFormat('m/Y', $order->month)->startOfMonth();
-            $deadline = $orderMonth->copy()->addMonth()->day(5)->endOfDay();
-            if (now()->gt($deadline)) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Đã quá hạn chỉnh sửa (Sau ngày 5 của tháng tiếp theo).'
-                ], 403);
-            }
-        }
-        catch (\Exception $e) {
+        // Kiểm tra hạn chót (Sử dụng TimeService để tránh gian lận giờ máy tính)
+        if (TimeService::isPastDeadline($order->month)) {
             return response()->json([
                 'success' => false,
-                'message' => 'Lỗi xác định thời gian.'
+                'message' => 'Đã quá hạn chỉnh sửa yêu cầu của tháng ' . $order->month . ' (Sau 23:59:59 ngày 25 hàng tháng).'
             ], 403);
         }
 
@@ -387,20 +282,10 @@ class DepartmentController extends Controller
         }
 
         // Kiểm tra hạn chót
-        try {
-            $orderMonth = \Carbon\Carbon::createFromFormat('m/Y', $order->month)->startOfMonth();
-            $deadline = $orderMonth->copy()->addMonth()->day(5)->endOfDay();
-            if (now()->gt($deadline)) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Đã quá hạn chỉnh sửa (Sau ngày 5 của tháng tiếp theo).'
-                ], 403);
-            }
-        }
-        catch (\Exception $e) {
+        if (TimeService::isPastDeadline($order->month)) {
             return response()->json([
                 'success' => false,
-                'message' => 'Lỗi xác định thời gian.'
+                'message' => 'Đã quá hạn chỉnh sửa ghi chú của tháng ' . $order->month . ' (Sau 23:59:59 ngày 25 hàng tháng).'
             ], 403);
         }
 
@@ -438,31 +323,18 @@ class DepartmentController extends Controller
         }
 
         // Kiểm tra hạn chót
-        try {
-            $orderMonth = \Carbon\Carbon::createFromFormat('m/Y', $order->month)->startOfMonth();
-            $deadline = $orderMonth->copy()->addMonth()->day(5)->endOfDay();
-            if (now()->gt($deadline)) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Đã quá hạn xóa (Sau ngày 5 của tháng tiếp theo).'
-                ], 403);
-            }
-        }
-        catch (\Exception $e) {
+        if (TimeService::isPastDeadline($order->month)) {
             return response()->json([
                 'success' => false,
-                'message' => 'Lỗi xác định thời gian.'
+                'message' => 'Đã quá hạn xóa yêu cầu của tháng ' . $order->month . ' (Sau 23:59:59 ngày 25 hàng tháng).'
             ], 403);
         }
-
-        // Hoàn trả ngân sách
-        \App\Helpers\BudgetHelper::refundBudget($order);
 
         $order->delete();
 
         return response()->json([
             'success' => true,
-            'message' => 'Đã xóa yêu cầu và hoàn trả ngân sách thành công!'
+            'message' => 'Đã xóa yêu cầu thành công!'
         ]);
     }
 

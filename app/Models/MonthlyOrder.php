@@ -14,6 +14,7 @@ class MonthlyOrder extends Model
         'product_id',
         'month',
         'quantity',
+        'price',
         'notes',
         'admin_notes',
     ];
@@ -36,23 +37,5 @@ class MonthlyOrder extends Model
     public function product()
     {
         return $this->belongsTo(Product::class);
-    }
-
-    /**
-     * Tính tổng giá trị đơn hàng
-     */
-    public function getTotalAmount()
-    {
-        return $this->quantity * ($this->product->price ?? 0);
-    }
-
-    /**
-     * Lấy năm từ tháng đơn hàng
-     */
-    public function getYearAttribute()
-    {
-        // Format month: MM/YYYY hoặc 09/2025
-        $parts = explode('/', $this->month);
-        return isset($parts[1]) ? (int)$parts[1] : date('Y');
     }
 }

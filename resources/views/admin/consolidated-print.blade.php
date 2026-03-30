@@ -319,7 +319,7 @@
                 @foreach($categories as $category)
                     @if(isset($products[$category->id]) && $products[$category->id]->count() > 0)
                                 @php 
-                                    $catProducts = $products[$category->id]->filter(fn($p) => $p->monthlyOrders->sum('quantity') > 0);
+                                    $catProducts = $products[$category->id]->filter(fn($p) => $p->monthlyOrders->where('month', $selectedMonth)->sum('quantity') > 0);
                                 @endphp
                         @if($catProducts->count() > 0)
                             <tr class="bg-blue-header">
@@ -329,17 +329,27 @@
                                 @php 
                                     $stt++;
                                     $qty = $product->monthlyOrders->sum('quantity');
-                                    $total = $qty * $product->price;
-                                    // Find the first non-empty admin note from any order
+                                    // Get historical price from the first order of this month
+                                    $priceToUse = $product->price;
+                                    $firstOrder = $product->monthlyOrders->first();
+                                    if ($firstOrder && $firstOrder->price > 0) {
+                                        $priceToUse = $firstOrder->price;
+                                    }
+                                    $total = $qty * $priceToUse;
+                                    // Split admin_notes to only show the shared part (Part 1)
                                     $noteOrder = $product->monthlyOrders->where('admin_notes', '!=', null)->where('admin_notes', '!=', '')->first();
                                     $note = $noteOrder ? $noteOrder->admin_notes : '';
+                                    if ($note && str_contains($note, '|||')) {
+                                        $parts = explode('|||', $note);
+                                        $note = trim($parts[0]);
+                                    }
                                 @endphp
                                 <tr>
                                     <td class="text-center">{{ $stt }}</td>
                                     <td>{{ $product->name }}</td>
                                     <td class="text-center">{{ $product->unit }}</td>
                                     <td class="text-right">{{ number_format($qty, 0, ',', '.') }}</td>
-                                    <td class="text-right">{{ number_format($product->price, 0, ',', '.') }}</td>
+                                    <td class="text-right">{{ number_format($priceToUse, 0, ',', '.') }}</td>
                                     <td class="text-right font-bold">{{ number_format($total, 0, ',', '.') }}</td>
                                     <td>{{ $note }}</td>
                                 </tr>
@@ -347,7 +357,21 @@
                             <!-- Category Subtotal -->
                             <tr class="bg-subtotal">
                                 <td colspan="5" class="text-right font-bold pr-2">CỘNG:</td>
-                                <td class="text-right font-bold pr-2 text-red-600">{{ number_format($catProducts->sum(fn($p) => $p->monthlyOrders->sum('quantity') * $p->price), 0, ',', '.') }}</td>
+                                <td class="text-right font-bold pr-2 text-red-600">
+                                    @php
+                                        $catTotal = 0;
+                                        foreach($catProducts as $p) {
+                                            $pQty = $p->monthlyOrders->sum('quantity');
+                                            $pPrice = $p->price;
+                                            $pFirstOrder = $p->monthlyOrders->first();
+                                            if ($pFirstOrder && $pFirstOrder->price > 0) {
+                                                $pPrice = $pFirstOrder->price;
+                                            }
+                                            $catTotal += $pQty * $pPrice;
+                                        }
+                                    @endphp
+                                    {{ number_format($catTotal, 0, ',', '.') }}
+                                </td>
                                 <td></td>
                             </tr>
                         @endif

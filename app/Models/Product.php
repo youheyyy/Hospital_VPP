@@ -13,7 +13,10 @@ class Product extends Model
         'category_id',
         'name',
         'unit',
+        'is_form',
+        'paper_size',
         'price',
+        'previous_price',
         'display_order',
         'is_active',
     ];

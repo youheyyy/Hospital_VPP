@@ -4,9 +4,9 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Department;
-use App\Models\MonthlyOrder;
-use App\Models\Product;
 use App\Models\Category;
+use App\Models\Product;
+use App\Models\MonthlyOrder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -17,16 +17,10 @@ class AdminController extends Controller
      */
     public function dashboard(Request $request)
     {
-        // Lấy tháng từ request hoặc mặc định là tháng hiện tại
         $selectedMonth = $request->input('month', date('m/Y'));
-
-        // Tổng số yêu cầu trong tháng
         $totalRequests = MonthlyOrder::where('month', $selectedMonth)->count();
-
-        // Tổng chi phí (giả định, cần tính toán thực tế)
         $totalCost = 42850000;
 
-        // Sản phẩm được yêu cầu nhiều nhất
         $topProduct = MonthlyOrder::select('product_id', DB::raw('SUM(quantity) as total_quantity'))
             ->where('month', $selectedMonth)
             ->groupBy('product_id')
@@ -42,7 +36,6 @@ class AdminController extends Controller
             $topProductQuantity = $topProduct->total_quantity;
         }
 
-        // Phân bổ theo phòng ban (chi phí giả định)
         $departments = Department::all();
         $departmentStats = [];
 
@@ -53,11 +46,10 @@ class AdminController extends Controller
 
             $departmentStats[] = [
                 'name' => $dept->name,
-                'value' => $orderCount * 100000, // Giả định giá trị
+                'value' => $orderCount * 100000,
             ];
         }
 
-        // Yêu cầu gần đây
         $recentRequests = MonthlyOrder::with(['department', 'product'])
             ->orderBy('created_at', 'DESC')
             ->limit(5)
@@ -79,26 +71,18 @@ class AdminController extends Controller
      */
     public function consolidated(Request $request)
     {
-        // Lấy tháng được chọn hoặc tháng hiện tại
         $selectedMonth = $request->input('month', date('m/Y'));
-
-        // Lấy category filter
         $selectedCategory = $request->input('category');
 
-        // Lấy tất cả departments
         $departments = Department::where('is_active', true)->orderBy('name')->get();
 
-        // Lấy tất cả categories
         $categoriesQuery = Category::orderBy('display_order');
-
-        // Nếu có filter category, chỉ lấy category đó
         if ($selectedCategory) {
             $categories = $categoriesQuery->where('id', $selectedCategory)->get();
         } else {
             $categories = $categoriesQuery->get();
         }
 
-        // Lấy tất cả products với orders (CHỈ THÁNG ĐƯỢC CHỌN)
         $productsQuery = Product::with([
             'category',
             'monthlyOrders' => function ($query) use ($selectedMonth) {
@@ -108,32 +92,58 @@ class AdminController extends Controller
             ->orderBy('category_id')
             ->orderBy('display_order');
 
-        // Filter theo category nếu có
         if ($selectedCategory) {
             $productsQuery->where('category_id', $selectedCategory);
         }
 
         $products = $productsQuery->get()->groupBy('category_id');
-
-        // Lấy tất cả categories cho dropdown (không filter)
         $allCategories = Category::orderBy('display_order')->get();
 
-        // Tính tổng cho mỗi category (CHỈ TÍNH THÁNG ĐƯỢC CHỌN cho Bảng Tổng)
         $categoryTotals = [];
         foreach ($products as $categoryId => $categoryProducts) {
             $categoryTotal = 0;
             foreach ($categoryProducts as $product) {
                 foreach ($product->monthlyOrders as $order) {
                     if ($order->month == $selectedMonth) {
-                        $categoryTotal += $order->quantity * $product->price;
+                        $price = ($order->price && $order->price > 0) ? $order->price : $product->price;
+                        $categoryTotal += $order->quantity * $price;
                     }
                 }
             }
             $categoryTotals[$categoryId] = $categoryTotal;
         }
 
-        // Tính tổng tất cả (CHỈ THÁNG ĐƯỢC CHỌN)
         $grandTotal = array_sum($categoryTotals);
+
+        // Tính toán tổng hợp Biểu mẫu theo khổ giấy
+        $paperSummary = [
+            'A3' => ['sheets' => 0, 'grams' => 0],
+            'A4' => ['sheets' => 0, 'grams' => 0],
+            'A5' => ['sheets' => 0, 'grams' => 0],
+        ];
+
+        $formOrders = \App\Models\MonthlyOrder::where('month', $selectedMonth)
+            ->whereHas('product', function($q) {
+                $q->where('is_form', true);
+            })
+            ->with('product')
+            ->get();
+
+        foreach ($formOrders as $order) {
+            $size = strtoupper($order->product->paper_size ?? '');
+            if (isset($paperSummary[$size])) {
+                $qty = $order->quantity;
+                $unit = mb_strtolower($order->product->unit ?? '');
+                if (str_contains($unit, 'cuốn') || str_contains($unit, 'sổ') || str_contains($unit, 'quyển')) {
+                    $qty *= 60;
+                }
+                $paperSummary[$size]['sheets'] += $qty;
+            }
+        }
+
+        foreach ($paperSummary as $size => &$data) {
+            $data['grams'] = ceil($data['sheets'] / 500);
+        }
 
         return view('admin.consolidated', compact(
             'departments',
@@ -142,7 +152,8 @@ class AdminController extends Controller
             'products',
             'selectedMonth',
             'categoryTotals',
-            'grandTotal'
+            'grandTotal',
+            'paperSummary'
         ));
     }
 
@@ -151,16 +162,10 @@ class AdminController extends Controller
      */
     public function exportConsolidated(Request $request)
     {
-        // Lấy tháng được chọn hoặc tháng hiện tại
         $selectedMonth = $request->input('month', date('m/Y'));
-
-        // Lấy tất cả departments
         $departments = Department::where('is_active', true)->orderBy('name')->get();
-
-        // Lấy tất cả categories (không filter theo category trong export)
         $categories = Category::orderBy('display_order')->get();
 
-        // Lấy tất cả products với orders (CHỈ THÁNG ĐƯỢC CHỌN)
         $products = Product::with([
             'category',
             'monthlyOrders' => function ($query) use ($selectedMonth) {
@@ -172,41 +177,160 @@ class AdminController extends Controller
             ->get()
             ->groupBy('category_id');
 
-        // Tính tổng cho mỗi category (CHỈ THÁNG ĐƯỢC CHỌN)
         $categoryTotals = [];
         foreach ($products as $categoryId => $categoryProducts) {
             $categoryTotal = 0;
             foreach ($categoryProducts as $product) {
                 foreach ($product->monthlyOrders as $order) {
                     if ($order->month == $selectedMonth) {
-                        $categoryTotal += $order->quantity * $product->price;
+                        $price = ($order->price && $order->price > 0) ? $order->price : $product->price;
+                        $categoryTotal += $order->quantity * $price;
                     }
                 }
             }
             $categoryTotals[$categoryId] = $categoryTotal;
         }
 
-        // Tính tổng tất cả
         $grandTotal = array_sum($categoryTotals);
-
-        // Tạo filename
         $filename = 'Tong_hop_VPP_' . str_replace('/', '_', $selectedMonth) . '_' . date('YmdHis') . '.xlsx';
 
-        // Export
         $export = new \App\Exports\ConsolidatedExport(
-            $selectedMonth,
-            $departments,
-            $categories,
-            $products,
-            $categoryTotals,
-            $grandTotal
+            $selectedMonth, $departments, $categories, $products, $categoryTotals, $grandTotal
         );
 
         return $export->download($filename);
     }
 
     /**
-     * Xuất Excel cho giao diện hiện tại (Bảng Tổng / Tổng Hợp / Phiếu Xuất Kho 1 khoa)
+     * Export specialized Biểu mẫu (Detailed)
+     */
+    public function exportBiemMau(Request $request)
+    {
+        $selectedMonth = $request->input('month', date('m/Y'));
+        $departments = Department::where('is_active', true)->orderBy('name')->get();
+        $categories = Category::orderBy('display_order')->get();
+
+        $products = Product::with([
+            'category',
+            'monthlyOrders' => function ($query) use ($selectedMonth) {
+                $query->where('month', $selectedMonth)->with('department');
+            }
+        ])
+            ->orderBy('category_id')
+            ->orderBy('display_order')
+            ->get()
+            ->groupBy('category_id');
+
+        $categoryTotals = [];
+        foreach ($products as $categoryId => $categoryProducts) {
+            $categoryTotal = 0;
+            foreach ($categoryProducts as $product) {
+                foreach ($product->monthlyOrders as $order) {
+                    if ($order->month == $selectedMonth) {
+                        $price = ($order->price && $order->price > 0) ? $order->price : $product->price;
+                        $categoryTotal += $order->quantity * $price;
+                    }
+                }
+            }
+            $categoryTotals[$categoryId] = $categoryTotal;
+        }
+
+        $grandTotal = array_sum($categoryTotals);
+        $filename = 'Export_Bieu_Mau_' . str_replace('/', '_', $selectedMonth) . '.xlsx';
+
+        // mode = 'detailed_biemmau'
+        $export = new \App\Exports\ConsolidatedExport(
+            $selectedMonth, $departments, $categories, $products, $categoryTotals, $grandTotal, 'all', null, 'detailed_biemmau'
+        );
+
+        return $export->download($filename);
+    }
+
+    /**
+     * Export specialized Tổng VPP (Aggregated Forms)
+     */
+    public function exportTongVPP(Request $request)
+    {
+        $selectedMonth = $request->input('month', date('m/Y'));
+        $departments = Department::where('is_active', true)->orderBy('name')->get();
+        $categories = Category::orderBy('display_order')->get();
+
+        $products = Product::with([
+            'category',
+            'monthlyOrders' => function ($query) use ($selectedMonth) {
+                $query->where('month', $selectedMonth)->with('department');
+            }
+        ])
+            ->orderBy('category_id')
+            ->orderBy('display_order')
+            ->get()
+            ->groupBy('category_id');
+
+        $categoryTotals = [];
+        foreach ($products as $categoryId => $categoryProducts) {
+            $categoryTotal = 0;
+            foreach ($categoryProducts as $product) {
+                foreach ($product->monthlyOrders as $order) {
+                    if ($order->month == $selectedMonth) {
+                        $price = ($order->price && $order->price > 0) ? $order->price : $product->price;
+                        $categoryTotal += $order->quantity * $price;
+                    }
+                }
+            }
+            $categoryTotals[$categoryId] = $categoryTotal;
+        }
+        $grandTotal = array_sum($categoryTotals);
+
+        $export = new \App\Exports\ConsolidatedExport(
+            $selectedMonth, $departments, $categories, $products, $categoryTotals, $grandTotal, 'all', null, 'aggregated_vpp'
+        );
+
+        return $export->download('Export_Tong_VPP_' . str_replace('/', '_', $selectedMonth) . '.xlsx');
+    }
+
+    public function exportTongVPPAll(Request $request)
+    {
+        $selectedMonth = $request->input('month', date('m/Y'));
+        $departments = Department::where('is_active', true)->orderBy('name')->get();
+        $categories = Category::orderBy('display_order')->get();
+
+        $products = Product::with([
+            'category',
+            'monthlyOrders' => function ($query) use ($selectedMonth) {
+                $query->where('month', $selectedMonth)->with('department');
+            }
+        ])
+            ->orderBy('category_id')
+            ->orderBy('display_order')
+            ->get()
+            ->groupBy('category_id');
+
+        $categoryTotals = [];
+        foreach ($products as $categoryId => $categoryProducts) {
+            $categoryTotal = 0;
+            foreach ($categoryProducts as $product) {
+                foreach ($product->monthlyOrders as $order) {
+                    if ($order->month == $selectedMonth) {
+                        $price = ($order->price && $order->price > 0) ? $order->price : $product->price;
+                        $categoryTotal += $order->quantity * $price;
+                    }
+                }
+            }
+            $categoryTotals[$categoryId] = $categoryTotal;
+        }
+        $grandTotal = array_sum($categoryTotals);
+
+        // Use the NEW specialized export class
+        $export = new \App\Exports\ConsolidatedAllExport(
+            $selectedMonth, $departments, $categories, $products, $categoryTotals, $grandTotal, 'all', null
+        );
+
+        return $export->download('Export_Tong_VPP_Chung_' . str_replace('/', '_', $selectedMonth) . '.xlsx');
+    }
+
+
+    /**
+     * Xuất Excel cho giao diện hiện tại
      */
     public function exportSingleConsolidated(Request $request)
     {
@@ -234,7 +358,8 @@ class AdminController extends Controller
             foreach ($categoryProducts as $product) {
                 foreach ($product->monthlyOrders as $order) {
                     if ($order->month == $selectedMonth) {
-                        $categoryTotal += $order->quantity * $product->price;
+                        $price = ($order->price && $order->price > 0) ? $order->price : $product->price;
+                        $categoryTotal += $order->quantity * $price;
                     }
                 }
             }
@@ -242,7 +367,6 @@ class AdminController extends Controller
         }
 
         $grandTotal = array_sum($categoryTotals);
-
         $safeMonth = str_replace('/', '_', $selectedMonth);
         $filename = 'Export_VPP_' . $safeMonth . '.xlsx';
 
@@ -259,14 +383,7 @@ class AdminController extends Controller
         }
 
         $export = new \App\Exports\ConsolidatedExport(
-            $selectedMonth,
-            $departments,
-            $categories,
-            $products,
-            $categoryTotals,
-            $grandTotal,
-            $tabType,
-            $deptId
+            $selectedMonth, $departments, $categories, $products, $categoryTotals, $grandTotal, $tabType, $deptId
         );
 
         return $export->download($filename);
@@ -277,7 +394,6 @@ class AdminController extends Controller
      */
     public function printConsolidated(Request $request)
     {
-        // Lấy tháng được chọn hoặc tháng hiện tại
         $selectedMonth = $request->input('month', date('m/Y'));
         $tabType = $request->input('tabType', 'tong_hop');
         $deptId = $request->input('deptId');
@@ -298,14 +414,12 @@ class AdminController extends Controller
                     ->with('product')
                     ->get()
                     ->sum(function ($order) {
-                        return $order->quantity * $order->product->price;
+                        $price = ($order->price && $order->price > 0) ? $order->price : $order->product->price;
+                        return $order->quantity * $price;
                     });
 
                 return view('department.department-print', compact(
-                    'department',
-                    'orders',
-                    'selectedMonth',
-                    'totalAmount'
+                    'department', 'orders', 'selectedMonth', 'totalAmount'
                 ));
             }
         }
@@ -316,8 +430,7 @@ class AdminController extends Controller
             ->with([
                 'category',
                 'monthlyOrders' => function ($query) use ($selectedMonth) {
-                    $query->where('month', $selectedMonth)
-                        ->with('department');
+                    $query->where('month', $selectedMonth)->with('department');
                 }
             ])
             ->orderBy('category_id')
@@ -327,29 +440,51 @@ class AdminController extends Controller
 
         if ($tabType === 'bang_tong') {
             return view('admin.print-bang-tong', compact(
-                'departments',
-                'categories',
-                'products',
-                'selectedMonth'
+                'departments', 'categories', 'products', 'selectedMonth'
             ));
         }
 
-        // Tính tổng cho mỗi category
         $categoryTotals = [];
         foreach ($products as $categoryId => $categoryProducts) {
             $categoryTotal = 0;
             foreach ($categoryProducts as $product) {
                 foreach ($product->monthlyOrders as $order) {
-                    $categoryTotal += $order->quantity * $product->price;
+                    $price = ($order->price && $order->price > 0) ? $order->price : $product->price;
+                    $categoryTotal += $order->quantity * $price;
                 }
             }
             $categoryTotals[$categoryId] = $categoryTotal;
         }
 
-        // Tính tổng tất cả
         $grandTotal = array_sum($categoryTotals);
 
-        // Chuẩn bị dữ liệu cho Phiếu Xuất Kho (Grouped by Department) - legacy if needed within tong-hop document, though currently hidden.
+        $paperSizeSummary = [
+            'A3' => ['sheets' => 0, 'grams' => 0],
+            'A4' => ['sheets' => 0, 'grams' => 0],
+            'A5' => ['sheets' => 0, 'grams' => 0],
+        ];
+
+        $formOrders = \App\Models\MonthlyOrder::where('month', $selectedMonth)
+            ->whereHas('product', function($q) { $q->where('is_form', true); })
+            ->with('product')
+            ->get();
+
+        foreach ($formOrders as $order) {
+            $size = strtoupper($order->product->paper_size ?? '');
+            if (isset($paperSizeSummary[$size])) {
+                $qty = $order->quantity;
+                $unit = mb_strtolower($order->product->unit ?? '');
+                if (str_contains($unit, 'cuốn') || str_contains($unit, 'sổ') || str_contains($unit, 'quyển')) {
+                    $qty *= 60;
+                }
+                $paperSizeSummary[$size]['sheets'] += $qty;
+            }
+        }
+
+        foreach ($paperSizeSummary as $size => &$data) {
+            $data['grams'] = ceil($data['sheets'] / 500);
+        }
+
         $departmentOrders = [];
         foreach ($departments as $dept) {
             $deptOrders = [];
@@ -362,10 +497,11 @@ class AdminController extends Controller
                 foreach ($categoryProducts as $product) {
                     $order = $product->monthlyOrders->firstWhere('department_id', $dept->id);
                     if ($order && $order->quantity > 0) {
+                        $price = ($order->price && $order->price > 0) ? $order->price : $product->price;
                         $categoryData['orders'][] = [
                             'product' => $product,
                             'order' => $order,
-                            'total' => $order->quantity * $product->price
+                            'total' => $order->quantity * $price
                         ];
                     }
                 }
@@ -385,68 +521,94 @@ class AdminController extends Controller
         }
 
         return view('admin.consolidated-print', compact(
-            'departments',
-            'categories',
-            'products',
-            'selectedMonth',
-            'categoryTotals',
-            'grandTotal',
-            'departmentOrders'
+            'departments', 'categories', 'products', 'selectedMonth',
+            'categoryTotals', 'grandTotal', 'departmentOrders', 'paperSizeSummary'
         ));
     }
-    // public function updateNote(Request $request)
-    // {
+
     public function updateNote(Request $request)
     {
-        Log::info('=== UPDATE NOTE REQUEST ===');
-        Log::info('Product ID: ' . $request->product_id);
-        Log::info('Month: ' . $request->month);
-        Log::info('Note: ' . $request->note);
-
         $request->validate([
             'product_id' => 'required|exists:products,id',
             'month' => 'required',
             'note' => 'nullable|string',
         ]);
-        // Enable query logging
-        DB::enableQueryLog();
 
-        // Get the orders first to see what we're updating
+        $newSharedNote = $request->note ?? '';
+
         $orders = MonthlyOrder::where('product_id', $request->product_id)
             ->where('month', $request->month)
             ->get();
 
-        Log::info('Found orders: ' . $orders->count());
-
-        // Update each order individually to ensure it works
-        $affected = 0;
         foreach ($orders as $order) {
-            /** @var \App\Models\MonthlyOrder $order */
+            $currentNotes = $order->admin_notes ?? '';
+            $parts = explode('|||', $currentNotes);
+            $privatePart = isset($parts[1]) ? trim($parts[1]) : '';
 
-            Log::info("Updating order ID: {$order->id}, current note: '{$order->admin_notes}'");
-            $order->admin_notes = $request->note;
+            if ($privatePart !== '') {
+                $order->admin_notes = $newSharedNote . ' ||| ' . $privatePart;
+            } else {
+                $order->admin_notes = $newSharedNote;
+            }
+
             $order->save();
-            $affected++;
-            Log::info("After save, note is: '{$order->admin_notes}'");
         }
 
-        // Log the queries
-        $queries = DB::getQueryLog();
-        Log::info('SQL Queries executed:');
-        foreach ($queries as $query) {
-            Log::info(json_encode($query));
-        }
-
-        Log::info('Total rows updated: ' . $affected);
-
-        return response()->json(['success' => true, 'affected' => $affected]);
+        return response()->json(['success' => true, 'affected' => $orders->count()]);
     }
 
+    public function updatePrivateNote(Request $request)
+    {
+        $request->validate([
+            'product_id' => 'required|exists:products,id',
+            'department_id' => 'required|exists:departments,id',
+            'month' => 'required',
+            'note' => 'nullable|string',
+        ]);
 
+        $order = MonthlyOrder::where([
+            'product_id' => $request->product_id,
+            'department_id' => $request->department_id,
+            'month' => $request->month,
+        ])->first();
 
-    /**
-     * AJAX cập nhật số lượng từ Bảng Tổng
-     */
+        if (!$order) {
+            $order = new MonthlyOrder();
+            $order->product_id = $request->product_id;
+            $order->department_id = $request->department_id;
+            $order->month = $request->month;
+            $order->quantity = 0;
+        }
+
+        $currentAdminNotes = $order->admin_notes ?? '';
+        $parts = explode('|||', $currentAdminNotes);
+        $sharedPart = trim($parts[0]);
+        $newPrivateNote = $request->note ?? '';
+
+        if ($newPrivateNote !== '') {
+            $order->admin_notes = $sharedPart . ' ||| ' . $newPrivateNote;
+        } else {
+            $order->admin_notes = $sharedPart;
+        }
+
+        $order->save();
+
+        // Calculate the display note (similar to how it's done in the initial Blade view)
+        $displayNotes = [];
+        if ($order->notes) {
+            $displayNotes[] = $order->notes;
+        }
+        if ($newPrivateNote !== '') {
+            $displayNotes[] = $newPrivateNote;
+        }
+        $displayNote = implode(' - ', $displayNotes);
+
+        return response()->json([
+            'success' => true,
+            'display_note' => $displayNote
+        ]);
+    }
+
     public function updateQuantity(Request $request)
     {
         $request->validate([
@@ -454,96 +616,204 @@ class AdminController extends Controller
             'department_id' => 'required|exists:departments,id',
             'month' => 'required',
             'quantity' => 'nullable|numeric|min:0',
+            'reason' => 'nullable|string|max:500',
         ]);
 
-        $order = MonthlyOrder::updateOrCreate(
-            [
-                'product_id' => $request->product_id,
-                'department_id' => $request->department_id,
-                'month' => $request->month,
-            ],
-            [
-                'quantity' => $request->quantity ?? 0,
-            ]
-        );
+        $product = Product::find($request->product_id);
 
-        return response()->json(['success' => true, 'order_id' => $order->id]);
+        $order = MonthlyOrder::where([
+            'product_id' => $request->product_id,
+            'department_id' => $request->department_id,
+            'month' => $request->month,
+        ])->first();
+
+        if (!$order) {
+            $order = new MonthlyOrder();
+            $order->product_id = $request->product_id;
+            $order->department_id = $request->department_id;
+            $order->month = $request->month;
+        }
+
+        $order->quantity = $request->quantity ?? 0;
+
+        $newPrivateNote = $request->reason ?? '';
+        $currentAdminNotes = $order->admin_notes ?? '';
+        $parts = explode('|||', $currentAdminNotes);
+        $sharedPart = trim($parts[0]);
+
+        if ($newPrivateNote !== '') {
+            $order->admin_notes = $sharedPart . ' ||| ' . $newPrivateNote;
+        } else {
+            $order->admin_notes = $sharedPart;
+        }
+
+        if (!$order->price || $order->price == 0) {
+            $order->price = $product->price;
+        }
+
+        $order->save();
+
+        return response()->json(['success' => true, 'order_id' => $order->id, 'price' => $order->price]);
     }
 
-    /**
-     * Hiển thị danh sách ngân sách (Admin)
-     */
-    public function budgets(Request $request)
+    public function products()
     {
-        $selectedYear = $request->input('year', date('Y'));
-        
-        $departments = Department::where('is_active', true)
-            ->with(['budgets' => function($query) use ($selectedYear) {
-                $query->where('year', $selectedYear);
+        $totalProducts = Product::where('is_active', true)->count();
+        $totalSuppliers = Category::where('is_active', true)->count();
+
+        $categories = Category::with(['products' => function($q) {
+                $q->where('is_active', true)->orderBy('display_order');
             }])
-            ->orderBy('name')
+            ->where('is_active', true)
+            ->orderBy('display_order')
             ->get();
 
-        // Tính tổng ngân sách
-        $totalBudget = \App\Models\DepartmentBudget::where('year', $selectedYear)->sum('total_budget');
-        $totalUsed = \App\Models\DepartmentBudget::where('year', $selectedYear)->sum('used_budget');
-        $totalRemaining = \App\Models\DepartmentBudget::where('year', $selectedYear)->sum('remaining_budget');
-
-        return view('admin.budgets.index', compact(
-            'departments',
-            'selectedYear',
-            'totalBudget',
-            'totalUsed',
-            'totalRemaining'
-        ));
+        return view('admin.products', compact('totalProducts', 'totalSuppliers', 'categories'));
     }
 
-    /**
-     * Tạo hoặc cập nhật ngân sách (Admin)
-     */
-    public function storeBudget(Request $request)
+    public function updateProductPrice(Request $request)
     {
-        $validated = $request->validate([
-            'department_id' => 'required|exists:departments,id',
-            'year' => 'required|integer|min:2020|max:2100',
-            'total_budget' => 'required|numeric|min:0',
-            'notes' => 'nullable|string',
+        $request->validate([
+            'product_id' => 'required|exists:products,id',
+            'price' => 'required|numeric|min:0',
         ]);
 
-        $budget = \App\Models\DepartmentBudget::updateOrCreate(
-            [
-                'department_id' => $validated['department_id'],
-                'year' => $validated['year'],
-            ],
-            [
-                'total_budget' => $validated['total_budget'],
-                'remaining_budget' => $validated['total_budget'],
-                'notes' => $validated['notes'],
-            ]
-        );
+        $product = Product::find($request->product_id);
+        $product->previous_price = $product->price;
 
-        // Tính lại ngân sách đã sử dụng từ các đơn hàng hiện có
-        $budget->recalculateUsedBudget();
+        MonthlyOrder::where('product_id', $product->id)
+            ->where(function($q) {
+                $q->whereNull('price')->orWhere('price', 0);
+            })
+            ->update(['price' => $product->price]);
 
-        return redirect()->back()->with('success', 'Ngân sách đã được cập nhật thành công!');
+        $product->price = $request->price;
+        $product->save();
+
+        return response()->json(['success' => true]);
     }
 
-    /**
-     * Xóa ngân sách (Admin)
-     */
-    public function destroyBudget(\App\Models\DepartmentBudget $budget)
+    public function updateProductCategory(Request $request)
     {
-        $budget->delete();
-        return redirect()->back()->with('success', 'Ngân sách đã được xóa!');
+        $product = Product::findOrFail($request->product_id);
+        $product->update(['category_id' => $request->category_id]);
+        return response()->json(['success' => true]);
     }
 
-    /**
-     * Tính lại ngân sách đã sử dụng (Admin)
-     */
-    public function recalculateBudget(\App\Models\DepartmentBudget $budget)
+    public function updateProductIsForm(Request $request)
     {
-        $budget->recalculateUsedBudget();
-        return redirect()->back()->with('success', 'Đã tính lại ngân sách thành công!');
+        $product = Product::findOrFail($request->product_id);
+        $product->update(['is_form' => $request->is_form]);
+        return response()->json(['success' => true]);
     }
 
+    public function updateProductPaperSize(Request $request)
+    {
+        $product = Product::findOrFail($request->product_id);
+        $product->update(['paper_size' => $request->paper_size]);
+        return response()->json(['success' => true]);
+    }
+
+    public function updateCategoryName(Request $request)
+    {
+        $request->validate([
+            'category_id' => 'required|exists:categories,id',
+            'name' => 'required|string|max:255',
+        ]);
+
+        $category = Category::find($request->category_id);
+        $category->name = $request->name;
+        $category->save();
+
+        return response()->json(['success' => true]);
+    }
+
+    public function storeCategory(Request $request)
+    {
+        $request->validate([
+            'name' => 'required|string|max:255',
+        ]);
+
+        $category = Category::create([
+            'name' => $request->name,
+            'display_order' => Category::max('display_order') + 1,
+            'is_active' => true
+        ]);
+
+        return redirect()->back()->with('success', 'Đã thêm nhà cung cấp: ' . $category->name);
+    }
+
+    public function updateProductName(Request $request)
+    {
+        $request->validate([
+            'product_id' => 'required|exists:products,id',
+            'name' => 'required|string|max:255',
+        ]);
+
+        $product = Product::find($request->product_id);
+        $product->name = $request->name;
+        $product->save();
+
+        return response()->json(['success' => true]);
+    }
+
+    public function updateProductUnit(Request $request)
+    {
+        $request->validate([
+            'product_id' => 'required|exists:products,id',
+            'unit' => 'required|string|max:50',
+        ]);
+
+        $product = Product::find($request->product_id);
+        $product->unit = $request->unit;
+        $product->save();
+
+        return response()->json(['success' => true]);
+    }
+
+    public function destroyProduct(Product $product)
+    {
+        if ($product->monthlyOrders()->count() > 0) {
+            $product->is_active = false;
+            $product->save();
+            return response()->json(['success' => true, 'message' => 'Sản phẩm đã có dữ liệu, đã chuyển sang trạng thái ngưng hoạt động.']);
+        }
+
+        $product->delete();
+        return response()->json(['success' => true, 'message' => 'Đã xóa sản phẩm thành công.']);
+    }
+
+    public function destroyCategory(Category $category)
+    {
+        if ($category->products()->count() > 0) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Không thể xóa nhà cung cấp này vì vẫn còn sản phẩm thuộc về họ.'
+            ], 422);
+        }
+
+        $category->delete();
+        return response()->json(['success' => true, 'message' => 'Đã xóa nhà cung cấp thành công.']);
+    }
+
+    public function storeProduct(Request $request)
+    {
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'unit' => 'required|string|max:50',
+            'category_id' => 'required|exists:categories,id',
+            'price' => 'required|numeric|min:0',
+        ]);
+
+        Product::create([
+            'name' => $request->name,
+            'unit' => $request->unit,
+            'category_id' => $request->category_id,
+            'price' => $request->price,
+            'display_order' => Product::where('category_id', $request->category_id)->max('display_order') + 1,
+            'is_active' => true
+        ]);
+
+        return redirect()->back()->with('success', 'Đã thêm sản phẩm mới');
+    }
 }

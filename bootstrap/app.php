@@ -24,4 +24,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->render(function (\Illuminate\Session\TokenMismatchException $e, \Illuminate\Http\Request $request) {
             return redirect()->back()->withInput($request->except('_token'))->with('error', 'Phiên làm việc đã hết hạn do để trang quá lâu. Vui lòng thao tác lại.');
         });
+        $exceptions->render(function (\Illuminate\Http\Exceptions\PostTooLargeException $e, \Illuminate\Http\Request $request) {
+            return redirect()->back()->with('error', 'File quá lớn! Giới hạn upload hiện tại là ' . ini_get('upload_max_filesize') . '. Vui lòng khởi động lại server.');
+        });
     })->create();

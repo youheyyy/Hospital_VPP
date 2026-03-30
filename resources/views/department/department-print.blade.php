@@ -290,7 +290,8 @@ return ucfirst(trim($res)) . ' đồng./.';
                 @php
                 $catTotal = 0;
                 foreach($categoryOrders as $o) {
-                $catTotal += $o->quantity * $o->product->price;
+                    $oPrice = ($o->price && $o->price > 0) ? $o->price : $o->product->price;
+                    $catTotal += $o->quantity * $oPrice;
                 }
                 $grandTotal += $catTotal;
                 @endphp
@@ -302,17 +303,30 @@ return ucfirst(trim($res)) . ' đồng./.';
                 @foreach($categoryOrders as $order)
                 @php
                 $stt++;
-                $itemTotal = $order->quantity * $order->product->price;
+                $itemPrice = ($order->price && $order->price > 0) ? $order->price : $order->product->price;
+                $itemTotal = $order->quantity * $itemPrice;
                 @endphp
                 <tr>
                     <td class="text-center">{{ $stt }}</td>
                     <td>{{ $order->product->name }}</td>
                     <td class="text-center">{{ $order->product->unit }}</td>
                     <td class="text-right">{{ number_format($order->quantity, 0, ',', '.') }}</td>
-                    <td class="text-right">{{ number_format($order->product->price, 0, ',', '.') }}</td>
+                    <td class="text-right">{{ number_format($itemPrice, 0, ',', '.') }}</td>
                     <td class="text-right font-bold">{{ number_format($itemTotal, 0, ',', '.') }}</td>
-                    <td>{{ $order->notes }}</td>
-                    <!-- <td>{{ $order->admin_notes }}</td> -->
+                    <td>
+                        @php
+                            $notesArr = [];
+                            if ($order->notes) $notesArr[] = $order->notes;
+                            if ($order->admin_notes) {
+                                $adminParts = explode('|||', $order->admin_notes);
+                                $privatePart = isset($adminParts[1]) ? trim($adminParts[1]) : '';
+                                if ($privatePart !== '') {
+                                    $notesArr[] = $privatePart;
+                                }
+                            }
+                        @endphp
+                        {{ implode(' - ', $notesArr) }}
+                    </td>
                 </tr>
                 @endforeach
 
