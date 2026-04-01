@@ -27,6 +27,7 @@ Thumbs.db
 .env.production
 /auth.json
 
+
 # ===============================
 # Dependencies
 # ===============================
