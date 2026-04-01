@@ -21,8 +21,8 @@ Thumbs.db
 # ===============================
 # Environment files (NEVER COMMIT)
 # ===============================
-# .env
-# .env.*
+.env
+.env.*
 .env.backup
 .env.production
 /auth.json
