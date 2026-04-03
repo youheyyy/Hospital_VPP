@@ -88,8 +88,8 @@
         }
 
         /* Sticky columns - keep background white */
-        .excel-table th:nth-child(1),
-        .excel-table td:nth-child(1) {
+        .excel-table thead th:nth-child(1),
+        .excel-table tbody td:nth-child(1) {
             position: sticky !important;
             left: 0;
             z-index: 85;
@@ -97,8 +97,8 @@
             min-width: 40px;
         }
 
-        .excel-table th:nth-child(2),
-        .excel-table td:nth-child(2) {
+        .excel-table thead th:nth-child(2),
+        .excel-table tbody td:nth-child(2) {
             position: sticky !important;
             left: 40px;
             z-index: 85;
@@ -106,8 +106,8 @@
             min-width: 250px;
         }
 
-        .excel-table th:nth-child(3),
-        .excel-table td:nth-child(3) {
+        .excel-table thead th:nth-child(3),
+        .excel-table tbody td:nth-child(3) {
             position: sticky !important;
             left: 290px;
             z-index: 85;
@@ -116,9 +116,9 @@
         }
 
         /* Intersections: Header cells that are ALSO sticky columns */
-        .excel-table thead th:nth-child(1) { z-index: 120 !important; left: 0; }
-        .excel-table thead th:nth-child(2) { z-index: 120 !important; left: 40px; }
-        .excel-table thead th:nth-child(3) { z-index: 120 !important; left: 290px; }
+        .excel-table thead th:nth-child(1) { position: sticky !important; z-index: 120 !important; left: 0; }
+        .excel-table thead th:nth-child(2) { position: sticky !important; z-index: 120 !important; left: 40px; }
+        .excel-table thead th:nth-child(3) { position: sticky !important; z-index: 120 !important; left: 290px; }
         
         /* Category junctions */
         .excel-table tr.category-header td:nth-child(1) { z-index: 110 !important; }
@@ -335,18 +335,13 @@
                         <span class="material-symbols-outlined text-sm">description</span>
                         Excel Biểu mẫu
                     </a>
-                    <!-- <a href="{{ route('admin.consolidated.export.tongvpp', ['month' => $selectedMonth]) }}"
+                    <a href="{{ route('admin.consolidated.export.tongvpp', ['month' => $selectedMonth]) }}"
                         class="px-3 py-2 bg-violet-50 text-violet-700 border border-violet-200 rounded-2xl hover:bg-violet-100 flex items-center gap-2 transition-colors shadow-sm whitespace-nowrap"
                         title="Xuất gộp biểu mẫu thành Gram giấy, không hiển thị chi tiết">
                         <span class="material-symbols-outlined text-sm">summarize</span>
                         Excel Tổng VPP
-                    </a> -->
-                    <a href="{{ route('admin.consolidated.export.tongvppall', ['month' => $selectedMonth]) }}"
-                        class="px-3 py-2 bg-sky-100 text-sky-700 border border-sky-300 rounded-2xl hover:bg-sky-200 flex items-center gap-2 transition-colors shadow-sm whitespace-nowrap"
-                        title="Xuất gộp biểu mẫu thành Gram giấy trên tất cả các trang, bao gồm Bảng Tổng">
-                        <span class="material-symbols-outlined text-sm">grid_view</span>
-                        Excel Tổng VPP Chung
                     </a>
+
                     <button onclick="exportToPDF()"
                         class="px-3 py-2 bg-amber-500 text-white rounded-2xl hover:bg-amber-600 flex items-center gap-2 transition-colors shadow-sm whitespace-nowrap">
                         <span class="material-symbols-outlined text-sm">picture_as_pdf</span>
@@ -373,9 +368,24 @@
                     </button>
                 </div>
 
+                <script>
+                    (function () {
+                        const savedTab = localStorage.getItem('active_consolidated_tab') || 'bang-tong';
+                        document.addEventListener('DOMContentLoaded', function () {
+                            switchTab(savedTab);
+                        });
+                        // Immediate activation before DOMContentLoaded if possible
+                        const activeBtn = document.getElementById('tab-' + savedTab);
+                        if (activeBtn) {
+                            activeBtn.classList.remove('border-transparent', 'text-gray-500');
+                            activeBtn.classList.add('border-blue-600', 'text-blue-600');
+                        }
+                    })();
+                </script>
+
                 <!-- BẢNG TỔNG Tab -->
                 <div id="content-bang-tong" x-data="consolidatedApp()"
-                    class="tab-content flex flex-col bg-white rounded-b-lg shadow-sm border border-gray-200 relative mb-8">
+                    class="tab-content hidden flex flex-col bg-white rounded-b-lg shadow-sm border border-gray-200 relative mb-8">
                     <!-- Dropdown Filter for Bảng Tổng (non-scrolling) -->
                     <div class="p-4 border-b bg-gray-50 flex items-center gap-4">
                         <div class="relative flex-1 max-w-sm">
@@ -385,16 +395,16 @@
                                 class="w-full pl-3 pr-10 py-2 border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white">
                                 <option value="">-- Tất cả sản phẩm --</option>
                                 @php
-                                $allUniqueProducts = collect();
-                                foreach ($products as $catProducts) {
-                                foreach ($catProducts as $p) {
-                                $allUniqueProducts->push($p->name);
-                                }
-                                }
-                                $allUniqueProducts = $allUniqueProducts->unique()->sort();
+                                    $allUniqueProducts = collect();
+                                    foreach ($products as $catProducts) {
+                                        foreach ($catProducts as $p) {
+                                            $allUniqueProducts->push($p->name);
+                                        }
+                                    }
+                                    $allUniqueProducts = $allUniqueProducts->unique()->sort();
                                 @endphp
                                 @foreach($allUniqueProducts as $productName)
-                                <option value="{{ $productName }}">{{ $productName }}</option>
+                                    <option value="{{ $productName }}">{{ $productName }}</option>
                                 @endforeach
                             </select>
                             <div
@@ -427,10 +437,10 @@
                                     <th style="width: 250px;">TÊN HÀNG</th>
                                     <th style="width: 80px;">ĐVT</th>
                                     @foreach($departments as $dept)
-                                    <th
-                                        style="width: 60px; max-width: 60px; background: #d4edda; word-break: break-word; overflow-wrap: break-word; white-space: normal;">
-                                        {{ mb_strtoupper($dept->name, 'UTF-8') }}
-                                    </th>
+                                        <th
+                                            style="width: 60px; max-width: 60px; background: #d4edda; word-break: break-word; overflow-wrap: break-word; white-space: normal;">
+                                            {{ mb_strtoupper($dept->name, 'UTF-8') }}
+                                        </th>
                                     @endforeach
                                     <th style="width: 120px; background: #fff3cd;">Tổng SL</th>
                                 </tr>
@@ -438,53 +448,55 @@
                             <tbody>
                                 @php $stt = 0; @endphp
                                 @foreach($categories as $category)
-                                @if(isset($products[$category->id]) && $products[$category->id]->count() > 0)
-                                <!-- Category Header -->
-                                <tr class="category-header">
-                                    <td colspan="{{ 4 + $departments->count() }}">
-                                        <span class="sticky left-0 pl-1 inline-block">{{ mb_strtoupper($category->name,
-                                            'UTF-8') }}</span>
-                                    </td>
-                                </tr>
+                                    @if(isset($products[$category->id]) && $products[$category->id]->count() > 0)
+                                                                <!-- Category Header -->
+                                                                <tr class="category-header">
+                                                                    <td colspan="{{ 4 + $departments->count() }}">
+                                                                        <span class="sticky left-0 pl-1 inline-block">{{ mb_strtoupper(
+                                            $category->name,
+                                            'UTF-8'
+                                        ) }}</span>
+                                                                    </td>
+                                                                </tr>
 
-                                <!-- Products -->
-                                @foreach($products[$category->id] as $product)
-                                @php
-                                // Correctly filter orders for this month only
-                                $monthlyOrders = $product->monthlyOrders->where('month', $selectedMonth);
-                                $hasOrders = $monthlyOrders->sum('quantity') > 0;
-                                $totalQuantity = 0;
-                                @endphp
-                                <tr class="product-row {{ $hasOrders ? 'has-orders' : 'no-orders opacity-60' }}"
-                                    data-has-orders="{{ $hasOrders ? 'true' : 'false' }}"
-                                    style="{{ $hasOrders ? '' : 'display: none;' }}">
-                                    <td class="text-center text-gray-600 row-stt"></td>
-                                    <td class="font-medium">{{ $product->name }}</td>
-                                    <td class="text-center">{{ $product->unit }} </td>
-                                    @foreach($departments as $dept)
-                                    @php
-                                    $order = $monthlyOrders->firstWhere('department_id', $dept->id);
-                                    $quantity = $order ? $order->quantity : 0;
-                                    $totalQuantity += $quantity;
-                                    @endphp
-                                    <td class="relative p-0 h-full">
-                                        <input type="text" value="{{ $quantity > 0 ? ($quantity + 0) : '' }}"
-                                            @focus="$el.dataset.oldValue = $el.value"
-                                            @change="handleQuantityChange($event, '{{ $product->id }}', '{{ $dept->id }}')"
-                                            class="cell-input {{ $quantity > 0 ? 'text-slate-900 font-semibold' : 'text-gray-400' }}"
-                                            placeholder="">
-                                        <div class="saving-indicator hidden">
-                                            <span
-                                                class="material-symbols-outlined text-[14px] text-emerald-500">check_circle</span>
-                                        </div>
-                                    </td>
-                                    @endforeach
-                                    <td class="text-right font-semibold" style="background: #fff3cd;">
-                                        {{ number_format($totalQuantity, 0, ',', '.') }}
-                                    </td>
-                                </tr>
-                                @endforeach
-                                @endif
+                                                                <!-- Products -->
+                                                                @foreach($products[$category->id] as $product)
+                                                                    @php
+                                                                        // Correctly filter orders for this month only
+                                                                        $monthlyOrders = $product->monthlyOrders->where('month', $selectedMonth);
+                                                                        $hasOrders = $monthlyOrders->sum('quantity') > 0;
+                                                                        $totalQuantity = 0;
+                                                                    @endphp
+                                                                    <tr class="product-row {{ $hasOrders ? 'has-orders' : 'no-orders opacity-60' }}"
+                                                                        data-has-orders="{{ $hasOrders ? 'true' : 'false' }}"
+                                                                        style="{{ $hasOrders ? '' : 'display: none;' }}">
+                                                                        <td class="text-center text-gray-600 row-stt"></td>
+                                                                        <td class="font-medium">{{ $product->name }}</td>
+                                                                        <td class="text-center">{{ $product->unit }} </td>
+                                                                        @foreach($departments as $dept)
+                                                                            @php
+                                                                                $order = $monthlyOrders->firstWhere('department_id', $dept->id);
+                                                                                $quantity = $order ? $order->quantity : 0;
+                                                                                $totalQuantity += $quantity;
+                                                                            @endphp
+                                                                            <td class="relative p-0 h-full">
+                                                                                <input type="text" value="{{ $quantity > 0 ? ($quantity + 0) : '' }}"
+                                                                                    @focus="$el.dataset.oldValue = $el.value"
+                                                                                    @change="handleQuantityChange($event, '{{ $product->id }}', '{{ $dept->id }}')"
+                                                                                    class="cell-input {{ $quantity > 0 ? 'text-slate-900 font-semibold' : 'text-gray-400' }}"
+                                                                                    placeholder="">
+                                                                                <div class="saving-indicator hidden">
+                                                                                    <span
+                                                                                        class="material-symbols-outlined text-[14px] text-emerald-500">check_circle</span>
+                                                                                </div>
+                                                                            </td>
+                                                                        @endforeach
+                                                                        <td class="text-right font-semibold" style="background: #fff3cd;">
+                                                                            {{ number_format($totalQuantity, 0, ',', '.') }}
+                                                                        </td>
+                                                                    </tr>
+                                                                @endforeach
+                                    @endif
                                 @endforeach
                             </tbody>
                             <tfoot>
@@ -492,22 +504,26 @@
                                     <td colspan="3" class="text-right">TỔNG CỘNG SỐ LƯỢNG:</td>
                                     @php $overallQty = 0; @endphp
                                     @foreach($departments as $dept)
-                                    @php
-                                    $deptQty = 0;
-                                    foreach($categories as $cat) {
-                                    if(isset($products[$cat->id])) {
-                                    foreach($products[$cat->id] as $p) {
-                                    $deptQty += $p->monthlyOrders->where('month',
-                                    $selectedMonth)->where('department_id',
-                                    $dept->id)->sum('quantity');
-                                    }
-                                    }
-                                    }
-                                    $overallQty += $deptQty;
-                                    @endphp
-                                    <td class="text-right">{{ $deptQty > 0 ? number_format($deptQty, 0, ',', '.') : ''
-                                        }}
-                                    </td>
+                                        @php
+                                            $deptQty = 0;
+                                            foreach ($categories as $cat) {
+                                                if (isset($products[$cat->id])) {
+                                                    foreach ($products[$cat->id] as $p) {
+                                                        $deptQty += $p->monthlyOrders->where(
+                                                            'month',
+                                                            $selectedMonth
+                                                        )->where(
+                                                                'department_id',
+                                                                $dept->id
+                                                            )->sum('quantity');
+                                                    }
+                                                }
+                                            }
+                                            $overallQty += $deptQty;
+                                        @endphp
+                                        <td class="text-right">{{ $deptQty > 0 ? number_format($deptQty, 0, ',', '.') : ''
+                                                    }}
+                                        </td>
                                     @endforeach
                                     <td class="text-right">{{ number_format($overallQty, 0, ',', '.') }}</td>
                                 </tr>
@@ -520,7 +536,7 @@
                         x-transition:enter-start="opacity-0 hidden" x-transition:enter-end="opacity-100"
                         x-transition:leave="transition ease-in duration-200" x-transition:leave-start="opacity-100"
                         x-transition:leave-end="opacity-0"
-                        class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900 bg-opacity-50"
+                        class="fixed inset-0 z-[1000] flex items-center justify-center bg-slate-900/60 backdrop-blur-md"
                         style="display: none;">
                         <div @click.away="cancelEdit()"
                             class="bg-white rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden transform transition-all p-6"
@@ -663,7 +679,7 @@
 
                 <!-- TỔNG HỢP Tab -->
                 <div id="content-tong-hop"
-                    class="tab-content hidden flex flex-col bg-white rounded-b-lg shadow-sm border border-gray-200">
+                    class="tab-content hidden flex-col bg-white rounded-b-lg shadow-sm border border-gray-200 relative mb-8">
                     <!-- Print Header -->
                     <div class="print-header p-6 text-[14px] leading-relaxed">
                         <div class="flex justify-between items-start mb-4">
@@ -788,134 +804,140 @@
                             <tbody>
                                 @php $stt = 0; @endphp
                                 @foreach($categories as $category)
-                                @if(isset($products[$category->id]) && $products[$category->id]->count() > 0)
-                                @php
-                                $catProducts = $products[$category->id]->filter(function($p) use ($selectedMonth) {
-                                return $p->monthlyOrders->where('month', $selectedMonth)->sum('quantity') > 0;
-                                });
-                                @endphp
+                                    @if(isset($products[$category->id]) && $products[$category->id]->count() > 0)
+                                        @php
+                                            $catProducts = $products[$category->id]->filter(function ($p) use ($selectedMonth) {
+                                                return $p->monthlyOrders->where('month', $selectedMonth)->sum('quantity') > 0;
+                                            });
+                                        @endphp
 
-                                @if($catProducts->count() > 0)
-                                <!-- Category Header -->
-                                <tr class="category-header">
-                                    <td colspan="7">
-                                        <span class="sticky left-0 pl-1 inline-block">{{ mb_strtoupper($category->name,
-                                            'UTF-8') }}</span>
-                                    </td>
-                                </tr>
+                                        @if($catProducts->count() > 0)
+                                                                <!-- Category Header -->
+                                                                <tr class="category-header">
+                                                                    <td colspan="7">
+                                                                        <span class="sticky left-0 pl-1 inline-block">{{ mb_strtoupper(
+                                                $category->name,
+                                                'UTF-8'
+                                            ) }}</span>
+                                                                    </td>
+                                                                </tr>
 
-                                <!-- Products -->
-                                @foreach($products[$category->id] as $product)
-                                @php
-                                $stt++;
-                                // Correctly filter orders for this month only
-                                $monthlyOrders = $product->monthlyOrders->where('month', $selectedMonth);
-                                $hasOrders = $monthlyOrders->sum('quantity') > 0;
-                                $totalQuantity = 0;
-                                $totalAmount = 0;
-                                @endphp
-                                @if($hasOrders)
-                                <tr>
-                                    <td class="text-center font-medium pdf-stt-cell">{{ $stt }}</td>
-                                    <td class="font-medium px-4">{{ $product->name }}</td>
-                                    <td class="text-center">{{ $product->unit }}</td>
-                                    @php
-                                    $priceToUse = $product->price;
-                                    foreach ($departments as $dept) {
-                                    $order = $monthlyOrders->firstWhere('department_id', $dept->id);
-                                    if ($order && $order->price > 0) {
-                                    $priceToUse = $order->price;
-                                    }
-                                    $quantity = $order ? $order->quantity : 0;
-                                    $totalQuantity += $quantity;
-                                    }
-                                    $totalAmount = $totalQuantity * $priceToUse;
-                                    @endphp
-                                    <td class="text-right font-bold">{{ number_format($totalQuantity, 0, ',', '.') }}
-                                    </td>
-                                    <td class="text-right">{{ number_format($priceToUse, 0, ',', '.') }}</td>
-                                    <td class="text-right font-bold text-red-600">
-                                        {{ number_format($totalAmount, 0, ',', '.') }}
-                                    </td>
-                                    <td class="px-2 py-1 pdf-hide"
-                                        x-data="smartNote('{{ $product->id }}', '{{ $selectedMonth }}', {{ \Illuminate\Support\Js::from($product->monthlyOrders->first()->admin_notes ?? '') }})">
-                                        <div class="relative" @click.away="dropdownOpen = false">
-                                            <div class="relative group">
-                                                <input type="text" x-model="note" @focus="dropdownOpen = true"
-                                                    :style="{ backgroundColor: bgColor }"
-                                                    class="w-full border-gray-300 rounded text-sm px-2 py-1 transition-all pr-8"
-                                                    placeholder="Nhập ghi chú...">
+                                                                <!-- Products -->
+                                                                @foreach($products[$category->id] as $product)
+                                                                    @php
+                                                                        $stt++;
+                                                                        // Correctly filter orders for this month only
+                                                                        $monthlyOrders = $product->monthlyOrders->where('month', $selectedMonth);
+                                                                        $hasOrders = $monthlyOrders->sum('quantity') > 0;
+                                                                        $totalQuantity = 0;
+                                                                        $totalAmount = 0;
+                                                                    @endphp
+                                                                    @if($hasOrders)
+                                                                        <tr>
+                                                                            <td class="text-center font-medium pdf-stt-cell">{{ $stt }}</td>
+                                                                            <td class="font-medium px-4">{{ $product->name }}</td>
+                                                                            <td class="text-center">{{ $product->unit }}</td>
+                                                                            @php
+                                                                                $priceToUse = $product->price;
+                                                                                foreach ($departments as $dept) {
+                                                                                    $order = $monthlyOrders->firstWhere('department_id', $dept->id);
+                                                                                    if ($order && $order->price > 0) {
+                                                                                        $priceToUse = $order->price;
+                                                                                    }
+                                                                                    $quantity = $order ? $order->quantity : 0;
+                                                                                    $totalQuantity += $quantity;
+                                                                                }
+                                                                                $totalAmount = $totalQuantity * $priceToUse;
+                                                                            @endphp
+                                                                            <td class="text-right font-bold">{{ number_format($totalQuantity, 0, ',', '.') }}
+                                                                            </td>
+                                                                            <td class="text-right">{{ number_format($priceToUse, 0, ',', '.') }}</td>
+                                                                            <td class="text-right font-bold text-red-600">
+                                                                                {{ number_format($totalAmount, 0, ',', '.') }}
+                                                                            </td>
+                                                                            <td class="px-2 py-1 pdf-hide"
+                                                                                x-data="smartNote('{{ $product->id }}', '{{ $selectedMonth }}', {{ \Illuminate\Support\Js::from($product->monthlyOrders->first()->admin_notes ?? '') }})">
+                                                                                <div class="relative" @click.away="dropdownOpen = false">
+                                                                                    <div class="relative group">
+                                                                                        <input type="text" x-model="note" @focus="dropdownOpen = true"
+                                                                                            :style="{ backgroundColor: bgColor }"
+                                                                                            class="w-full border-gray-300 rounded text-sm px-2 py-1 transition-all pr-8"
+                                                                                            placeholder="Nhập ghi chú...">
 
-                                                <div class="absolute right-2 top-1/2 -translate-y-1/2">
-                                                    <template x-if="saving">
-                                                        <span
-                                                            class="material-symbols-outlined text-[16px] text-blue-500 animate-spin">sync</span>
-                                                    </template>
-                                                    <template x-if="!saving">
-                                                        <span
-                                                            class="material-symbols-outlined text-[16px] text-gray-300 group-hover:text-blue-500 transition-colors cursor-pointer"
-                                                            @click="dropdownOpen = !dropdownOpen">expand_more</span>
-                                                    </template>
-                                                </div>
-                                            </div>
+                                                                                        <div class="absolute right-2 top-1/2 -translate-y-1/2">
+                                                                                            <template x-if="saving">
+                                                                                                <span
+                                                                                                    class="material-symbols-outlined text-[16px] text-blue-500 animate-spin">sync</span>
+                                                                                            </template>
+                                                                                            <template x-if="!saving">
+                                                                                                <span
+                                                                                                    class="material-symbols-outlined text-[16px] text-gray-300 group-hover:text-blue-500 transition-colors cursor-pointer"
+                                                                                                    @click="dropdownOpen = !dropdownOpen">expand_more</span>
+                                                                                            </template>
+                                                                                        </div>
+                                                                                    </div>
 
-                                            <!-- Suggestions Dropdown -->
-                                            <div x-show="dropdownOpen" x-transition
-                                                class="absolute z-50 mt-1 w-full bg-white border shadow-xl rounded-lg p-2 min-w-[200px]">
-                                                <div class="flex flex-wrap gap-1">
-                                                    <template x-for="(sug, index) in suggestions" :key="index">
-                                                        <button @click="addSuggestion(sug); dropdownOpen = false"
-                                                            type="button"
-                                                            class="px-2 py-1 rounded text-[10px] font-bold border transition-all hover:bg-gray-100"
-                                                            :class="getChipClass(index)" x-text="sug">
-                                                        </button>
-                                                    </template>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </td>
+                                                                                    <!-- Suggestions Dropdown -->
+                                                                                    <div x-show="dropdownOpen" x-transition
+                                                                                        class="absolute z-50 mt-1 w-full bg-white border shadow-xl rounded-lg p-2 min-w-[200px]">
+                                                                                        <div class="flex flex-wrap gap-1">
+                                                                                            <template x-for="(sug, index) in suggestions" :key="index">
+                                                                                                <button @click="addSuggestion(sug); dropdownOpen = false"
+                                                                                                    type="button"
+                                                                                                    class="px-2 py-1 rounded text-[10px] font-bold border transition-all hover:bg-gray-100"
+                                                                                                    :class="getChipClass(index)" x-text="sug">
+                                                                                                </button>
+                                                                                            </template>
+                                                                                        </div>
+                                                                                    </div>
+                                                                                </div>
+                                                                            </td>
+                                                                    @endif
+                                                                @endforeach
+
+                                                                    <!-- Category Total -->
+                                                                <tr class="category-total">
+                                                                    <td colspan="5" class="text-right">Cộng:</td>
+                                                                    @php
+                                                                        $catTotalAmount = 0;
+                                                                        foreach ($products[$category->id] as $p) {
+                                                                            $pOrders = $p->monthlyOrders->where('month', $selectedMonth);
+                                                                            $pQty = $pOrders->sum('quantity');
+                                                                            $pPrice = $p->price;
+                                                                            if ($pOrders->count() > 0 && $pOrders->first()->price > 0) {
+                                                                                $pPrice = $pOrders->first()->price;
+                                                                            }
+                                                                            $catTotalAmount += $pQty * $pPrice;
+                                                                        }
+                                                                    @endphp
+                                                                    <td class="text-right font-bold text-red-600">
+                                                                        {{ number_format($catTotalAmount, 0, ',', '.') }}
+                                                                    </td>
+                                                                </tr>
+                                        @endif
                                     @endif
-                                    @endforeach
-
-                                    <!-- Category Total -->
-                                <tr class="category-total">
-                                    <td colspan="5" class="text-right">Cộng:</td>
-                                    @php
-                                    $catTotalAmount = 0;
-                                    foreach($products[$category->id] as $p) {
-                                    $pOrders = $p->monthlyOrders->where('month', $selectedMonth);
-                                    $pQty = $pOrders->sum('quantity');
-                                    $pPrice = $p->price;
-                                    if ($pOrders->count() > 0 && $pOrders->first()->price > 0) {
-                                    $pPrice = $pOrders->first()->price;
-                                    }
-                                    $catTotalAmount += $pQty * $pPrice;
-                                    }
-                                    @endphp
-                                    <td class="text-right font-bold text-red-600">
-                                        {{ number_format($catTotalAmount, 0, ',', '.') }}
-                                    </td>
-                                </tr>
-                                @endif
-                                @endif
                                 @endforeach
 
                                 <!-- Total Quantity Row -->
                                 @php
-                                $totalOverallQty = 0;
-                                foreach($categories as $cat) {
-                                if(isset($products[$cat->id])) {
-                                foreach($products[$cat->id] as $p) {
-                                $totalOverallQty += $p->monthlyOrders->where('month', $selectedMonth)->sum('quantity');
-                                }
-                                }
-                                }
+                                    $totalOverallQty = 0;
+                                    foreach ($categories as $cat) {
+                                        if (isset($products[$cat->id])) {
+                                            foreach ($products[$cat->id] as $p) {
+                                                $totalOverallQty += $p->monthlyOrders->where('month', $selectedMonth)->sum('quantity');
+                                            }
+                                        }
+                                    }
                                 @endphp
                                 <tr class="category-total bg-amber-50">
                                     <td colspan="3" class="text-right font-bold">TỔNG CỘNG SỐ LƯỢNG:</td>
                                     <td class="text-right font-extrabold text-blue-700">{{
-                                        number_format($totalOverallQty,
-                                        0, ',', '.') }}</td>
+    number_format(
+        $totalOverallQty,
+        0,
+        ',',
+        '.'
+    ) }}</td>
                                     <td colspan="2"></td>
                                 </tr>
 
@@ -1440,70 +1462,7 @@
         // Note manager toggle is now handled by Alpine.js x-show and @click.away
     </script>
 
-    @php
-    $jsonDepartments = $departments->map(function ($dept) {
-    return [
-    'id' => $dept->id,
-    'name' => $dept->name
-    ];
-    });
-
-    $deptData = [];
-    foreach ($departments as $dept) {
-    $deptCats = [];
-    foreach ($categories as $cat) {
-    $catProducts = [];
-    if (isset($products[$cat->id])) {
-    foreach ($products[$cat->id] as $product) {
-    // AGGREGATE orders for CURRENT MONTH AND THIS DEPARTMENT (matching aggregated import)
-    $matchingOrders = $product->monthlyOrders
-    ->where('department_id', $dept->id)
-    ->where('month', $selectedMonth);
-
-    $totalQty = $matchingOrders->sum('quantity');
-
-    if ($totalQty > 0) {
-    $priceToUse = $product->price;
-    if ($matchingOrders->count() > 0 && $matchingOrders->first()->price > 0) {
-    $priceToUse = $matchingOrders->first()->price;
-    }
-    $catProducts[] = [
-    'id' => $product->id,
-    'name' => $product->name,
-    'unit' => $product->unit,
-    'quantity' => $totalQty,
-    'price' => $priceToUse,
-    'total' => $totalQty * $priceToUse,
-    'note' => $matchingOrders->map(function($o) {
-    $notes = [];
-    if ($o->notes) $notes[] = $o->notes;
-
-    // Extract only the part after ||| (Part 2) for PHIẾU XUẤT KHO
-    if ($o->admin_notes) {
-    $parts = explode('|||', $o->admin_notes);
-    $privatePart = isset($parts[1]) ? trim($parts[1]) : '';
-    if ($privatePart !== '') {
-    $notes[] = $privatePart;
-    }
-    }
-    return implode(' - ', $notes);
-    })->filter()->implode('; ')
-    ];
-    }
-    }
-    }
-    if (count($catProducts) > 0) {
-    $deptCats[] = [
-    'id' => $cat->id,
-    'name' => $cat->name,
-    'products' => $catProducts,
-    'total' => array_sum(array_column($catProducts, 'total'))
-    ];
-    }
-    }
-    $deptData[$dept->id] = $deptCats;
-    }
-    @endphp
+    {{-- Heavy data processing moved to AdminController for performance --}}
 
     <script>
         function consolidatedApp() {
@@ -1620,8 +1579,12 @@
                     if (!this.pendingEdit) return;
 
                     let reasonParts = [];
-                    if (this.selectedReasonOption) reasonParts.push(this.selectedReasonOption);
-                    if (this.detailedReason && this.detailedReason.trim()) reasonParts.push(this.detailedReason.trim());
+                    if (this.selectedReasonOption && this.selectedReasonOption !== 'Lý do khác') {
+                        reasonParts.push(this.selectedReasonOption);
+                    }
+                    if (this.detailedReason && this.detailedReason.trim()) {
+                        reasonParts.push(this.detailedReason.trim());
+                    }
 
                     let finalReason = reasonParts.join(' - ');
 
@@ -1715,10 +1678,17 @@
                 grandTotal: 0,
 
                 init() {
-                    if (this.departments.length > 0) {
+                    const savedDept = localStorage.getItem('active_consolidated_dept');
+                    if (savedDept && this.departments.some(d => d.id == savedDept)) {
+                        this.selectedDeptId = savedDept;
+                    } else if (this.departments.length > 0) {
                         this.selectedDeptId = this.departments[0].id;
                     }
-                    this.$watch('selectedDeptId', (val) => this.updateView(val));
+
+                    this.$watch('selectedDeptId', (val) => {
+                        localStorage.setItem('active_consolidated_dept', val);
+                        this.updateView(val);
+                    });
 
                     // Lắng nghe sự kiện cập nhật số lượng từ Bảng Tổng
                     window.addEventListener('quantity-updated', (e) => {

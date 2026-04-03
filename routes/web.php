@@ -49,7 +49,7 @@ Route::middleware(['auth', 'role:Admin'])->prefix('admin')->name('admin.')->grou
     Route::get('/consolidated/export', [AdminController::class, 'exportConsolidated'])->name('consolidated.export');
     Route::get('/consolidated/export-biemmau', [AdminController::class, 'exportBiemMau'])->name('consolidated.export.biemmau');
     Route::get('/consolidated/export-tongvpp', [AdminController::class, 'exportTongVPP'])->name('consolidated.export.tongvpp');
-    Route::get('/consolidated/export-tongvppall', [AdminController::class, 'exportTongVPPAll'])->name('consolidated.export.tongvppall');
+
     Route::get('/consolidated/print', [AdminController::class, 'printConsolidated'])->name('consolidated.print');
     Route::post('/consolidated/update-note', [AdminController::class, 'updateNote'])->name('consolidated.update_note');
     Route::post('/consolidated/update-private-note', [AdminController::class, 'updatePrivateNote'])->name('consolidated.update_private_note');

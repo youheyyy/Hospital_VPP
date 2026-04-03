@@ -145,6 +145,62 @@ class AdminController extends Controller
             $data['grams'] = ceil($data['sheets'] / 500);
         }
 
+        // Prepare deptData and jsonDepartments for the view (Optimize for Phiếu xuất kho tab)
+        $jsonDepartments = $departments->map(fn($d) => ['id' => $d->id, 'name' => $d->name]);
+        $deptData = [];
+
+        // Group ALL orders once to avoid P*D queries in loops
+        $allOrdersGrouped = \App\Models\MonthlyOrder::where('month', $selectedMonth)
+            ->get()
+            ->groupBy(fn($o) => $o->department_id . '-' . $o->product_id);
+
+        foreach ($departments as $dept) {
+            $deptCats = [];
+            foreach ($categories as $cat) {
+                $catProducts = [];
+                if (isset($products[$cat->id])) {
+                    foreach ($products[$cat->id] as $product) {
+                        $ordersKey = $dept->id . '-' . $product->id;
+                        $matchingOrders = $allOrdersGrouped->get($ordersKey, collect());
+                        $totalQty = $matchingOrders->sum('quantity');
+
+                        if ($totalQty > 0) {
+                            $priceToUse = ($matchingOrders->first()->price > 0) ? $matchingOrders->first()->price : $product->price;
+                            
+                            $notes = $matchingOrders->map(function ($o) {
+                                $n = [];
+                                if ($o->notes) $n[] = $o->notes;
+                                if ($o->admin_notes) {
+                                    $parts = explode('|||', $o->admin_notes);
+                                    if (isset($parts[1]) && trim($parts[1]) !== '') $n[] = trim($parts[1]);
+                                }
+                                return implode(' - ', $n);
+                            })->filter()->implode('; ');
+
+                            $catProducts[] = [
+                                'id' => $product->id,
+                                'name' => $product->name,
+                                'unit' => $product->unit,
+                                'quantity' => $totalQty,
+                                'price' => $priceToUse,
+                                'total' => $totalQty * $priceToUse,
+                                'note' => $notes
+                            ];
+                        }
+                    }
+                }
+                if (!empty($catProducts)) {
+                    $deptCats[] = [
+                        'id' => $cat->id,
+                        'name' => $cat->name,
+                        'products' => $catProducts,
+                        'total' => array_sum(array_column($catProducts, 'total'))
+                    ];
+                }
+            }
+            $deptData[$dept->id] = $deptCats;
+        }
+
         return view('admin.consolidated', compact(
             'departments',
             'categories',
@@ -153,7 +209,9 @@ class AdminController extends Controller
             'selectedMonth',
             'categoryTotals',
             'grandTotal',
-            'paperSummary'
+            'paperSummary',
+            'jsonDepartments',
+            'deptData'
         ));
     }
 
@@ -288,45 +346,7 @@ class AdminController extends Controller
         return $export->download('Export_Tong_VPP_' . str_replace('/', '_', $selectedMonth) . '.xlsx');
     }
 
-    public function exportTongVPPAll(Request $request)
-    {
-        $selectedMonth = $request->input('month', date('m/Y'));
-        $departments = Department::where('is_active', true)->orderBy('name')->get();
-        $categories = Category::orderBy('display_order')->get();
 
-        $products = Product::with([
-            'category',
-            'monthlyOrders' => function ($query) use ($selectedMonth) {
-                $query->where('month', $selectedMonth)->with('department');
-            }
-        ])
-            ->orderBy('category_id')
-            ->orderBy('display_order')
-            ->get()
-            ->groupBy('category_id');
-
-        $categoryTotals = [];
-        foreach ($products as $categoryId => $categoryProducts) {
-            $categoryTotal = 0;
-            foreach ($categoryProducts as $product) {
-                foreach ($product->monthlyOrders as $order) {
-                    if ($order->month == $selectedMonth) {
-                        $price = ($order->price && $order->price > 0) ? $order->price : $product->price;
-                        $categoryTotal += $order->quantity * $price;
-                    }
-                }
-            }
-            $categoryTotals[$categoryId] = $categoryTotal;
-        }
-        $grandTotal = array_sum($categoryTotals);
-
-        // Use the NEW specialized export class
-        $export = new \App\Exports\ConsolidatedAllExport(
-            $selectedMonth, $departments, $categories, $products, $categoryTotals, $grandTotal, 'all', null
-        );
-
-        return $export->download('Export_Tong_VPP_Chung_' . str_replace('/', '_', $selectedMonth) . '.xlsx');
-    }
 
 
     /**
